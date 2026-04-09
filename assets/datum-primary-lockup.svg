@@ -1,0 +1,10 @@
+<svg width="960" height="260" viewBox="0 0 960 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="260" rx="28" fill="#F7F3EC"/>
+  <rect x="36" y="36" width="232" height="188" rx="28" fill="#FBF8F4" stroke="#DDD2C5" stroke-width="2"/>
+  <path d="M82 172V86H136.5C170.19 86 191 104.231 191 129C191 153.769 170.19 172 136.5 172H111" stroke="#1F2528" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M163 129H219" stroke="#C76332" stroke-width="8" stroke-linecap="round"/>
+  <path d="M174 86H221.5C246.076 86 261 98.0625 261 115.5C261 132.938 246.076 145 221.5 145H199.5C181.193 145 168 156.625 168 174.5C168 192.375 181.193 204 199.5 204H249" stroke="#1F2528" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="318" y="114" fill="#1F2528" font-family="'IBM Plex Sans', Arial, sans-serif" font-size="34" font-weight="600" letter-spacing="4">PRESSURE</text>
+  <text x="318" y="164" fill="#1F2528" font-family="'IBM Plex Serif', Georgia, serif" font-size="66" font-weight="600" letter-spacing="-1.2">Systems</text>
+  <text x="320" y="204" fill="#556261" font-family="'IBM Plex Mono', Consolas, monospace" font-size="18" font-weight="500" letter-spacing="3.2">WE TURN OPERATIONAL MESS INTO BUILDABLE SYSTEMS</text>
+</svg>
