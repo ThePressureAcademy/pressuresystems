@@ -24,6 +24,8 @@ That keeps the site:
 - a working mailto-based enquiry fallback
 - optional support for a future Formspree endpoint
 - brand assets needed by the site
+- metadata and social preview setup
+- `robots.txt` and `sitemap.xml`
 - Vercel-ready static configuration
 
 ## What is intentionally excluded
