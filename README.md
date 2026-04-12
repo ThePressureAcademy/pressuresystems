@@ -61,3 +61,5 @@ Open `index.html` directly in a browser for a quick review, or serve the folder 
 ## Deployment
 
 This project is configured to deploy cleanly as a static Vercel site.
+
+Release chain audit note: GitHub-connected production deploy path rechecked on 12 April 2026.
