@@ -374,6 +374,10 @@ button {
   margin-top: 30px;
 }
 
+.lq-chip-row-spaced {
+  margin-top: 18px;
+}
+
 .lq-micro {
   margin-top: 18px;
   color: var(--lq-text-muted);
