@@ -21,8 +21,11 @@ That keeps the site:
 
 - one homepage / landing page
 - one audit-first conversion path
+- one privacy policy page
+- one LiftIQ product route under `/liftiq/`
 - a working mailto-based enquiry fallback
-- optional support for a future Formspree endpoint
+- a live Formspree path on the LiftIQ contact routes
+- optional support for a future Formspree endpoint on the main Pressure Systems audit form
 - brand assets needed by the site
 - metadata and social preview setup
 - `robots.txt` and `sitemap.xml`
@@ -39,15 +42,17 @@ That keeps the site:
 
 ## Form configuration
 
-The site launches with a working email-draft path.
+The main Pressure Systems audit form launches with a working email-draft path.
 
-To connect a live Formspree endpoint later:
+To connect a live Formspree endpoint later on the main audit form:
 
 1. Open `site-config.js`
 2. Set `formEndpoint` to the live Formspree endpoint URL
 3. Redeploy the site
 
 If `formEndpoint` is blank, the form opens a structured email draft to `sales@pressuresystems.au`.
+
+The LiftIQ contact, design-partner and briefing paths retain their existing Formspree handling.
 
 ## Local preview
 
