@@ -76,7 +76,7 @@
         setStatus("Your email draft should be open now. If not, email sales@pressuresystems.au directly.", "info");
       }
     } catch (error) {
-      setStatus("The web form is not connected yet. Please email sales@pressuresystems.au and include your site link.", "error");
+      setStatus("Submission failed. Please retry or email sales@pressuresystems.au directly and include your site link.", "error");
     } finally {
       submitButton.disabled = false;
     }

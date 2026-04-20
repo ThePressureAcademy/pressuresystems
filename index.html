@@ -275,7 +275,13 @@
             </div>
           </div>
 
-          <form class="audit-form" id="auditForm" novalidate>
+          <form
+            class="audit-form"
+            id="auditForm"
+            action="https://formspree.io/f/xzdyappr"
+            method="POST"
+            novalidate
+          >
             <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" class="honeypot" aria-hidden="true">
             <label>
               <span>Your name</span>
@@ -301,9 +307,9 @@
               <span>What outcome do you want?</span>
               <textarea name="goal" rows="3" placeholder="More credible presentation, cleaner enquiry flow, stronger proof, clearer next steps."></textarea>
             </label>
-            <button type="submit" class="button button-primary button-block">Prepare audit email</button>
+            <button type="submit" class="button button-primary button-block">Send audit request</button>
             <p class="form-note">
-              This launch version opens a structured email draft to `sales@pressuresystems.au`. A live web endpoint can be connected later without rebuilding the page.
+              Audit requests are now sent directly through the site. If submission fails, email `sales@pressuresystems.au`.
             </p>
             <p class="form-status" id="formStatus" aria-live="polite"></p>
           </form>
