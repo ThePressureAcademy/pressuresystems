@@ -42,7 +42,7 @@ As of the current `main` branch:
 - GitHub is connected to a Vercel project named `pressuresystems`
 - `main` is the production deployment branch
 - the site includes the Pressure Systems homepage plus LiftIQ child routes
-- the main Pressure Systems audit form defaults to a mailto fallback unless `site-config.js` is connected to a live endpoint
+- the main Pressure Systems audit form submits to the live Formspree endpoint defined in `site-config.js`
 - LiftIQ routes use their own existing contact paths and truthful product-stage language
 
 Important deployment note:
@@ -178,17 +178,17 @@ Controlled by:
 - `site-config.js`
 - `script.js`
 
-Current default behavior:
+Current live behavior:
 
-- `formEndpoint` is blank
-- the form falls back to a structured `mailto:` draft to `sales@pressuresystems.au`
+- `formEndpoint` is set in `site-config.js`
+- the homepage form submits directly to Formspree
+- direct email remains available as a fallback contact path, not the default submission path
 
-If a live web submission path is needed later:
+If the endpoint changes later:
 
-1. create the endpoint
-2. set `formEndpoint` in `site-config.js`
-3. redeploy
-4. verify both success and failure states in browser
+1. update `formEndpoint` in `site-config.js`
+2. redeploy
+3. verify both success and failure states in browser
 
 ### LiftIQ routes
 
