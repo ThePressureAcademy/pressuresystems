@@ -1,0 +1,16 @@
+{
+  "name": "Pressure Systems",
+  "short_name": "Pressure Systems",
+  "description": "Pressure Systems audits and repairs trust-damaging websites for operator-led businesses.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F3EC",
+  "theme_color": "#1F2528",
+  "icons": [
+    {
+      "src": "assets/logos/pressure-systems-favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
