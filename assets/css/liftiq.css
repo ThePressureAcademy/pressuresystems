@@ -955,6 +955,18 @@ button {
   line-height: 1.72;
 }
 
+.lq-inline-link {
+  color: var(--lq-text-strong);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.lq-inline-link:hover,
+.lq-inline-link:focus-visible {
+  color: var(--lq-cyan);
+}
+
 .lq-form {
   display: grid;
   gap: 14px;
