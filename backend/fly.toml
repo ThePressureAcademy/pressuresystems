@@ -1,0 +1,45 @@
+# Fly.io config for the LIFTIQ pilot console.
+#
+# Before first deploy, run `fly launch --no-deploy` and let it choose an app
+# name + region — it will overwrite the `app` and `primary_region` lines below.
+# Or run the deploy steps in README.md, which take care of this for you.
+
+app            = "liftiq-pilot"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT     = "3001"
+  DB_PATH  = "/data/liftiq.db"
+  NODE_ENV = "production"
+
+# Single-machine deployment so the SQLite WAL file stays consistent.
+# Scale by switching to Postgres before adding a second machine.
+[[mounts]]
+  source      = "liftiq_data"
+  destination = "/data"
+
+[http_service]
+  internal_port      = 3001
+  force_https        = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 50
+    soft_limit = 25
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval     = "30s"
+  method       = "get"
+  path         = "/api/health"
+  timeout      = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
