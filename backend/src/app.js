@@ -1,5 +1,6 @@
 'use strict';
 
+const path    = require('path');
 const express = require('express');
 
 const app = express();
@@ -23,6 +24,14 @@ app.use('/api/metrics',      require('./routes/metrics'));
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
+
+// ─── Pilot console (static SPA) ───────────────────────────────────────────────
+const CONSOLE_DIR = path.join(__dirname, '../public/console');
+app.use('/console', express.static(CONSOLE_DIR, { index: 'index.html' }));
+app.get('/console/*', (req, res) => {
+  res.sendFile(path.join(CONSOLE_DIR, 'index.html'));
+});
+app.get('/', (req, res) => res.redirect('/console/'));
 
 // Error handler
 app.use((err, req, res, _next) => {
