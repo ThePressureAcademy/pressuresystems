@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIFTIQ Pilot Console</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="login-screen" class="login-shell hidden">
+    <form id="login-form" class="login-card">
+      <h1>LIFTIQ</h1>
+      <p class="subtitle">Pilot Console</p>
+      <label>
+        <span>Email</span>
+        <input type="email" name="email" required autocomplete="username">
+      </label>
+      <label>
+        <span>Password</span>
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <button type="submit">Sign in</button>
+      <div id="login-error" class="error" role="alert"></div>
+    </form>
+  </div>
+
+  <div id="app-shell" class="app-shell hidden">
+    <header class="topbar">
+      <div class="brand">LIFTIQ <span class="badge">pilot</span></div>
+      <nav id="nav">
+        <a href="#/dashboard" data-route="dashboard">Dashboard</a>
+        <a href="#/workers" data-route="workers">Workers</a>
+        <a href="#/jobs" data-route="jobs">Jobs</a>
+        <a href="#/audit" data-route="audit">Audit log</a>
+        <a href="#/metrics" data-route="metrics">Metrics</a>
+      </nav>
+      <div class="user-menu">
+        <span id="user-label"></span>
+        <button id="logout" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <main id="view"></main>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
