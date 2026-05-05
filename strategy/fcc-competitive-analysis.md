@@ -13,7 +13,7 @@ FCC is a 30-year-old operational spine for crane businesses. LIFTIQ is a 6-month
 
 **The strategic opportunity:** FCC's 30 years of operational depth is also its ceiling. It has an ageing UI, heavy implementation burden, no crew intelligence layer, no fatigue management, and a rigid product architecture that cannot adapt quickly. The crane industry is underserved on decision quality — not on record-keeping.
 
-LIFTIQ's path to serious competition is through the intelligence layer FCC does not have, used as proof, then expanded into the operational spine FCC owns.
+LIFTIQ's path to serious competition is through fatigue-aware, explainable dispatch intelligence — the decision layer FCC does not clearly provide — used as proof, then expanded into the operational spine FCC owns.
 
 ---
 
@@ -140,13 +140,13 @@ This is the classic platform wedge: enter where the incumbent is weakest, prove 
 ### Phase 2 — Credibility and Compliance (Months 12–24)
 **Goal:** Become the credentialing and compliance layer that the industry cannot ignore. Begin entering FCC's customer base.
 
-**Step 2.1 — Immutable audit trail and compliance reporting**
+**Step 2.1 — Allocation-level audit trail**
 - Upgrade AuditIQ from preview-only to persisted, exportable, timestamped audit log
-- Align with Safe Work Australia fatigue management codes of practice
-- Produce reports that a WHS manager can use in an incident investigation
-- This is the feature that makes the risk calculus undeniable for operators: if an incident happens and LIFTIQ was in use, the audit trail exists. If not, it doesn't.
+- Record: who recommended, who was selected, what warnings were active, whether a block was overridden, and why
+- Align the fatigue risk reporting specifically with Safe Work Australia fatigue management codes of practice
+- FCC has safety checklists, electronic documents, and certification tracking. What it does not have is a per-allocation decision record — who ranked whom, why, what risk was visible at the moment of dispatch, and what the dispatcher chose to do. That is the specific whitespace.
 
-*FCC does not have this. No competitor in the Australian market has been confirmed to have it. This is a whitespace claim if built correctly.*
+*Narrow the claim: LIFTIQ does not claim FCC lacks safety or compliance broadly. LIFTIQ claims FCC lacks explainable, fatigue-aware, allocation-level decision records. That is the defensible differentiator.*
 
 **Step 2.2 — Credential expiry management**
 - Track credential issue dates and expiry dates against issuing body standards
@@ -236,8 +236,8 @@ This is the classic platform wedge: enter where the incumbent is weakest, prove 
 |----------|---------------|
 | Aged UI — described as legacy by own customers | LIFTIQ's design quality is a visible differentiator from Day 1 |
 | Heavy implementation burden (months, database setup, retraining) | LIFTIQ: days to value, not months |
-| No crew fatigue management | LIFTIQ's core differentiator; regulatory urgency increases this |
-| No crew intelligence / ranking | FCC assigns; LIFTIQ recommends. Different cognitive value. |
+| No fatigue-aware allocation | FCC has safety checklists; it does not have fatigue-driven crew ranking or fatigue hard blocks at the point of dispatch selection |
+| No explainable crew ranking | FCC assigns; LIFTIQ recommends with a visible score breakdown. Dispatchers can understand and contest the recommendation. |
 | Rigid product — small changes rejected | LIFTIQ: iterate in weeks based on partner feedback |
 | Opaque pricing — enterprise gate | LIFTIQ: transparent, accessible, per-operator |
 | Admin cannot edit jobs once set | LIFTIQ: operational flexibility as a feature |
