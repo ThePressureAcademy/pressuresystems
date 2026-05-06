@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.env
+data/
+tests/
+*.test.js
+.DS_Store
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+fly.toml
