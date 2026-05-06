@@ -17,7 +17,10 @@ COPY . .
 # ─── Runtime stage ────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runtime
 
-RUN addgroup -S liftiq && adduser -S liftiq -G liftiq
+# su-exec lets the entrypoint fix /data permissions then drop to non-root
+RUN apk add --no-cache su-exec \
+ && addgroup -S liftiq && adduser -S liftiq -G liftiq \
+ && mkdir -p /data
 
 WORKDIR /app
 
@@ -26,16 +29,16 @@ COPY --from=build --chown=liftiq:liftiq /app/package.json /app/package-lock.json
 COPY --from=build --chown=liftiq:liftiq /app/src ./src
 COPY --from=build --chown=liftiq:liftiq /app/public ./public
 
-# SQLite database lives on a persistent volume. The host should mount /data.
-RUN mkdir -p /data && chown -R liftiq:liftiq /data
+# Entrypoint runs as root, fixes volume ownership, then drops to liftiq
+COPY --from=build --chmod=755 /app/entrypoint.sh /entrypoint.sh
+
 ENV DB_PATH=/data/liftiq.db
 ENV NODE_ENV=production
 ENV PORT=3001
 
-USER liftiq
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost:3001/api/health || exit 1
 
-CMD ["node", "src/server.js"]
+CMD ["/entrypoint.sh"]
