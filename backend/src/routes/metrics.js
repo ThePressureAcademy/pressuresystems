@@ -48,6 +48,7 @@ router.get('/', requireAuth, (req, res) => {
     period: { from: fromStr, to: toStr },
     total_jobs:                totalJobs,
     total_allocations:         totalAllocations,
+    workers_imported:          countEvents('worker_imported'),
     top_ranked_selections:     topRankedSelections,
     lower_ranked_selections:   lowerRankedSelections,
     credential_blocks:         countEvents('credential_block_applied'),
@@ -56,6 +57,9 @@ router.get('/', requireAuth, (req, res) => {
     availability_blocks:       countEvents('availability_block_applied'),
     warning_overrides:         countEvents('warning_acknowledged'),
     allocation_rejections:     countEvents('allocation_rejected'),
+    preference_signals_created: countEvents('preference_signal_created'),
+    preference_signals_updated: countEvents('preference_signal_updated'),
+    learned_preference_applications: countEvents('learned_preference_applied'),
     total_audit_events:        db.prepare(
       `SELECT COUNT(*) as n FROM audit_events WHERE company_id = ? AND timestamp >= ? AND timestamp <= ?`
     ).get(cid, fromStr, toStr).n

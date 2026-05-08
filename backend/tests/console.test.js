@@ -54,9 +54,22 @@ describe('Pilot console — static asset serving', () => {
     assert.equal(res.status, 200);
     assert.match(res.headers['content-type'], /javascript/);
     assert.match(res.text, /renderDashboard/);
+    assert.match(res.text, /renderWorkerImport/);
     assert.match(res.text, /renderSmartRank/);
     assert.match(res.text, /renderAllocate/);
     assert.match(res.text, /renderAudit/);
+  });
+
+  test('GET /samples exposes the employee onboarding sample files', async () => {
+    const csv = await supertest(app).get('/samples/employee-import-sample.csv');
+    assert.equal(csv.status, 200);
+    assert.match(csv.text, /first_name,last_name,email/);
+    assert.match(csv.text, /jack\.thompson@example\.com/);
+
+    const tsv = await supertest(app).get('/samples/employee-import-sample.tsv');
+    assert.equal(tsv.status, 200);
+    assert.match(tsv.text, /first_name\tlast_name\temail/);
+    assert.match(tsv.text, /jack\.thompson@example\.com/);
   });
 
   test('GET /console/<arbitrary> falls back to index.html (SPA routing)', async () => {
@@ -75,6 +88,7 @@ describe('Pilot console — static asset serving', () => {
     for (const fn of [
       'renderDashboard',     // login screen is in DOMContentLoaded login-form handler
       'renderWorkersList',   // workers list
+      'renderWorkerImport',  // CSV / TSV import flow
       'renderNewWorker',     // create worker
       'renderWorkerDetail',  // worker detail (also renders credentials + fatigue inline)
       'renderJobsList',      // jobs list
