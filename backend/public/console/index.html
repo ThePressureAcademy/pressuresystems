@@ -11,6 +11,10 @@
     <form id="login-form" class="login-card">
       <h1>LIFTIQ</h1>
       <p class="subtitle">Pilot Console</p>
+      <div class="security-banner">
+        Internal pilot warning: the seeded admin credentials are compromised.
+        Rotate the admin password before real pilot data or partner use.
+      </div>
       <label>
         <span>Email</span>
         <input type="email" name="email" required autocomplete="username">
@@ -19,7 +23,7 @@
         <span>Password</span>
         <input type="password" name="password" required autocomplete="current-password">
       </label>
-      <button type="submit">Sign in</button>
+      <button id="login-submit" type="submit">Sign in</button>
       <div id="login-error" class="error" role="alert"></div>
     </form>
   </div>

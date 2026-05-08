@@ -77,6 +77,12 @@ label > span {
   font-size: 13px;
 }
 
+.status-note {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 10px;
+}
+
 /* ─── Login ─── */
 .login-shell {
   min-height: 100vh;
@@ -102,7 +108,21 @@ label > span {
   color: var(--muted);
   font-size: 13px;
 }
+.security-banner {
+  background: rgba(255, 180, 84, 0.08);
+  border: 1px solid rgba(255, 180, 84, 0.3);
+  color: var(--warn);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
 .login-card button { width: 100%; padding: 10px; }
+.login-card button[disabled] {
+  cursor: wait;
+  filter: grayscale(0.2);
+  opacity: 0.85;
+}
 
 /* ─── App shell ─── */
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
@@ -314,4 +334,102 @@ ul.tag-list li {
   border-radius: 6px;
   font-size: 12px;
   margin-bottom: 14px;
+}
+
+.security-panel {
+  border-left: 4px solid var(--warn);
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 1fr);
+  gap: 20px;
+}
+
+.security-copy p {
+  margin: 0 0 10px 0;
+}
+
+.security-actions {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.security-actions h3 {
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.audit-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.audit-summary .pill {
+  width: fit-content;
+}
+
+@media (max-width: 840px) {
+  .topbar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  nav#nav {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .security-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kv {
+    grid-template-columns: 1fr;
+  }
+
+  main#view {
+    padding: 18px;
+  }
+}
+
+@media print {
+  .topbar,
+  .toast,
+  button,
+  .security-actions {
+    display: none !important;
+  }
+
+  body,
+  html,
+  .app-shell,
+  .panel,
+  .metric-tile {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  .panel,
+  .metric-tile,
+  .read-only-banner,
+  .security-banner {
+    border-color: #c7ccd4 !important;
+  }
+
+  a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
 }

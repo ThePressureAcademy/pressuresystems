@@ -15,6 +15,28 @@ npm start                     # http://localhost:3001
 
 Open `http://localhost:3001/` and sign in with the seeded credentials.
 
+## Manual dispatcher smoke test
+
+Use this after seeding a pilot admin account and starting the backend.
+
+1. Sign in at `/console/`.
+2. Create a worker.
+3. Add at least one credential to that worker.
+4. Add a fatigue / shift record for that worker.
+5. Create a job with the credential requirement needed for SmartRank.
+6. Run SmartRank and confirm the console shows ranked, warned, and blocked workers.
+7. Attempt a hard-blocked allocation and confirm the console shows the backend `422` rejection without showing success.
+8. Attempt a warning or lower-ranked allocation and confirm the console requires `override_reason`.
+9. Confirm a valid allocation and verify the allocation snapshot renders.
+10. Open Audit log and confirm it is read-only, filterable, and shows the recorded event trail.
+11. Open Pilot metrics and confirm the allocation, blocks, warnings, overrides, and audit totals changed.
+
+## Pilot security note
+
+- The default seeded admin credentials are for internal smoke tests only.
+- Rotate the pilot admin password from the console before any real pilot data or partner access.
+- The backend supports minimal authenticated password rotation via `PATCH /api/users/:id`; this console exposes that narrow action without adding full user-management scope.
+
 ## Run with Docker locally
 
 ```bash

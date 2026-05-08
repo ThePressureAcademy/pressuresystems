@@ -39,6 +39,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /id="app-shell"/);
     assert.match(res.text, /\.\/app\.js/);
     assert.match(res.text, /\.\/styles\.css/);
+    assert.match(res.text, /seeded admin credentials are compromised/i);
   });
 
   test('GET /console/styles.css returns CSS', async () => {
@@ -85,6 +86,12 @@ describe('Pilot console — static asset serving', () => {
       'renderMetrics',       // pilot metrics
       'buildCredentialForm', // credential entry
       'buildFatigueForm',    // fatigue entry
+      'buildSecurityPanel',  // seeded admin warning + minimal password rotation
+      'getHashState',        // audit filter hash routing
+      'nextRenderCycle',     // async render guard
+      'isStaleRender',       // async render guard
+      'auditEventReason',    // audit summary
+      'auditEventSignals',   // warning/block summary
     ]) {
       assert.match(appJs, new RegExp(`function ${fn}`),
         `Console must define ${fn}`);

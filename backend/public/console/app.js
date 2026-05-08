@@ -4,6 +4,7 @@
 const state = {
   token: null,
   user: null,
+  renderCycle: 0,
 };
 
 const TOKEN_KEY = 'liftiq.token';
@@ -40,12 +41,42 @@ const fmtDateOnly = (s) => {
   return s.length > 10 ? s.slice(0, 10) : s;
 };
 
+const shortId = (value) => value ? String(value).slice(0, 8) : '—';
+
+function getHashState() {
+  const raw = location.hash.replace(/^#\/?/, '') || 'dashboard';
+  const [pathPart, queryPart = ''] = raw.split('?');
+  const segments = pathPart.split('/').filter(Boolean);
+
+  return {
+    route: segments[0] || 'dashboard',
+    rest: segments.slice(1),
+    query: new URLSearchParams(queryPart),
+  };
+}
+
+function setButtonBusy(button, busy, idleLabel, busyLabel) {
+  if (!button) return;
+  button.disabled = busy;
+  button.textContent = busy ? busyLabel : idleLabel;
+}
+
+function nextRenderCycle() {
+  state.renderCycle += 1;
+  return state.renderCycle;
+}
+
+function isStaleRender(renderCycle) {
+  return renderCycle !== state.renderCycle;
+}
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 function toast(message, kind = 'info') {
   const t = document.getElementById('toast');
   t.textContent = message;
   t.className = `toast ${kind}`;
+  t.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), 4500);
 }
@@ -97,6 +128,7 @@ function saveSession(token, user) {
 }
 
 function logout() {
+  nextRenderCycle();
   state.token = null;
   state.user = null;
   localStorage.removeItem(TOKEN_KEY);
@@ -115,7 +147,7 @@ function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
   document.getElementById('user-label').textContent = state.user
-    ? `${state.user.name} · ${state.user.role}`
+    ? `${state.user.name} - ${state.user.role}`
     : '';
   if (!location.hash) location.hash = '#/dashboard';
   else router();
@@ -131,13 +163,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const email = data.get('email').trim();
     const password = data.get('password');
     const errEl = document.getElementById('login-error');
+    const submit = document.getElementById('login-submit');
     errEl.textContent = '';
+    setButtonBusy(submit, true, 'Sign in', 'Signing in...');
     try {
       const result = await api('POST', '/auth/login', { email, password });
       saveSession(result.token, result.user);
       showApp();
     } catch (err) {
       errEl.textContent = err.error || 'Login failed';
+    } finally {
+      setButtonBusy(submit, false, 'Sign in', 'Signing in...');
     }
   });
 
@@ -151,8 +187,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─── Router ───────────────────────────────────────────────────────────────────
 function router() {
   if (!state.token) { showLogin(); return; }
-  const hash = location.hash.replace(/^#\/?/, '') || 'dashboard';
-  const [route, ...rest] = hash.split('/');
+  const renderCycle = nextRenderCycle();
+  const { route, rest } = getHashState();
 
   // Highlight active nav
   document.querySelectorAll('#nav a').forEach(a => {
@@ -160,25 +196,26 @@ function router() {
   });
 
   const view = document.getElementById('view');
-  view.innerHTML = '<div class="empty">Loading…</div>';
+  view.innerHTML = '<div class="empty">Loading...</div>';
 
   const routes = {
-    'dashboard': renderDashboard,
-    'workers':   () => rest[0] ? renderWorkerDetail(rest[0]) : renderWorkersList(),
+    'dashboard': () => renderDashboard(renderCycle),
+    'workers':   () => rest[0] ? renderWorkerDetail(rest[0], renderCycle) : renderWorkersList(renderCycle),
     'jobs':      () => {
-      if (!rest[0]) return renderJobsList();
-      if (rest[1] === 'smartrank') return renderSmartRank(rest[0]);
-      if (rest[1] === 'allocate')  return renderAllocate(rest[0], rest[2]);
-      return renderJobDetail(rest[0]);
+      if (!rest[0]) return renderJobsList(renderCycle);
+      if (rest[1] === 'smartrank') return renderSmartRank(rest[0], renderCycle);
+      if (rest[1] === 'allocate')  return renderAllocate(rest[0], rest[2], renderCycle);
+      return renderJobDetail(rest[0], renderCycle);
     },
-    'audit':   renderAudit,
-    'metrics': renderMetrics,
+    'audit':   () => renderAudit(renderCycle),
+    'metrics': () => renderMetrics(renderCycle),
     'new-job': renderNewJob,
     'new-worker': renderNewWorker,
   };
 
-  const handler = routes[route] || renderDashboard;
+  const handler = routes[route] || (() => renderDashboard(renderCycle));
   Promise.resolve(handler()).catch(err => {
+    if (isStaleRender(renderCycle)) return;
     view.innerHTML = '';
     view.appendChild(el('div', { class: 'panel' },
       el('h2', {}, 'Something went wrong'),
@@ -188,11 +225,12 @@ function router() {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-async function renderDashboard() {
+async function renderDashboard(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
   const metrics = await api('GET', '/metrics');
+  if (isStaleRender(renderCycle)) return;
 
   const tile = (label, value) => el('div', { class: 'metric-tile' },
     el('div', { class: 'label' }, label),
@@ -207,6 +245,8 @@ async function renderDashboard() {
       el('a', { href: '#/new-worker' }, el('button', { class: 'secondary' }, '+ New worker'))
     )
   ));
+
+  view.appendChild(buildSecurityPanel());
 
   const tiles = el('div', { class: 'metrics-grid' });
   tiles.appendChild(tile('Total jobs', metrics.total_jobs));
@@ -224,6 +264,7 @@ async function renderDashboard() {
 
   // Recent audit events preview
   const audit = await api('GET', '/audit-events?limit=8');
+  if (isStaleRender(renderCycle)) return;
   const auditPanel = el('div', { class: 'panel' },
     el('div', { class: 'toolbar' },
       el('h3', {}, 'Recent activity'),
@@ -234,12 +275,103 @@ async function renderDashboard() {
   view.appendChild(auditPanel);
 }
 
+function buildSecurityPanel() {
+  const panel = el('div', { class: 'panel security-panel' });
+  const copy = el('div', { class: 'security-copy' },
+    el('h3', {}, 'Pilot security'),
+    el('p', {},
+      'The seeded admin credentials used for backend smoke tests are compromised. ',
+      'Rotate the admin password before real pilot data or partner use.'
+    ),
+    el('p', { class: 'small muted' },
+      state.user?.email === 'admin@example.com'
+        ? 'You are signed in as the seeded admin account. Rotate this password now.'
+        : 'If this environment still uses the default seeded admin password, rotate it now.'
+    )
+  );
+
+  const actions = el('div', { class: 'security-actions' });
+  if (state.user?.role !== 'admin') {
+    actions.appendChild(el('h3', {}, 'Admin action required'));
+    actions.appendChild(el('p', { class: 'small muted' },
+      'Only an authenticated admin can rotate the pilot password from the console.'
+    ));
+  } else {
+    const form = el('form');
+    form.appendChild(el('h3', {}, 'Rotate current admin password'));
+    form.appendChild(el('label', {},
+      el('span', {}, 'New password'),
+      el('input', {
+        name: 'password',
+        type: 'password',
+        required: true,
+        minlength: '12',
+        autocomplete: 'new-password'
+      })
+    ));
+    form.appendChild(el('label', {},
+      el('span', {}, 'Confirm new password'),
+      el('input', {
+        name: 'confirm_password',
+        type: 'password',
+        required: true,
+        minlength: '12',
+        autocomplete: 'new-password'
+      })
+    ));
+
+    const errBox = el('div', { class: 'error' });
+    const note = el('div', { class: 'status-note' },
+      'This uses the existing admin API. The current browser session stays active after rotation.'
+    );
+    const submit = el('button', { type: 'submit' }, 'Rotate password');
+
+    form.appendChild(errBox);
+    form.appendChild(el('div', { class: 'button-row' }, submit));
+    form.appendChild(note);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errBox.textContent = '';
+      const fd = new FormData(form);
+      const password = String(fd.get('password') || '');
+      const confirm = String(fd.get('confirm_password') || '');
+
+      if (password.length < 12) {
+        errBox.textContent = 'Use at least 12 characters for the pilot admin password.';
+        return;
+      }
+      if (password !== confirm) {
+        errBox.textContent = 'The password confirmation does not match.';
+        return;
+      }
+
+      setButtonBusy(submit, true, 'Rotate password', 'Rotating...');
+      try {
+        await api('PATCH', `/users/${state.user.id}`, { password });
+        form.reset();
+        toast('Admin password rotated', 'success');
+      } catch (err) {
+        errBox.textContent = err.error || 'Password rotation failed';
+      } finally {
+        setButtonBusy(submit, false, 'Rotate password', 'Rotating...');
+      }
+    });
+
+    actions.appendChild(form);
+  }
+
+  panel.appendChild(el('div', { class: 'security-grid' }, copy, actions));
+  return panel;
+}
+
 // ─── Workers list ─────────────────────────────────────────────────────────────
-async function renderWorkersList() {
+async function renderWorkersList(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
   const workers = await api('GET', '/workers');
+  if (isStaleRender(renderCycle)) return;
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, 'Workers'),
@@ -355,7 +487,7 @@ function renderNewWorker() {
 }
 
 // ─── Worker detail (with credentials + fatigue) ───────────────────────────────
-async function renderWorkerDetail(workerId) {
+async function renderWorkerDetail(workerId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
@@ -364,6 +496,7 @@ async function renderWorkerDetail(workerId) {
     api('GET', `/workers/${workerId}/credentials`),
     api('GET', `/workers/${workerId}/fatigue-records`),
   ]);
+  if (isStaleRender(renderCycle)) return;
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, worker.name),
@@ -616,11 +749,12 @@ function buildFatigueForm(workerId) {
 }
 
 // ─── Jobs list ────────────────────────────────────────────────────────────────
-async function renderJobsList() {
+async function renderJobsList(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
   const jobs = await api('GET', '/jobs');
+  if (isStaleRender(renderCycle)) return;
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, 'Jobs'),
@@ -795,7 +929,7 @@ function renderNewJob() {
 }
 
 // ─── Job detail ───────────────────────────────────────────────────────────────
-async function renderJobDetail(jobId) {
+async function renderJobDetail(jobId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
@@ -803,6 +937,7 @@ async function renderJobDetail(jobId) {
     api('GET', `/jobs/${jobId}`),
     api('GET', `/jobs/${jobId}/allocations`),
   ]);
+  if (isStaleRender(renderCycle)) return;
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, `${job.site_name} — ${job.client_name}`),
@@ -879,11 +1014,12 @@ function renderAllocationCard(a) {
 }
 
 // ─── SmartRank ────────────────────────────────────────────────────────────────
-async function renderSmartRank(jobId) {
+async function renderSmartRank(jobId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
   const result = await api('GET', `/jobs/${jobId}/smartrank`);
+  if (isStaleRender(renderCycle)) return;
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, `SmartRank — ${result.job.site_name}`),
@@ -994,12 +1130,13 @@ function renderBlockedCard(b) {
 }
 
 // ─── Allocate ─────────────────────────────────────────────────────────────────
-async function renderAllocate(jobId, workerId) {
+async function renderAllocate(jobId, workerId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
   // Re-run SmartRank to get current entry for this worker
   const result = await api('GET', `/jobs/${jobId}/smartrank`);
+  if (isStaleRender(renderCycle)) return;
   const ranked = result.ranked.find(r => r.worker.id === workerId);
   const blocked = result.blocked.find(b => b.worker.id === workerId);
 
@@ -1117,12 +1254,12 @@ async function renderAllocate(jobId, workerId) {
 }
 
 // ─── Audit log ────────────────────────────────────────────────────────────────
-async function renderAudit() {
+async function renderAudit(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const url = new URL(location.href);
-  const eventType = url.searchParams.get('event_type') || '';
+  const { query } = getHashState();
+  const eventType = query.get('event_type') || '';
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, 'Audit log'),
@@ -1159,19 +1296,68 @@ async function renderAudit() {
 
   const qs = eventType ? `?event_type=${encodeURIComponent(eventType)}&limit=100` : '?limit=100';
   const audit = await api('GET', `/audit-events${qs}`);
+  if (isStaleRender(renderCycle)) return;
 
   const panel = el('div', { class: 'panel' });
   panel.appendChild(el('div', { class: 'small muted' },
-    `${audit.events.length} of ${audit.total} events shown`));
+    eventType
+      ? `${audit.events.length} filtered events shown`
+      : `${audit.events.length} of ${audit.total} events shown`
+  ));
   panel.appendChild(auditEventsTable(audit.events));
   view.appendChild(panel);
 }
 
-// Workaround for hash query strings: parse from location.hash
-function parseHashQuery() {
-  const m = location.hash.match(/\?(.+)$/);
-  if (!m) return new URLSearchParams();
-  return new URLSearchParams(m[1]);
+function auditEventReason(event) {
+  const payload = event.payload || {};
+
+  if (payload.override_reason) return payload.override_reason;
+  if (payload.reason) return payload.reason;
+  if (payload.from && payload.to) return `${payload.from} -> ${payload.to}`;
+  if (payload.selected_rank) return `Selected rank #${payload.selected_rank}`;
+  if (payload.client_name || payload.site_name) {
+    return [payload.client_name, payload.site_name].filter(Boolean).join(' / ');
+  }
+  if (payload.score != null) return `Score ${payload.score}`;
+
+  return '—';
+}
+
+function auditEventSignals(event) {
+  const payload = event.payload || {};
+  const values = [];
+
+  if (Array.isArray(payload.blocks) && payload.blocks.length) {
+    values.push(...payload.blocks.map((item) => item.detail || item.type));
+  }
+
+  if (Array.isArray(payload.warnings) && payload.warnings.length) {
+    values.push(...payload.warnings.map((item) => item.detail || item.type));
+  }
+
+  if (payload.warnings_count) {
+    values.push(`${payload.warnings_count} warning(s)`);
+  }
+
+  if (Array.isArray(payload.block_types) && payload.block_types.length) {
+    values.push(...payload.block_types);
+  }
+
+  if (!values.length) return '—';
+  return values.slice(0, 4).join(' | ');
+}
+
+function auditEventPill(eventType) {
+  if (['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied'].includes(eventType)) {
+    return 'pill-bad';
+  }
+  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert'].includes(eventType)) {
+    return 'pill-warn';
+  }
+  if (['allocation_confirmed', 'job_created'].includes(eventType)) {
+    return 'pill-ok';
+  }
+  return 'pill-info';
 }
 
 function auditEventsTable(events) {
@@ -1180,29 +1366,34 @@ function auditEventsTable(events) {
   }
   const t = el('table');
   t.appendChild(el('thead', {}, el('tr', {},
-    el('th', {}, 'Timestamp'), el('th', {}, 'Event'),
-    el('th', {}, 'Worker'), el('th', {}, 'Job'),
+    el('th', {}, 'Timestamp'),
+    el('th', {}, 'Event'),
+    el('th', {}, 'User'),
+    el('th', {}, 'Refs'),
+    el('th', {}, 'Reason'),
+    el('th', {}, 'Warnings / blocks'),
     el('th', {}, 'Payload')
   )));
   const tb = el('tbody');
-  for (const e of events) {
-    const evtPill = ['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied']
-      .includes(e.event_type) ? 'pill-bad'
-      : ['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert']
-      .includes(e.event_type) ? 'pill-warn'
-      : ['allocation_confirmed', 'job_created'].includes(e.event_type) ? 'pill-ok'
-      : 'pill-info';
+  for (const event of events) {
 
     const payloadDetails = el('details', {},
       el('summary', {}, 'view'),
-      el('pre', { class: 'mono' }, JSON.stringify(e.payload, null, 2))
+      el('pre', { class: 'mono' }, JSON.stringify(event.payload, null, 2))
+    );
+
+    const refs = el('div', { class: 'audit-summary' },
+      el('span', { class: 'small mono' }, `worker ${shortId(event.worker_id)}`),
+      el('span', { class: 'small mono' }, `job ${shortId(event.job_id)}`)
     );
 
     tb.appendChild(el('tr', {},
-      el('td', { class: 'small' }, fmtDate(e.timestamp)),
-      el('td', {}, el('span', { class: `pill ${evtPill}` }, e.event_type)),
-      el('td', { class: 'mono small' }, e.worker_id ? e.worker_id.slice(0, 8) : '—'),
-      el('td', { class: 'mono small' }, e.job_id ? e.job_id.slice(0, 8) : '—'),
+      el('td', { class: 'small' }, fmtDate(event.timestamp)),
+      el('td', {}, el('span', { class: `pill ${auditEventPill(event.event_type)}` }, event.event_type)),
+      el('td', { class: 'mono small' }, shortId(event.user_id)),
+      el('td', {}, refs),
+      el('td', { class: 'small' }, auditEventReason(event)),
+      el('td', { class: 'small' }, auditEventSignals(event)),
       el('td', {}, payloadDetails)
     ));
   }
@@ -1211,7 +1402,7 @@ function auditEventsTable(events) {
 }
 
 // ─── Pilot metrics ────────────────────────────────────────────────────────────
-async function renderMetrics() {
+async function renderMetrics(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
@@ -1224,6 +1415,7 @@ async function renderMetrics() {
   ));
 
   const m = await api('GET', '/metrics');
+  if (isStaleRender(renderCycle)) return;
 
   view.appendChild(el('div', { class: 'panel' },
     el('div', { class: 'small muted' },
