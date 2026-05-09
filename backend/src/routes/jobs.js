@@ -6,6 +6,10 @@ const { getDb } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { rankWorkersForJob } = require('../services/smart-rank');
 const { appendAuditEvent } = require('../services/audit');
+const {
+  groupPreferencesByWorker,
+  upsertLearnedPreferencesFromAllocation
+} = require('../services/preferences');
 
 const router = express.Router();
 
@@ -15,6 +19,7 @@ const VALID_SHIFT_TYPES = ['day', 'night', 'split'];
 
 function parseJob(job) {
   if (!job) return null;
+  job.task_tags              = JSON.parse(job.task_tags              || '[]');
   job.required_credentials  = JSON.parse(job.required_credentials  || '[]');
   job.crew_roles_required   = JSON.parse(job.crew_roles_required   || '[]');
   job.site_conditions       = JSON.parse(job.site_conditions       || '[]');
@@ -65,7 +70,15 @@ function fetchSmartRankData(db, companyId) {
     (allocsByWorker[a.worker_id] = allocsByWorker[a.worker_id] || []).push(a);
   }
 
-  return { workers, credsByWorker, fatigueByWorker, allocsByWorker };
+  const preferenceRows = db.prepare(`
+    SELECT *
+    FROM worker_task_preferences
+    WHERE company_id = ?
+  `).all(companyId);
+
+  const preferencesByWorker = groupPreferencesByWorker(preferenceRows);
+
+  return { workers, credsByWorker, fatigueByWorker, allocsByWorker, preferencesByWorker };
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
@@ -88,7 +101,7 @@ router.get('/', requireAuth, (req, res) => {
 router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
   const {
     reference, client_name, site_name, site_location, date, shift_start_time,
-    shift_type, estimated_duration_hours, crane_class_required,
+    shift_type, estimated_duration_hours, crane_class_required, task_tags,
     crew_roles_required, required_credentials, site_conditions,
     lift_risk_level, travel_required, travel_hours_estimated, notes
   } = req.body;
@@ -111,14 +124,15 @@ router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => 
     INSERT INTO jobs (
       id, company_id, reference, client_name, site_name, site_location,
       date, shift_start_time, shift_type, estimated_duration_hours,
-      crane_class_required, crew_roles_required, required_credentials,
+      crane_class_required, task_tags, crew_roles_required, required_credentials,
       site_conditions, lift_risk_level, travel_required, travel_hours_estimated,
       notes, status, created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(
     id, req.user.company_id, reference || null, client_name, site_name,
     site_location || null, date, shift_start_time || null, shift_type,
     estimated_duration_hours || null, crane_class_required || null,
+    JSON.stringify(task_tags || []),
     JSON.stringify(crew_roles_required || []),
     JSON.stringify(required_credentials || []),
     JSON.stringify(site_conditions || []),
@@ -203,7 +217,7 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
   );
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  let { workers, credsByWorker, fatigueByWorker, allocsByWorker } =
+  let { workers, credsByWorker, fatigueByWorker, allocsByWorker, preferencesByWorker } =
     fetchSmartRankData(db, req.user.company_id);
 
   // Optional role filter
@@ -212,7 +226,7 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
   }
 
   const { ranked, blocked } = rankWorkersForJob(
-    workers, job, credsByWorker, fatigueByWorker, allocsByWorker
+    workers, job, credsByWorker, fatigueByWorker, allocsByWorker, preferencesByWorker
   );
 
   const result = { job, ranked, blocked, generated_at: new Date().toISOString() };
@@ -224,6 +238,32 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
     jobId:     job.id,
     payload:   { ranked_count: ranked.length, blocked_count: blocked.length }
   });
+
+  const learnedSignals = ranked.flatMap((entry) =>
+    (entry.preference_signals || [])
+      .filter((signal) => signal.source === 'learned')
+      .map((signal) => ({
+        worker_id: entry.worker.id,
+        worker_name: entry.worker.name,
+        task_tag: signal.task_tag,
+        rating: signal.rating,
+        approval_count: signal.approval_count,
+        confidence: signal.confidence
+      }))
+  );
+
+  if (learnedSignals.length > 0) {
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'learned_preference_applied',
+      userId: req.user.id,
+      jobId: job.id,
+      payload: {
+        applied_count: learnedSignals.length,
+        signals: learnedSignals.slice(0, 10)
+      }
+    });
+  }
 
   res.json(result);
 });
@@ -276,11 +316,11 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
   if (!worker) return res.status(404).json({ error: 'Worker not found' });
 
   // Re-run SmartRank at allocation time to get current state + snapshot
-  const { workers, credsByWorker, fatigueByWorker, allocsByWorker } =
+  const { workers, credsByWorker, fatigueByWorker, allocsByWorker, preferencesByWorker } =
     fetchSmartRankData(db, req.user.company_id);
 
   const { ranked, blocked } = rankWorkersForJob(
-    workers, job, credsByWorker, fatigueByWorker, allocsByWorker
+    workers, job, credsByWorker, fatigueByWorker, allocsByWorker, preferencesByWorker
   );
 
   // ── Hard block check ──
@@ -305,13 +345,16 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     return res.status(422).json({ error: 'Worker is not available for this job' });
   }
 
-  const { rank, score, score_breakdown, warnings } = rankedEntry;
+  const { rank, score, score_breakdown, warnings, preference_signals } = rankedEntry;
 
-  // ── Warning requires reason ──
-  if (warnings.length > 0 && !override_reason) {
+  const overrideRequired = warnings.length > 0 || rank > 1;
+  if (overrideRequired && !override_reason) {
     return res.status(422).json({
-      error: 'Worker has active warnings. Provide override_reason to confirm this allocation.',
-      warnings
+      error: warnings.length > 0
+        ? 'Worker has active warnings. Provide override_reason to confirm this allocation.'
+        : 'Selected worker is not top-ranked. Provide override_reason to confirm this allocation.',
+      warnings,
+      rank
     });
   }
 
@@ -323,6 +366,7 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     total_ranked:    ranked.length,
     total_blocked:   blocked.length,
     score_breakdown,
+    preference_signals,
     ranking_summary: ranked.map(r => ({
       worker_id:   r.worker.id,
       worker_name: r.worker.name,
@@ -400,6 +444,16 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
         }
       });
     }
+
+    upsertLearnedPreferencesFromAllocation(db, appendAuditEvent, {
+      companyId: req.user.company_id,
+      workerId: worker_id,
+      job,
+      userId: req.user.id,
+      allocationId,
+      selectedRank: rank,
+      overrideReason: override_reason || null
+    });
   })();
 
   const allocation = db.prepare(`SELECT * FROM allocations WHERE id = ?`).get(allocationId);

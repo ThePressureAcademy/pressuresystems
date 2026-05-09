@@ -58,6 +58,7 @@ input, select, textarea {
   font-family: inherit;
 }
 textarea { resize: vertical; min-height: 60px; }
+.large-textarea { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 label {
   display: block;
@@ -75,6 +76,12 @@ label > span {
   margin-top: 10px;
   min-height: 20px;
   font-size: 13px;
+}
+
+.status-note {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 10px;
 }
 
 /* ─── Login ─── */
@@ -102,7 +109,21 @@ label > span {
   color: var(--muted);
   font-size: 13px;
 }
+.security-banner {
+  background: rgba(255, 180, 84, 0.08);
+  border: 1px solid rgba(255, 180, 84, 0.3);
+  color: var(--warn);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
 .login-card button { width: 100%; padding: 10px; }
+.login-card button[disabled] {
+  cursor: wait;
+  filter: grayscale(0.2);
+  opacity: 0.85;
+}
 
 /* ─── App shell ─── */
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
@@ -139,6 +160,26 @@ nav#nav a.active {
   color: var(--text);
   border-bottom-color: var(--accent);
 }
+
+.topbar-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.topbar-cta:hover {
+  text-decoration: none;
+  filter: brightness(1.1);
+}
+
 .user-menu { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
 
 main#view {
@@ -202,6 +243,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
 }
+.compact-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
 .metric-tile {
   background: var(--panel-2);
   border: 1px solid var(--border);
@@ -244,6 +288,43 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .rank-card .alerts { margin-top: 10px; font-size: 12px; }
 .rank-card .alerts ul { margin: 4px 0 0 18px; padding: 0; }
 .rank-card .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.preference-section {
+  margin-top: 12px;
+}
+
+.signal-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.signal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.signal-chip.manual {
+  border-color: rgba(63,195,128,0.45);
+  color: var(--ok);
+}
+
+.signal-chip.imported {
+  border-color: rgba(101,197,255,0.45);
+  color: var(--info);
+}
+
+.signal-chip.learned {
+  border-color: rgba(255,180,84,0.45);
+  color: var(--warn);
+}
 
 /* ─── Toast ─── */
 .toast {
@@ -314,4 +395,106 @@ ul.tag-list li {
   border-radius: 6px;
   font-size: 12px;
   margin-bottom: 14px;
+}
+
+.security-panel {
+  border-left: 4px solid var(--warn);
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 1fr);
+  gap: 20px;
+}
+
+.security-copy p {
+  margin: 0 0 10px 0;
+}
+
+.security-actions {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.security-actions h3 {
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.audit-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.audit-summary .pill {
+  width: fit-content;
+}
+
+@media (max-width: 840px) {
+  .topbar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  nav#nav {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .topbar-cta {
+    order: 3;
+  }
+
+  .security-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kv {
+    grid-template-columns: 1fr;
+  }
+
+  main#view {
+    padding: 18px;
+  }
+}
+
+@media print {
+  .topbar,
+  .toast,
+  button,
+  .security-actions {
+    display: none !important;
+  }
+
+  body,
+  html,
+  .app-shell,
+  .panel,
+  .metric-tile {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  .panel,
+  .metric-tile,
+  .read-only-banner,
+  .security-banner {
+    border-color: #c7ccd4 !important;
+  }
+
+  a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
 }

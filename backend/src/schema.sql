@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS workers (
   id                TEXT PRIMARY KEY,
   company_id        TEXT NOT NULL REFERENCES companies(id),
   name              TEXT NOT NULL,
+  email             TEXT,
   role              TEXT NOT NULL
                     CHECK (role IN (
                       'crane_operator', 'dogman', 'rigger',
@@ -126,6 +127,7 @@ CREATE TABLE IF NOT EXISTS jobs (
                            CHECK (shift_type IN ('day', 'night', 'split')),
   estimated_duration_hours REAL,
   crane_class_required     TEXT,
+  task_tags                TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
   crew_roles_required      TEXT NOT NULL DEFAULT '[]',    -- JSON
   required_credentials     TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
   site_conditions          TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
@@ -166,6 +168,27 @@ CREATE TABLE IF NOT EXISTS allocations (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- Worker Task Preference
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS worker_task_preferences (
+  id                       TEXT PRIMARY KEY,
+  company_id               TEXT NOT NULL REFERENCES companies(id),
+  worker_id                TEXT NOT NULL REFERENCES workers(id),
+  task_tag                 TEXT NOT NULL,
+  rating                   INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  source                   TEXT NOT NULL
+                           CHECK (source IN ('manual', 'learned', 'imported')),
+  notes                    TEXT,
+  approval_count           INTEGER NOT NULL DEFAULT 0,
+  override_selection_count INTEGER NOT NULL DEFAULT 0,
+  confidence               REAL NOT NULL DEFAULT 0
+                           CHECK (confidence >= 0 AND confidence <= 1),
+  last_selected_at         TEXT,
+  created_at               TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at               TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- Audit Event  (APPEND-ONLY — enforced by triggers below)
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS audit_events (
@@ -184,8 +207,13 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'warning_acknowledged',
                   'non_top_ranked_selected',
                   'credential_expiry_alert',
+                  'worker_imported',
+                  'worker_import_completed',
                   'job_created',
-                  'job_status_changed'
+                  'job_status_changed',
+                  'preference_signal_created',
+                  'preference_signal_updated',
+                  'learned_preference_applied'
                 )),
   user_id       TEXT REFERENCES users(id),
   worker_id     TEXT REFERENCES workers(id),
@@ -221,6 +249,10 @@ CREATE INDEX IF NOT EXISTS idx_jobs_company         ON jobs(company_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_job      ON allocations(job_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_worker   ON allocations(worker_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_company  ON allocations(company_id, allocated_at);
+CREATE INDEX IF NOT EXISTS idx_preferences_worker   ON worker_task_preferences(worker_id);
+CREATE INDEX IF NOT EXISTS idx_preferences_company  ON worker_task_preferences(company_id, task_tag);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_preferences_worker_tag_source
+  ON worker_task_preferences(company_id, worker_id, task_tag, source);
 CREATE INDEX IF NOT EXISTS idx_audit_company        ON audit_events(company_id);
 CREATE INDEX IF NOT EXISTS idx_audit_job            ON audit_events(job_id);
 CREATE INDEX IF NOT EXISTS idx_audit_worker         ON audit_events(worker_id);

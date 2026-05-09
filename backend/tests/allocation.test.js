@@ -148,7 +148,7 @@ describe('Allocation — hard block enforcement', () => {
     const res = await supertest(app)
       .post(`/api/jobs/${jobId}/allocations`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ worker_id: workerId });
+      .send({ worker_id: workerId, override_reason: 'Snapshot coverage for non-top-ranked selection' });
 
     assert.equal(res.status, 201);
     const snapshot = res.body.smartrank_snapshot;
@@ -161,6 +161,7 @@ describe('Allocation — hard block enforcement', () => {
     assert.ok('site_familiarity' in snapshot.score_breakdown);
     assert.ok('fairness'         in snapshot.score_breakdown);
     assert.ok('travel'           in snapshot.score_breakdown);
+    assert.ok('task_preference'  in snapshot.score_breakdown);
     assert.ok(snapshot.rank_of_selected >= 1);
     assert.ok(snapshot.generated_at);
   });

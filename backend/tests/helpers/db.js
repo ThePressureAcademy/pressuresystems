@@ -26,6 +26,10 @@ function createTestDb() {
 function seedCompanyAndUser(db, overrides = {}) {
   const companyId = overrides.companyId || randomUUID();
   const userId    = overrides.userId    || randomUUID();
+  const userName = overrides.name || 'Test Admin';
+  const userEmail = overrides.email || 'admin@test.com';
+  const userPassword = overrides.password || 'testpass';
+  const userRole = overrides.role || 'admin';
 
   db.prepare(`
     INSERT INTO companies (id, name, locations, operating_regions, status, pilot_start_date)
@@ -34,8 +38,8 @@ function seedCompanyAndUser(db, overrides = {}) {
 
   db.prepare(`
     INSERT INTO users (id, company_id, name, email, password_hash, role)
-    VALUES (?, ?, 'Test Admin', 'admin@test.com', ?, 'admin')
-  `).run(userId, companyId, bcrypt.hashSync('testpass', 1));
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(userId, companyId, userName, userEmail, bcrypt.hashSync(userPassword, 1), userRole);
 
   return { companyId, userId };
 }
@@ -46,11 +50,12 @@ function seedCompanyAndUser(db, overrides = {}) {
 function seedWorker(db, companyId, overrides = {}) {
   const id = overrides.id || randomUUID();
   db.prepare(`
-    INSERT INTO workers (id, company_id, name, role, employment_type, crane_classes, status)
-    VALUES (?, ?, ?, ?, 'permanent', ?, ?)
+    INSERT INTO workers (id, company_id, name, email, role, employment_type, crane_classes, status)
+    VALUES (?, ?, ?, ?, ?, 'permanent', ?, ?)
   `).run(
     id, companyId,
     overrides.name            || 'Test Worker',
+    overrides.email           || null,
     overrides.role            || 'crane_operator',
     JSON.stringify(overrides.crane_classes || ['55T']),
     overrides.status          || 'available'
@@ -84,15 +89,16 @@ function seedJob(db, companyId, userId, overrides = {}) {
   db.prepare(`
     INSERT INTO jobs (
       id, company_id, client_name, site_name, date, shift_type,
-      required_credentials, crew_roles_required, site_conditions,
+      task_tags, required_credentials, crew_roles_required, site_conditions,
       lift_risk_level, status, created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(
     id, companyId,
     overrides.client_name           || 'Test Client',
     overrides.site_name             || 'Test Site',
     overrides.date                  || '2026-06-01',
     overrides.shift_type            || 'day',
+    JSON.stringify(overrides.task_tags || []),
     JSON.stringify(overrides.required_credentials || []),
     JSON.stringify(overrides.crew_roles_required  || []),
     JSON.stringify(overrides.site_conditions      || []),
@@ -102,4 +108,31 @@ function seedJob(db, companyId, userId, overrides = {}) {
   return id;
 }
 
-module.exports = { createTestDb, seedCompanyAndUser, seedWorker, seedCredential, seedJob };
+function seedPreference(db, companyId, workerId, overrides = {}) {
+  const id = overrides.id || randomUUID();
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO worker_task_preferences (
+      id, company_id, worker_id, task_tag, rating, source, notes,
+      approval_count, override_selection_count, confidence, last_selected_at,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    companyId,
+    workerId,
+    overrides.task_tag || 'tower_crane',
+    overrides.rating || 4,
+    overrides.source || 'manual',
+    overrides.notes || null,
+    overrides.approval_count || 0,
+    overrides.override_selection_count || 0,
+    overrides.confidence || (overrides.source === 'learned' ? 0.6 : 1),
+    overrides.last_selected_at || null,
+    now,
+    now
+  );
+  return id;
+}
+
+module.exports = { createTestDb, seedCompanyAndUser, seedWorker, seedCredential, seedJob, seedPreference };

@@ -28,6 +28,7 @@ app.use('/api', (req, res) => {
 // ─── Pilot console (static SPA) ───────────────────────────────────────────────
 const CONSOLE_DIR = path.join(__dirname, '../public/console');
 app.use('/console', express.static(CONSOLE_DIR, { index: 'index.html' }));
+app.use('/samples', express.static(path.join(__dirname, '../samples')));
 app.get('/console/*', (req, res) => {
   res.sendFile(path.join(CONSOLE_DIR, 'index.html'));
 });
