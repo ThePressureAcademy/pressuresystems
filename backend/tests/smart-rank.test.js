@@ -13,6 +13,7 @@ const JOB = {
   shift_type:            'day',
   shift_start_time:      '07:00',
   crane_class_required:  '55T',
+  task_tags:             ['tower_crane'],
   required_credentials:  ['high_risk_licence_crane'],
   site_name:             'Test Site',
   client_name:           'Test Client',
@@ -131,7 +132,7 @@ describe('rankWorkersForJob', () => {
     assert.ok(ranked[0].score > ranked[1].score);
   });
 
-  test('score_breakdown contains all seven factors', () => {
+  test('score_breakdown contains every scoring factor', () => {
     const w = worker();
     const { ranked } = rankWorkersForJob(
       [w], JOB, { [w.id]: validCred(w.id) }, {}, {}, { now: NOW }
@@ -194,6 +195,64 @@ describe('rankWorkersForJob', () => {
       ranked[0].score_breakdown.fairness.score >
       ranked[1].score_breakdown.fairness.score
     );
+  });
+
+  test('manual task preference contributes to SmartRank score breakdown', () => {
+    const preferred = worker({ id: 'w-preferred', name: 'Preferred Worker' });
+    const neutral = worker({ id: 'w-neutral', name: 'Neutral Worker' });
+    const credsMap = {
+      [preferred.id]: validCred(preferred.id),
+      [neutral.id]: validCred(neutral.id)
+    };
+    const preferencesByWorker = {
+      [preferred.id]: [{
+        worker_id: preferred.id,
+        task_tag: 'tower_crane',
+        rating: 5,
+        source: 'manual',
+        confidence: 1
+      }]
+    };
+
+    const { ranked } = rankWorkersForJob(
+      [preferred, neutral],
+      JOB,
+      credsMap,
+      {},
+      {},
+      preferencesByWorker,
+      { now: NOW }
+    );
+
+    assert.equal(ranked[0].worker.id, preferred.id);
+    assert.ok(ranked[0].score_breakdown.task_preference.score > 0);
+    assert.match(ranked[0].score_breakdown.task_preference.detail, /Manual task preference/i);
+  });
+
+  test('learned preference signal appears in SmartRank explanation', () => {
+    const learned = worker({ id: 'w-learned', name: 'Learned Worker' });
+    const { ranked } = rankWorkersForJob(
+      [learned],
+      JOB,
+      { [learned.id]: validCred(learned.id) },
+      {},
+      {},
+      {
+        [learned.id]: [{
+          worker_id: learned.id,
+          task_tag: 'tower_crane',
+          rating: 4,
+          source: 'learned',
+          approval_count: 3,
+          confidence: 0.8
+        }]
+      },
+      { now: NOW }
+    );
+
+    assert.equal(ranked.length, 1);
+    assert.match(ranked[0].score_breakdown.task_preference.detail, /Learned allocation preference/i);
+    assert.equal(ranked[0].preference_signals[0].source, 'learned');
   });
 
 });

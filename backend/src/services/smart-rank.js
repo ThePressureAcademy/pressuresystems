@@ -2,6 +2,7 @@
 
 const { computeCredentialStatus } = require('./credential-gate');
 const { computeFatigueStatus } = require('./fatigue-guard');
+const { computeTaskPreferenceFactor } = require('./preferences');
 
 const WEIGHTS = {
   credential_match: 0.25,
@@ -10,7 +11,8 @@ const WEIGHTS = {
   availability:     0.15,
   site_familiarity: 0.10,
   fairness:         0.05,
-  travel:           0.05
+  travel:           0.05,
+  task_preference:  0.08
 };
 
 // ─── Availability ─────────────────────────────────────────────────────────────
@@ -115,12 +117,26 @@ function evalTravel(worker, job) {
  * @param {object}   credsByWorker     Map<worker_id, Credential[]>
  * @param {object}   fatigueByWorker   Map<worker_id, FatigueRecord[]>
  * @param {object}   allocsByWorker    Map<worker_id, Allocation[]> (joined with job site/client)
+ * @param {object}   preferencesByWorker Map<worker_id, WorkerTaskPreference[]>
  * @param {object}   options
  * @param {Date}     options.now       Injectable for testing
  *
  * @returns {{ ranked: object[], blocked: object[] }}
  */
-function rankWorkersForJob(workers, job, credsByWorker, fatigueByWorker, allocsByWorker, options = {}) {
+function rankWorkersForJob(
+  workers,
+  job,
+  credsByWorker,
+  fatigueByWorker,
+  allocsByWorker,
+  preferencesByWorker = {},
+  options = {}
+) {
+  if (preferencesByWorker && preferencesByWorker.now) {
+    options = preferencesByWorker;
+    preferencesByWorker = {};
+  }
+
   const { now = new Date() } = options;
 
   const requiredCredentials = Array.isArray(job.required_credentials)
@@ -180,6 +196,7 @@ function rankWorkersForJob(workers, job, credsByWorker, fatigueByWorker, allocsB
     const siteFamiliarity = evalSiteFamiliarity(worker, job, allocs90d);
     const fairness       = evalFairness(allocs7d);
     const travel         = evalTravel(worker, job);
+    const taskPreference = computeTaskPreferenceFactor(preferencesByWorker[worker.id] || [], job);
 
     const scoreBreakdown = {
       credential_match: {
@@ -227,6 +244,14 @@ function rankWorkersForJob(workers, job, credsByWorker, fatigueByWorker, allocsB
         weight:   WEIGHTS.travel,
         weighted: travel.score * WEIGHTS.travel,
         detail:   travel.detail
+      },
+      task_preference: {
+        score:    taskPreference.score,
+        weight:   WEIGHTS.task_preference,
+        weighted: taskPreference.weighted,
+        detail:   taskPreference.detail,
+        signals:  taskPreference.signals,
+        context_tags: taskPreference.context_tags
       }
     };
 
@@ -237,7 +262,8 @@ function rankWorkersForJob(workers, job, credsByWorker, fatigueByWorker, allocsB
       worker,
       score:           Math.round(totalScore * 10) / 10,
       score_breakdown: scoreBreakdown,
-      warnings:        workerWarnings
+      warnings:        workerWarnings,
+      preference_signals: taskPreference.signals
     });
   }
 
