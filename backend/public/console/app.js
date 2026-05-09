@@ -323,9 +323,9 @@ async function renderDashboard(renderCycle) {
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, 'Pilot dashboard'),
     el('div', { class: 'button-row' },
-      el('a', { href: '#/new-job' }, el('button', {}, '+ New job')),
-      el('a', { href: '#/workers/import' }, el('button', { class: 'secondary' }, 'Import workers')),
-      el('a', { href: '#/new-worker' }, el('button', { class: 'secondary' }, '+ New worker'))
+      el('a', { href: '#/workers/import' }, el('button', {}, 'Import workers')),
+      el('a', { href: '#/new-worker' }, el('button', { class: 'secondary' }, '+ New worker')),
+      el('a', { href: '#/new-job' }, el('button', { class: 'secondary' }, '+ New job'))
     )
   ));
 
@@ -443,8 +443,8 @@ async function renderWorkersList(renderCycle) {
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, 'Workers'),
     el('div', { class: 'button-row' },
-      el('a', { href: '#/workers/import' }, el('button', { class: 'secondary' }, 'Import workers')),
-      el('a', { href: '#/new-worker' }, el('button', {}, '+ New worker'))
+      el('a', { href: '#/workers/import' }, el('button', {}, 'Import workers')),
+      el('a', { href: '#/new-worker' }, el('button', { class: 'secondary' }, '+ New worker'))
     )
   ));
 

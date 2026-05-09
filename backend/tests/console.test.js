@@ -40,6 +40,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /\.\/app\.js/);
     assert.match(res.text, /\.\/styles\.css/);
     assert.match(res.text, /seeded admin credentials are compromised/i);
+    assert.match(res.text, /href="#\/workers\/import"/);
+    assert.match(res.text, />Import workers</);
   });
 
   test('GET /console/styles.css returns CSS', async () => {

@@ -160,6 +160,26 @@ nav#nav a.active {
   color: var(--text);
   border-bottom-color: var(--accent);
 }
+
+.topbar-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.topbar-cta:hover {
+  text-decoration: none;
+  filter: brightness(1.1);
+}
+
 .user-menu { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--muted); }
 
 main#view {
@@ -429,6 +449,10 @@ ul.tag-list li {
   nav#nav {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .topbar-cta {
+    order: 3;
   }
 
   .security-grid {
