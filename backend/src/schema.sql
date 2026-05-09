@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
                 CHECK (role IN ('admin', 'dispatcher', 'supervisor', 'viewer')),
   status        TEXT NOT NULL DEFAULT 'active'
                 CHECK (status IN ('active', 'invited', 'deactivated')),
+  must_change_password INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   last_login_at TEXT
 );

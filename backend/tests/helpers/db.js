@@ -30,6 +30,8 @@ function seedCompanyAndUser(db, overrides = {}) {
   const userEmail = overrides.email || 'admin@test.com';
   const userPassword = overrides.password || 'testpass';
   const userRole = overrides.role || 'admin';
+  const userStatus = overrides.status || 'active';
+  const mustChangePassword = overrides.mustChangePassword ? 1 : 0;
 
   db.prepare(`
     INSERT INTO companies (id, name, locations, operating_regions, status, pilot_start_date)
@@ -37,9 +39,18 @@ function seedCompanyAndUser(db, overrides = {}) {
   `).run(companyId);
 
   db.prepare(`
-    INSERT INTO users (id, company_id, name, email, password_hash, role)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(userId, companyId, userName, userEmail, bcrypt.hashSync(userPassword, 1), userRole);
+    INSERT INTO users (id, company_id, name, email, password_hash, role, status, must_change_password)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    userId,
+    companyId,
+    userName,
+    userEmail,
+    bcrypt.hashSync(userPassword, 1),
+    userRole,
+    userStatus,
+    mustChangePassword
+  );
 
   return { companyId, userId };
 }

@@ -24,7 +24,35 @@
         <input type="password" name="password" required autocomplete="current-password">
       </label>
       <button id="login-submit" type="submit">Sign in</button>
+      <div id="login-note" class="status-note hidden" role="status"></div>
       <div id="login-error" class="error" role="alert"></div>
+    </form>
+  </div>
+
+  <div id="password-change-screen" class="login-shell hidden">
+    <form id="password-change-form" class="login-card">
+      <h1>Password change required</h1>
+      <p class="subtitle" id="password-change-context">
+        Your temporary bootstrap password must be replaced before console access.
+      </p>
+      <div class="security-banner">
+        The bootstrap password is temporary and compromised. Set a new password now to continue.
+      </div>
+      <label>
+        <span>Current password</span>
+        <input type="password" name="current_password" required autocomplete="current-password">
+      </label>
+      <label>
+        <span>New password</span>
+        <input type="password" name="new_password" required autocomplete="new-password">
+      </label>
+      <label>
+        <span>Confirm new password</span>
+        <input type="password" name="confirm_new_password" required autocomplete="new-password">
+      </label>
+      <button id="password-change-submit" type="submit">Change password</button>
+      <div id="password-change-error" class="error" role="alert"></div>
+      <div id="password-change-success" class="status-note hidden" role="status"></div>
     </form>
   </div>
 

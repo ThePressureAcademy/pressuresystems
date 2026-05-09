@@ -121,6 +121,11 @@ async function api(method, path, body) {
     throw { status: 401, error: 'Session expired. Please sign in again.', data };
   }
   if (!res.ok) {
+    if (res.status === 403 && data?.must_change_password) {
+      state.user = state.user ? { ...state.user, must_change_password: true } : { must_change_password: true };
+      localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+      showPasswordChange();
+    }
     throw { status: res.status, error: (data && data.error) || `HTTP ${res.status}`, data };
   }
   return data;
@@ -145,6 +150,12 @@ function saveSession(token, user) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+function setLoginNote(message = '') {
+  const node = document.getElementById('login-note');
+  node.textContent = message;
+  node.classList.toggle('hidden', !message);
+}
+
 function logout() {
   nextRenderCycle();
   state.token = null;
@@ -154,20 +165,78 @@ function logout() {
   showLogin();
 }
 
-function showLogin() {
+function showLogin(message = '') {
   document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('password-change-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.add('hidden');
   document.getElementById('login-error').textContent = '';
+  setLoginNote(message);
+}
+
+function showPasswordChange() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('password-change-screen').classList.remove('hidden');
+  document.getElementById('app-shell').classList.add('hidden');
+  document.getElementById('password-change-error').textContent = '';
+  document.getElementById('password-change-success').textContent = '';
+  document.getElementById('password-change-success').classList.add('hidden');
+  document.getElementById('password-change-context').textContent = state.user
+    ? `Signed in as ${state.user.email}. Replace the bootstrap password before opening the pilot console.`
+    : 'Your temporary bootstrap password must be replaced before console access.';
 }
 
 function showApp() {
+  if (state.user?.must_change_password) {
+    showPasswordChange();
+    return;
+  }
   document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('password-change-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
   document.getElementById('user-label').textContent = state.user
     ? `${state.user.name} - ${state.user.role}`
     : '';
   if (!location.hash) location.hash = '#/dashboard';
   else router();
+}
+
+async function submitPasswordChange(form, submit, options = {}) {
+  const errNode = options.errorNode || document.getElementById('password-change-error');
+  const successNode = options.successNode || document.getElementById('password-change-success');
+  errNode.textContent = '';
+  if (successNode) {
+    successNode.textContent = '';
+    successNode.classList.add('hidden');
+  }
+
+  const formData = new FormData(form);
+  const currentPassword = String(formData.get('current_password') || '');
+  const newPassword = String(formData.get('new_password') || '');
+  const confirmPassword = String(formData.get('confirm_new_password') || '');
+
+  if (newPassword !== confirmPassword) {
+    errNode.textContent = 'The new password confirmation does not match.';
+    return;
+  }
+
+  setButtonBusy(submit, true, 'Change password', 'Updating...');
+  try {
+    const result = await api('POST', '/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    });
+    form.reset();
+    if (successNode) {
+      successNode.textContent = result.message || 'Password updated. Please sign in again.';
+      successNode.classList.remove('hidden');
+    }
+    logout();
+    showLogin(result.message || 'Password updated. Please sign in again.');
+  } catch (err) {
+    errNode.textContent = err.error || 'Password change failed';
+  } finally {
+    setButtonBusy(submit, false, 'Change password', 'Updating...');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -185,7 +254,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const result = await api('POST', '/auth/login', { email, password });
       saveSession(result.token, result.user);
-      showApp();
+      if (result.must_change_password || result.user?.must_change_password) {
+        showPasswordChange();
+      } else {
+        showApp();
+      }
     } catch (err) {
       errNode.textContent = err.error || 'Login failed';
     } finally {
@@ -193,16 +266,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  document.getElementById('password-change-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitPasswordChange(event.target, document.getElementById('password-change-submit'));
+  });
+
   document.getElementById('logout').addEventListener('click', logout);
   window.addEventListener('hashchange', router);
 
-  if (state.token) showApp();
+  if (state.token && state.user?.must_change_password) showPasswordChange();
+  else if (state.token) showApp();
   else showLogin();
 });
 
 function router() {
   if (!state.token) {
     showLogin();
+    return;
+  }
+  if (state.user?.must_change_password) {
+    showPasswordChange();
     return;
   }
 
@@ -382,48 +465,29 @@ function buildSecurityPanel() {
   } else {
     const form = el('form');
     const errBox = el('div', { class: 'error' });
-    const submit = el('button', { type: 'submit' }, 'Rotate password');
-    form.appendChild(el('h3', {}, 'Rotate current admin password'));
+    const submit = el('button', { type: 'submit' }, 'Change password');
+    form.appendChild(el('h3', {}, 'Change current admin password'));
+    form.appendChild(el('label', {},
+      el('span', {}, 'Current password'),
+      el('input', { name: 'current_password', type: 'password', required: true, autocomplete: 'current-password' })
+    ));
     form.appendChild(el('label', {},
       el('span', {}, 'New password'),
-      el('input', { name: 'password', type: 'password', required: true, minlength: '12', autocomplete: 'new-password' })
+      el('input', { name: 'new_password', type: 'password', required: true, minlength: '10', autocomplete: 'new-password' })
     ));
     form.appendChild(el('label', {},
       el('span', {}, 'Confirm new password'),
-      el('input', { name: 'confirm_password', type: 'password', required: true, minlength: '12', autocomplete: 'new-password' })
+      el('input', { name: 'confirm_new_password', type: 'password', required: true, minlength: '10', autocomplete: 'new-password' })
     ));
     form.appendChild(errBox);
     form.appendChild(el('div', { class: 'button-row' }, submit));
     form.appendChild(el('div', { class: 'status-note' },
-      'This uses the existing admin API. Your current browser session stays active after rotation.'
+      'A successful password change signs you out so the next login proves the new password works.'
     ));
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      errBox.textContent = '';
-      const fd = new FormData(form);
-      const password = String(fd.get('password') || '');
-      const confirm = String(fd.get('confirm_password') || '');
-
-      if (password.length < 12) {
-        errBox.textContent = 'Use at least 12 characters for the pilot admin password.';
-        return;
-      }
-      if (password !== confirm) {
-        errBox.textContent = 'The password confirmation does not match.';
-        return;
-      }
-
-      setButtonBusy(submit, true, 'Rotate password', 'Rotating...');
-      try {
-        await api('PATCH', `/users/${state.user.id}`, { password });
-        form.reset();
-        toast('Admin password rotated', 'success');
-      } catch (err) {
-        errBox.textContent = err.error || 'Password rotation failed';
-      } finally {
-        setButtonBusy(submit, false, 'Rotate password', 'Rotating...');
-      }
+      await submitPasswordChange(form, submit, { errorNode: errBox, successNode: null });
     });
 
     actions.appendChild(form);

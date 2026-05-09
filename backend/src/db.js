@@ -145,6 +145,7 @@ function migrateAuditEvents(db) {
 }
 
 function runMigrations(db) {
+  ensureColumn(db, 'users', `must_change_password INTEGER NOT NULL DEFAULT 0`, 'must_change_password');
   ensureColumn(db, 'workers', `email TEXT`, 'email');
   ensureColumn(db, 'jobs', `task_tags TEXT NOT NULL DEFAULT '[]'`, 'task_tags');
   db.exec(`UPDATE jobs SET task_tags = '[]' WHERE task_tags IS NULL;`);
@@ -176,4 +177,4 @@ function setDb(db) {
   _db = db;
 }
 
-module.exports = { getDb, setDb };
+module.exports = { getDb, setDb, runMigrations };
