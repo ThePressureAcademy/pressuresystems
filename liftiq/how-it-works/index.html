@@ -3,22 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>How LiftIQ Works | Decision support for allocation-heavy operations</title>
-  <meta name="description" content="See how Pressure Systems is shaping LiftIQ as decision support for allocation-heavy operations, with visible hard blocks, explainable scoring, and later integration pathways only where justified." />
+  <title>How LiftIQ Works | Pilot-stage dispatch workflow for crane and lifting operations</title>
+  <meta name="description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, credentials, fatigue checks, explainable SmartRank recommendations, allocation confirmation, and allocation-level audit proof." />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://pressuresystems.au/liftiq/how-it-works/" />
   <meta property="og:title" content="How LiftIQ Works" />
-  <meta property="og:description" content="Pressure Systems is shaping LiftIQ as decision support for allocation-heavy operations with current-state recommendation logic, workflow fit, and planned integration direction." />
+  <meta property="og:description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, credentials, fatigue checks, explainable SmartRank recommendations, allocation confirmation, and allocation-level audit proof." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pressuresystems.au/liftiq/how-it-works/" />
   <meta property="og:image" content="https://pressuresystems.au/assets/social/LiftIQ_System_OG_1200x630.png" />
-  <meta property="og:image:alt" content="LiftIQ by Pressure Systems social card explaining how the system stays read-first and recommendation-led." />
+  <meta property="og:image:alt" content="LiftIQ by Pressure Systems social card explaining the pilot-stage dispatch workflow and visible recommendation logic." />
   <meta property="og:site_name" content="LiftIQ by Pressure Systems" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="How LiftIQ Works" />
-  <meta name="twitter:description" content="A truthful Pressure Systems view of LiftIQ's current-state architecture and workflow role." />
+  <meta name="twitter:description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, credentials, fatigue checks, explainable SmartRank recommendations, allocation confirmation, and allocation-level audit proof." />
   <meta name="twitter:image" content="https://pressuresystems.au/assets/social/LiftIQ_System_OG_1200x630.png" />
-  <meta name="twitter:image:alt" content="LiftIQ by Pressure Systems social card explaining how the system stays read-first and recommendation-led." />
+  <meta name="twitter:image:alt" content="LiftIQ by Pressure Systems social card explaining the pilot-stage dispatch workflow and visible recommendation logic." />
   <meta name="theme-color" content="#08111D" />
   <link rel="icon" type="image/svg+xml" href="/assets/logos/LiftIQ_Favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -42,8 +42,10 @@
         <a class="lq-nav-link" data-lq-nav-link href="/liftiq/modules/">Modules</a>
         <a class="lq-nav-link" data-lq-nav-link href="/liftiq/design-partner/">Design partner</a>
         <a class="lq-nav-link" data-lq-nav-link href="/liftiq/contact/">Contact</a>
+        <a class="lq-nav-link lq-nav-link-portal" data-lq-nav-link href="https://liftiq-pilot.fly.dev/console/">Pilot portal access</a>
       </div>
       <div class="lq-nav-actions">
+        <a class="lq-utility-link" href="https://liftiq-pilot.fly.dev/console/">Pilot portal access</a>
         <a class="lq-button-secondary" href="/liftiq/contact/">Send context first</a>
         <a class="lq-button" href="https://calendly.com/thepressureacademy/liftiq-discovery">Book a LiftIQ Discovery Call</a>
       </div>
@@ -54,11 +56,12 @@
     <section class="lq-page-hero">
       <div class="lq-shell lq-page-hero-grid single">
         <div>
-          <span class="lq-eyebrow"><span class="lq-eyebrow-dot"></span>Current-state architecture</span>
-          <h1 class="lq-page-title">LiftIQ is being built as a read-first decision-support layer for allocation-heavy operations.</h1>
-          <p class="lq-lead">Pressure Systems is developing LiftIQ as a product layer for operators who need visible reasoning before a dispatcher, planner, or branch lead commits the job. The current demo is still a front-end concept with deterministic seeded logic.</p>
+          <span class="lq-eyebrow"><span class="lq-eyebrow-dot"></span>Founding-partner pilot workflow</span>
+          <h1 class="lq-page-title">LiftIQ is a browser-based dispatcher pilot workflow for crane and lifting operations.</h1>
+          <p class="lq-lead">Pressure Systems is developing LiftIQ as a pilot-stage dispatch intelligence layer for operators who need visible reasoning before a dispatcher, planner, or branch lead commits the job. The live pilot workflow now covers worker onboarding, checks before allocation, explainable ranking, override capture, and audit-backed proof.</p>
           <div class="lq-page-links" style="margin-top:24px;">
             <a href="/liftiq/modules/">Module status</a>
+            <a href="https://liftiq-pilot.fly.dev/console/">Pilot portal access</a>
             <a href="/liftiq/design-partner/">Design partner model</a>
             <a href="/liftiq/contact/">Talk to Pressure Systems</a>
           </div>
@@ -71,35 +74,49 @@
         <div class="lq-section-head">
           <span class="lq-kicker">Current logic path</span>
           <h2>What LiftIQ does now, in truthful terms.</h2>
-          <p>LiftIQ currently demonstrates browser-based recommendation logic, seeded scenarios, and visible hard blocks for missing required credentials. It does not yet ingest live data, write back to dispatch systems, or persist operational audit events.</p>
+          <p>LiftIQ now supports a browser-based dispatcher pilot workflow: import or create workers, record credentials and fatigue, create jobs, run explainable SmartRank recommendations, review hard blocks and warnings, confirm allocations, capture override reasons where needed, and keep allocation-level audit proof.</p>
         </div>
         <div class="lq-timeline">
           <article class="lq-step">
             <div class="lq-step-num">1</div>
             <div>
-              <h3>Seed the operational context</h3>
-              <p>The governed demo uses fictionalised operator, site, client, and branch records. Every scenario is deterministic, so the output is stable and reviewable.</p>
+              <h3>Import or create workers</h3>
+              <p>Dispatch teams can onboard workers from CSV or pasted spreadsheet data, then add or tidy records manually when needed.</p>
             </div>
           </article>
           <article class="lq-step">
             <div class="lq-step-num">2</div>
             <div>
-              <h3>Apply recommendation rules</h3>
-              <p>SmartRank weights fit, experience, readiness, and fairness. FatigueGuard applies monitor and block thresholds. The current credential gate blocks missing mandatory requirements.</p>
+              <h3>Record credentials and fatigue</h3>
+              <p>Worker credentials and fatigue records are entered before job allocation so credential gaps, fatigue warnings, and hard blocks are visible early.</p>
             </div>
           </article>
           <article class="lq-step">
             <div class="lq-step-num">3</div>
             <div>
-              <h3>Show ranked options and reasons</h3>
-              <p>The score breakdown panel remains visible because that is one of the strongest current product behaviours. Dispatchers should be able to review the reasoning, not guess what the system did.</p>
+              <h3>Create jobs and run SmartRank</h3>
+              <p>Jobs carry the role, crane class, credentials, and task context needed to rank workers, show score breakdowns, and expose warning or hard-block states clearly.</p>
             </div>
           </article>
           <article class="lq-step">
             <div class="lq-step-num">4</div>
             <div>
-              <h3>Keep actions in preview state</h3>
-              <p>The UI currently uses preview and demo actions only. There is no live dispatch write-back, no live notifications, and no immutable audit export.</p>
+              <h3>Review warnings and confirm allocation</h3>
+              <p>Dispatchers remain the decision-maker, review CredentialGate and FatigueGuard results, and provide an override reason for warning or lower-ranked selections when the workflow requires it.</p>
+            </div>
+          </article>
+          <article class="lq-step">
+            <div class="lq-step-num">5</div>
+            <div>
+              <h3>Write audit events and metrics</h3>
+              <p>Confirmed allocations create append-only audit events, update pilot metrics, and keep an operational proof trail inside the pilot workflow.</p>
+            </div>
+          </article>
+          <article class="lq-step">
+            <div class="lq-step-num">6</div>
+            <div>
+              <h3>Learn from dispatcher-approved patterns</h3>
+              <p>Manual, imported, and learned preference signals can influence future SmartRank results, but hard blocks still override preference signals every time.</p>
             </div>
           </article>
         </div>
@@ -110,23 +127,23 @@
       <div class="lq-shell">
         <div class="lq-grid-2">
           <article class="lq-panel">
-            <p class="lq-kicker">Current state</p>
-            <h2 class="lq-panel-heading">One governed demo. No backend.</h2>
+            <p class="lq-kicker">Current pilot truth</p>
+            <h2 class="lq-panel-heading">Live founding-partner pilot console with bounded workflow scope.</h2>
             <ul class="lq-list" style="margin-top:14px;">
-              <li>Seeded front-end data only.</li>
-              <li>Rule-based ranking and hard-block logic inside the browser layer.</li>
-              <li>Preview event log only, not a persisted audit store.</li>
-              <li>White-label overlay positioning across sanitised tenants.</li>
+              <li>Worker import from CSV or pasted spreadsheet data plus manual worker entry.</li>
+              <li>Credential and fatigue checks before allocation.</li>
+              <li>Explainable SmartRank recommendations with visible score breakdowns.</li>
+              <li>Append-only allocation-level audit events and pilot metrics within pilot scope.</li>
             </ul>
           </article>
           <article class="lq-panel">
-            <p class="lq-kicker">Planned direction</p>
-            <h2 class="lq-panel-heading">Read-first integration before any write-back claim.</h2>
+            <p class="lq-kicker">Boundaries still in place</p>
+            <h2 class="lq-panel-heading">Dispatcher-led workflow, not autonomous allocation.</h2>
             <ul class="lq-list" style="margin-top:14px;">
-              <li>Operational source access before deeper workflow automation.</li>
-              <li>Service-layer rule execution if the product progresses beyond the current demo.</li>
-              <li>Explicit override capture and event persistence later, not now.</li>
-              <li>Financial/admin pathways such as Xero and MYOB only if phase-2 discovery supports them.</li>
+              <li>Dispatcher remains the decision-maker and final confirmer.</li>
+              <li>No payroll, invoicing, or FCC-replacement claim.</li>
+              <li>No WHS or legal-compliance guarantee claim.</li>
+              <li>Any Xero or MYOB alignment remains later, access-dependent work only.</li>
             </ul>
           </article>
         </div>
@@ -137,21 +154,21 @@
       <div class="lq-shell">
         <div class="lq-section-head">
           <span class="lq-kicker">Workflow fit</span>
-          <h2>LiftIQ is intended to sit beside dispatch, workforce, and planning workflows.</h2>
-          <p>It is not being framed as an isolated scoring toy. The product direction is to connect the operational decision layer to the systems already holding job, crew, site, and later financial context, while keeping the maturity claims disciplined.</p>
+          <h2>LiftIQ sits beside dispatch, workforce, and planning workflows.</h2>
+          <p>It is not being framed as an isolated scoring toy. The pilot workflow connects worker data, job context, visible checks, allocation confirmation, and audit proof while keeping maturity claims disciplined.</p>
         </div>
         <div class="lq-highlight-bar">
           <div class="lq-highlight">
             <strong>Dispatch</strong>
-            <span>Ranked crew options, swap logic, late-change triage, and visible reasoning support.</span>
+            <span>Import workers, create jobs, rank crew-fit options, review warnings, and confirm allocations with visible reasoning support.</span>
           </div>
           <div class="lq-highlight">
             <strong>Workforce</strong>
-            <span>Credential visibility, fatigue exposure, repeated over-allocation awareness, and clearer planner judgment.</span>
+            <span>Credential visibility, fatigue exposure, repeated over-allocation awareness, and preference signals that remain explainable.</span>
           </div>
           <div class="lq-highlight">
             <strong>Audit</strong>
-            <span>Preview event logic now. Persisted event capture only later if a controlled build path justifies it.</span>
+            <span>Append-only allocation-level audit events and pilot metrics exist inside the pilot workflow.</span>
           </div>
           <div class="lq-highlight">
             <strong>Finance</strong>
@@ -164,7 +181,7 @@
     <section class="lq-section">
       <div class="lq-shell">
         <div class="lq-callout">
-          <strong>Truth boundary:</strong> LiftIQ does not currently support live Xero or MYOB integration, payroll logic, invoice automation, or production-grade reporting. Those are possible later architecture pathways only if client system access and field mapping make them worth building.
+          <strong>Truth boundary:</strong> LiftIQ does not claim autonomous dispatch, WHS/legal compliance guarantees, payroll logic, invoice automation, or live Xero or MYOB integration on this page. Those remain later architecture questions only if pilot evidence and client system access justify them.
         </div>
       </div>
     </section>
@@ -175,11 +192,14 @@
           <div>
             <span class="lq-kicker">Next step</span>
             <h2>Use the workflow story to qualify fit, then move to a controlled conversation.</h2>
-            <p>If your operation already feels the pain of allocation pressure, late checks, and manual scramble, the strongest next move is a Dispatch Blind-Spot Review or a private design-partner briefing.</p>
+            <p>If your operation already feels the pain of allocation pressure, late checks, and manual scramble, the strongest next move is a LiftIQ Discovery Call or a context-first founder review.</p>
           </div>
-          <div class="lq-actions">
-            <a class="lq-button" href="/liftiq/dispatch-blind-spot-diagnostic/">Dispatch diagnostic</a>
-            <a class="lq-button-secondary" href="/liftiq/executive-briefing/">Executive briefing</a>
+          <div>
+            <div class="lq-actions">
+              <a class="lq-button" href="https://calendly.com/thepressureacademy/liftiq-discovery">Book a LiftIQ Discovery Call</a>
+              <a class="lq-button-secondary" href="/liftiq/contact/">Send context first</a>
+            </div>
+            <p class="lq-micro lq-portal-note">Already in the pilot? <a class="lq-inline-link" href="https://liftiq-pilot.fly.dev/console/">Open the portal.</a></p>
           </div>
         </div>
       </div>
@@ -188,18 +208,20 @@
 
   <footer class="lq-footer">
     <div class="lq-shell">
-      <div class="lq-footer-grid">
-        <div class="lq-footer-brand">
-          <strong>LiftIQ</strong>
-          <p>LiftIQ is a Pressure Systems product for allocation-heavy operations. Helping businesses make better dispatch and workforce decisions under pressure. Current stage: governed concept demo and early product foundation.</p>
-        </div>
-        <div class="lq-footer-col">
-          <h4>LiftIQ</h4>
-          <a href="/liftiq/">Home</a>
-          <a href="/liftiq/how-it-works/">How it works</a>
-          <a href="/liftiq/modules/">Modules</a>
-          <a href="/liftiq/contact/">Contact</a>
-        </div>
+        <div class="lq-footer-grid">
+          <div class="lq-footer-brand">
+            <strong>LiftIQ</strong>
+            <p>LiftIQ is a fatigue-aware, credential-aware dispatch intelligence layer for crane and lifting operations. Built for founding-partner pilot validation under Pressure Systems.</p>
+            <p class="lq-footer-note">Already in the pilot? <a class="lq-inline-link" href="https://liftiq-pilot.fly.dev/console/">Open the portal.</a></p>
+          </div>
+          <div class="lq-footer-col">
+            <h4>LiftIQ</h4>
+            <a href="/liftiq/">Home</a>
+            <a href="/liftiq/how-it-works/">How it works</a>
+            <a href="/liftiq/modules/">Modules</a>
+            <a href="https://liftiq-pilot.fly.dev/console/">Pilot portal access</a>
+            <a href="/liftiq/contact/">Contact</a>
+          </div>
         <div class="lq-footer-col">
           <h4>Funnels</h4>
           <a href="/liftiq/dispatch-blind-spot-diagnostic/">Dispatch Blind-Spot Diagnostic</a>
