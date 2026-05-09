@@ -241,9 +241,6 @@ END;
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_users_company        ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_workers_company      ON workers(company_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_workers_company_email
-  ON workers(company_id, email)
-  WHERE email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_credentials_worker   ON credentials(worker_id);
 CREATE INDEX IF NOT EXISTS idx_credentials_company  ON credentials(company_id);
 CREATE INDEX IF NOT EXISTS idx_fatigue_worker       ON fatigue_records(worker_id);
