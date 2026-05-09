@@ -19,6 +19,7 @@ const AUDIT_EVENT_TYPES = [
   'credential_expiry_alert',
   'worker_imported',
   'worker_import_completed',
+  'worker_removed',
   'job_created',
   'job_status_changed',
   'preference_signal_created',
@@ -81,6 +82,8 @@ const POST_MIGRATION_INDEX_SQL = `
 CREATE UNIQUE INDEX IF NOT EXISTS idx_workers_company_email
   ON workers(company_id, email)
   WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_workers_company_archived
+  ON workers(company_id, archived_at);
 CREATE INDEX IF NOT EXISTS idx_preferences_worker ON worker_task_preferences(worker_id);
 CREATE INDEX IF NOT EXISTS idx_preferences_company ON worker_task_preferences(company_id, task_tag);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_preferences_worker_tag_source
@@ -112,7 +115,8 @@ function auditEventsNeedMigration(db) {
   if (!row || !row.sql) return true;
   return !row.sql.includes('learned_preference_applied')
     || !row.sql.includes('worker_imported')
-    || !row.sql.includes('preference_signal_created');
+    || !row.sql.includes('preference_signal_created')
+    || !row.sql.includes('worker_removed');
 }
 
 function migrateAuditEvents(db) {
@@ -147,6 +151,9 @@ function migrateAuditEvents(db) {
 function runMigrations(db) {
   ensureColumn(db, 'users', `must_change_password INTEGER NOT NULL DEFAULT 0`, 'must_change_password');
   ensureColumn(db, 'workers', `email TEXT`, 'email');
+  ensureColumn(db, 'workers', `archived_at TEXT`, 'archived_at');
+  ensureColumn(db, 'workers', `archived_by_user_id TEXT`, 'archived_by_user_id');
+  ensureColumn(db, 'workers', `archive_reason TEXT`, 'archive_reason');
   ensureColumn(db, 'jobs', `task_tags TEXT NOT NULL DEFAULT '[]'`, 'task_tags');
   db.exec(`UPDATE jobs SET task_tags = '[]' WHERE task_tags IS NULL;`);
   db.exec(WORKER_TASK_PREFERENCES_SQL);

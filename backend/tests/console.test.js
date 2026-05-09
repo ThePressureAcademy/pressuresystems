@@ -61,6 +61,9 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderSmartRank/);
     assert.match(res.text, /renderAllocate/);
     assert.match(res.text, /renderAudit/);
+    assert.match(res.text, /Remove worker from active dispatch\?/);
+    assert.match(res.text, /This will remove the worker from active dispatch and SmartRank recommendations\. Existing audit history will be kept\./);
+    assert.match(res.text, /\/workers\/\$\{workerId\}\/remove/);
   });
 
   test('GET /samples exposes the employee onboarding sample files', async () => {

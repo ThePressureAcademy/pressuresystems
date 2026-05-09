@@ -150,6 +150,10 @@ function rankWorkersForJob(
   const blocked = [];
 
   for (const worker of workers) {
+    if (worker.archived_at) {
+      continue;
+    }
+
     const workerBlocks   = [];
     const workerWarnings = [];
 

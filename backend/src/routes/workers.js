@@ -26,6 +26,7 @@ function isValidEmail(email) {
 function parseWorker(worker) {
   if (worker) {
     worker.crane_classes = JSON.parse(worker.crane_classes || '[]');
+    worker.is_archived = Boolean(worker.archived_at);
   }
   return worker;
 }
@@ -41,12 +42,33 @@ function parsePreference(preference) {
   };
 }
 
-function ensureWorker(db, workerId, companyId) {
-  return db.prepare(`
+function ensureWorker(db, workerId, companyId, options = {}) {
+  let sql = `
     SELECT *
     FROM workers
     WHERE id = ? AND company_id = ?
-  `).get(workerId, companyId);
+  `;
+
+  if (options.activeOnly) {
+    sql += ` AND archived_at IS NULL`;
+  }
+
+  return db.prepare(sql).get(workerId, companyId);
+}
+
+function ensureActiveWorkerOrResponse(res, worker) {
+  if (!worker) {
+    res.status(404).json({ error: 'Worker not found' });
+    return false;
+  }
+  if (worker.archived_at) {
+    res.status(409).json({
+      error: 'Worker has been removed from active dispatch.',
+      archived_at: worker.archived_at
+    });
+    return false;
+  }
+  return true;
 }
 
 function computeCredStatus(type, expiryDate, today = new Date()) {
@@ -169,10 +191,15 @@ function createImportedRecords(db, user, row, importMode) {
 // GET /api/workers
 router.get('/', requireAuth, (req, res) => {
   const db = getDb();
-  const { status, role } = req.query;
+  const { status, role, include_archived } = req.query;
+  const includeArchived = include_archived === 'true';
 
   let sql = `SELECT * FROM workers WHERE company_id = ?`;
   const params = [req.user.company_id];
+
+  if (!includeArchived) {
+    sql += ` AND archived_at IS NULL`;
+  }
 
   if (status) {
     sql += ` AND status = ?`;
@@ -362,7 +389,7 @@ router.get('/:id', requireAuth, (req, res) => {
 router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
   const db = getDb();
   const existing = ensureWorker(db, req.params.id, req.user.company_id);
-  if (!existing) return res.status(404).json({ error: 'Worker not found' });
+  if (!ensureActiveWorkerOrResponse(res, existing)) return;
 
   const {
     name,
@@ -434,6 +461,66 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
   res.json(parseWorker(ensureWorker(db, req.params.id, req.user.company_id)));
 });
 
+// POST /api/workers/:id/remove
+router.post('/:id/remove', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
+  const db = getDb();
+  const worker = ensureWorker(db, req.params.id, req.user.company_id);
+  if (!worker) {
+    return res.status(404).json({ error: 'Worker not found' });
+  }
+
+  if (worker.archived_at) {
+    return res.json({
+      ok: true,
+      worker_id: worker.id,
+      archived_at: worker.archived_at,
+      already_removed: true,
+      message: 'Worker already removed from active dispatch.'
+    });
+  }
+
+  const reason = String(req.body?.reason || '').trim() || null;
+  const archivedAt = new Date().toISOString();
+
+  db.prepare(`
+    UPDATE workers
+    SET status = 'inactive',
+        archived_at = ?,
+        archived_by_user_id = ?,
+        archive_reason = ?,
+        updated_at = ?
+    WHERE id = ? AND company_id = ?
+  `).run(
+    archivedAt,
+    req.user.id,
+    reason,
+    archivedAt,
+    req.params.id,
+    req.user.company_id
+  );
+
+  appendAuditEvent(db, {
+    companyId: req.user.company_id,
+    eventType: 'worker_removed',
+    userId: req.user.id,
+    workerId: req.params.id,
+    payload: {
+      worker_name: worker.name,
+      worker_email: worker.email || null,
+      removed_by: req.user.id,
+      reason,
+      archived_at: archivedAt
+    }
+  });
+
+  return res.json({
+    ok: true,
+    worker_id: worker.id,
+    archived_at: archivedAt,
+    message: 'Worker removed from active dispatch.'
+  });
+});
+
 // GET /api/workers/:id/preferences
 router.get('/:id/preferences', requireAuth, (req, res) => {
   const db = getDb();
@@ -454,7 +541,7 @@ router.get('/:id/preferences', requireAuth, (req, res) => {
 router.post('/:id/preferences', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
   const db = getDb();
   const worker = ensureWorker(db, req.params.id, req.user.company_id);
-  if (!worker) return res.status(404).json({ error: 'Worker not found' });
+  if (!ensureActiveWorkerOrResponse(res, worker)) return;
 
   const { task_tag, rating, notes } = req.body;
   const normalizedTag = normalizeTaskTag(task_tag);
@@ -515,6 +602,8 @@ router.post('/:id/preferences', requireAuth, requireRole('admin', 'dispatcher'),
 // PATCH /api/workers/:id/preferences/:preferenceId
 router.patch('/:id/preferences/:preferenceId', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
   const db = getDb();
+  const worker = ensureWorker(db, req.params.id, req.user.company_id);
+  if (!ensureActiveWorkerOrResponse(res, worker)) return;
   const preference = db.prepare(`
     SELECT *
     FROM worker_task_preferences
@@ -594,7 +683,7 @@ router.get('/:id/credentials', requireAuth, (req, res) => {
 router.post('/:id/credentials', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
   const db = getDb();
   const worker = ensureWorker(db, req.params.id, req.user.company_id);
-  if (!worker) return res.status(404).json({ error: 'Worker not found' });
+  if (!ensureActiveWorkerOrResponse(res, worker)) return;
 
   const { type, identifier, issuing_body, issue_date, expiry_date, verified, notes } = req.body;
 
@@ -631,6 +720,8 @@ router.post('/:id/credentials', requireAuth, requireRole('admin', 'dispatcher'),
 // PATCH /api/workers/:id/credentials/:credId
 router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
   const db = getDb();
+  const worker = ensureWorker(db, req.params.id, req.user.company_id);
+  if (!ensureActiveWorkerOrResponse(res, worker)) return;
   const credential = db.prepare(`
     SELECT *
     FROM credentials
@@ -691,7 +782,7 @@ router.get('/:id/fatigue-records', requireAuth, (req, res) => {
 router.post('/:id/fatigue-records', requireAuth, requireRole('admin', 'dispatcher', 'supervisor'), (req, res) => {
   const db = getDb();
   const worker = ensureWorker(db, req.params.id, req.user.company_id);
-  if (!worker) return res.status(404).json({ error: 'Worker not found' });
+  if (!ensureActiveWorkerOrResponse(res, worker)) return;
 
   const { shift_start, shift_end, shift_type, travel_hours, self_declared_fatigue, notes } = req.body;
 

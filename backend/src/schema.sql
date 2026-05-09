@@ -58,6 +58,9 @@ CREATE TABLE IF NOT EXISTS workers (
                     CHECK (status IN (
                       'available', 'allocated', 'unavailable', 'on_leave', 'inactive'
                     )),
+  archived_at       TEXT,
+  archived_by_user_id TEXT REFERENCES users(id),
+  archive_reason    TEXT,
   availability_note TEXT,
   notes             TEXT,
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
@@ -210,6 +213,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'credential_expiry_alert',
                   'worker_imported',
                   'worker_import_completed',
+                  'worker_removed',
                   'job_created',
                   'job_status_changed',
                   'preference_signal_created',
@@ -242,6 +246,7 @@ END;
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_users_company        ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_workers_company      ON workers(company_id);
+CREATE INDEX IF NOT EXISTS idx_workers_company_archived ON workers(company_id, archived_at);
 CREATE INDEX IF NOT EXISTS idx_credentials_worker   ON credentials(worker_id);
 CREATE INDEX IF NOT EXISTS idx_credentials_company  ON credentials(company_id);
 CREATE INDEX IF NOT EXISTS idx_fatigue_worker       ON fatigue_records(worker_id);

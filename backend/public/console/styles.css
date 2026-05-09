@@ -401,6 +401,10 @@ ul.tag-list li {
   border-left: 4px solid var(--warn);
 }
 
+.danger-panel {
+  border-left: 4px solid var(--bad);
+}
+
 .security-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 1fr);

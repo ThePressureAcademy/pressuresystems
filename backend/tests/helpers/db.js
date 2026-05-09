@@ -61,15 +61,21 @@ function seedCompanyAndUser(db, overrides = {}) {
 function seedWorker(db, companyId, overrides = {}) {
   const id = overrides.id || randomUUID();
   db.prepare(`
-    INSERT INTO workers (id, company_id, name, email, role, employment_type, crane_classes, status)
-    VALUES (?, ?, ?, ?, ?, 'permanent', ?, ?)
+    INSERT INTO workers (
+      id, company_id, name, email, role, employment_type, crane_classes, status,
+      archived_at, archived_by_user_id, archive_reason
+    )
+    VALUES (?, ?, ?, ?, ?, 'permanent', ?, ?, ?, ?, ?)
   `).run(
     id, companyId,
     overrides.name            || 'Test Worker',
     overrides.email           || null,
     overrides.role            || 'crane_operator',
     JSON.stringify(overrides.crane_classes || ['55T']),
-    overrides.status          || 'available'
+    overrides.status          || 'available',
+    overrides.archivedAt      || null,
+    overrides.archivedByUserId || null,
+    overrides.archiveReason   || null
   );
   return id;
 }

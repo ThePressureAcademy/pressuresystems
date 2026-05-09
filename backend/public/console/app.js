@@ -80,6 +80,13 @@ function setButtonBusy(button, busy, idleLabel, busyLabel) {
   button.textContent = busy ? busyLabel : idleLabel;
 }
 
+function disableFormControls(container) {
+  if (!container) return;
+  container.querySelectorAll('input, select, textarea, button').forEach((node) => {
+    node.disabled = true;
+  });
+}
+
 function nextRenderCycle() {
   state.renderCycle += 1;
   return state.renderCycle;
@@ -517,7 +524,7 @@ async function renderWorkersList(renderCycle) {
     el('a', { href: '/samples/employee-import-sample.csv', target: '_blank' }, 'sample CSV'),
     ' or ',
     el('a', { href: '/samples/employee-import-sample.tsv', target: '_blank' }, 'sample TSV'),
-    '.'
+    '. Removed workers are hidden from this active dispatch list but kept in audit history.'
   ));
 
   if (workers.length === 0) {
@@ -787,6 +794,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
     api('GET', `/workers/${workerId}/preferences`)
   ]);
   if (isStaleRender(renderCycle)) return;
+  const workerArchived = Boolean(worker.archived_at);
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, worker.name),
@@ -795,6 +803,13 @@ async function renderWorkerDetail(workerId, renderCycle) {
       el('a', { href: '#/workers' }, el('button', { class: 'secondary' }, '< All workers'))
     )
   ));
+
+  if (workerArchived) {
+    view.appendChild(el('div', { class: 'read-only-banner' },
+      `Removed from active dispatch ${fmtDate(worker.archived_at)}. Existing audit history is preserved.`,
+      worker.archive_reason ? ` Reason: ${worker.archive_reason}` : ''
+    ));
+  }
 
   const editForm = el('form', { class: 'panel' });
   const editErr = el('div', { class: 'error' });
@@ -812,37 +827,86 @@ async function renderWorkerDetail(workerId, renderCycle) {
   ));
   editForm.appendChild(buildTextarea('notes', 'Notes', { value: worker.notes || '' }));
   editForm.appendChild(editErr);
-  editForm.appendChild(el('button', { type: 'submit' }, 'Save changes'));
-  editForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    editErr.textContent = '';
-    const fd = new FormData(editForm);
-    try {
-      await api('PATCH', `/workers/${workerId}`, {
-        name: fd.get('name'),
-        email: fd.get('email') || null,
-        status: fd.get('status'),
-        role: fd.get('role'),
-        employment_type: fd.get('employment_type'),
-        contact_number: fd.get('contact_number') || null,
-        crane_classes: splitCsv(fd.get('crane_classes')),
-        usual_depot: fd.get('usual_depot') || null,
-        availability_note: fd.get('availability_note') || null,
-        notes: fd.get('notes') || null
-      });
-      toast('Worker updated', 'success');
-      router();
-    } catch (err) {
-      editErr.textContent = err.error;
-    }
-  });
+  const editSubmit = el('button', { type: 'submit' }, 'Save changes');
+  editForm.appendChild(editSubmit);
+  if (workerArchived) {
+    disableFormControls(editForm);
+    editErr.textContent = 'Archived workers stay read-only in the pilot UI.';
+  } else {
+    editForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      editErr.textContent = '';
+      const fd = new FormData(editForm);
+      try {
+        await api('PATCH', `/workers/${workerId}`, {
+          name: fd.get('name'),
+          email: fd.get('email') || null,
+          status: fd.get('status'),
+          role: fd.get('role'),
+          employment_type: fd.get('employment_type'),
+          contact_number: fd.get('contact_number') || null,
+          crane_classes: splitCsv(fd.get('crane_classes')),
+          usual_depot: fd.get('usual_depot') || null,
+          availability_note: fd.get('availability_note') || null,
+          notes: fd.get('notes') || null
+        });
+        toast('Worker updated', 'success');
+        router();
+      } catch (err) {
+        editErr.textContent = err.error;
+      }
+    });
+  }
   view.appendChild(editForm);
+
+  if (!workerArchived) {
+    const removePanel = el('form', { class: 'panel danger-panel' });
+    const removeErr = el('div', { class: 'error' });
+    const removeSubmit = el('button', { type: 'submit', class: 'danger' }, 'Remove worker');
+    removePanel.appendChild(el('h3', {}, 'Remove worker from active dispatch?'));
+    removePanel.appendChild(el('p', { class: 'small muted' },
+      'This will remove the worker from active dispatch and SmartRank recommendations. Existing audit history will be kept.'
+    ));
+    removePanel.appendChild(buildTextarea('reason', 'Reason (optional)', {
+      placeholder: 'Optional internal note for why this worker is being removed from active dispatch'
+    }));
+    removePanel.appendChild(removeErr);
+    removePanel.appendChild(el('div', { class: 'button-row' },
+      removeSubmit,
+      el('a', { href: '#/workers' }, el('button', { type: 'button', class: 'secondary' }, 'Cancel'))
+    ));
+    removePanel.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      removeErr.textContent = '';
+      const confirmed = window.confirm(
+        'Remove worker from active dispatch?\n\nThis will remove the worker from active dispatch and SmartRank recommendations. Existing audit history will be kept.'
+      );
+      if (!confirmed) return;
+
+      const fd = new FormData(removePanel);
+      setButtonBusy(removeSubmit, true, 'Remove worker', 'Removing...');
+      try {
+        const result = await api('POST', `/workers/${workerId}/remove`, {
+          reason: fd.get('reason') || null
+        });
+        toast(result.message || 'Worker removed from active dispatch.', 'success');
+        location.hash = '#/workers';
+      } catch (err) {
+        removeErr.textContent = err.error || 'Could not remove worker';
+      } finally {
+        setButtonBusy(removeSubmit, false, 'Remove worker', 'Removing...');
+      }
+    });
+    view.appendChild(removePanel);
+  }
 
   const prefPanel = el('div', { class: 'panel' });
   const prefErr = el('div', { class: 'error' });
   prefPanel.appendChild(el('h3', {}, `Task preferences (${preferences.length})`));
   prefPanel.appendChild(el('div', { class: 'small muted' },
-    'Manual ratings are dispatcher-controlled. Imported and learned signals stay visible so SmartRank remains explainable.'
+    workerArchived
+      ? 'Imported, manual, and learned signals remain visible for history, but archived workers are removed from active dispatch workflows.'
+      : 'Manual ratings are dispatcher-controlled. Imported and learned signals stay visible so SmartRank remains explainable.'
   ));
 
   if (preferences.length === 0) {
@@ -861,7 +925,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
     const body = el('tbody');
     for (const preference of preferences) {
       const actionCell = el('td', {});
-      if (preference.source === 'manual') {
+      if (!workerArchived && preference.source === 'manual') {
         actionCell.appendChild(el('button', {
           type: 'button',
           class: 'secondary',
@@ -937,6 +1001,10 @@ async function renderWorkerDetail(workerId, renderCycle) {
       prefErr.textContent = err.error;
     }
   });
+  if (workerArchived) {
+    disableFormControls(prefForm);
+    prefErr.textContent = 'Archived workers cannot receive new preference changes.';
+  }
   prefPanel.appendChild(prefForm);
   view.appendChild(prefPanel);
 
@@ -968,7 +1036,13 @@ async function renderWorkerDetail(workerId, renderCycle) {
     table.appendChild(body);
     credPanel.appendChild(table);
   }
-  credPanel.appendChild(buildCredentialForm(workerId));
+  if (workerArchived) {
+    credPanel.appendChild(el('div', { class: 'small muted' },
+      'Archived workers keep existing credential history, but new credential entries are disabled in the active pilot workflow.'
+    ));
+  } else {
+    credPanel.appendChild(buildCredentialForm(workerId));
+  }
   view.appendChild(credPanel);
 
   const fatPanel = el('div', { class: 'panel' });
@@ -999,7 +1073,13 @@ async function renderWorkerDetail(workerId, renderCycle) {
     table.appendChild(body);
     fatPanel.appendChild(table);
   }
-  fatPanel.appendChild(buildFatigueForm(workerId));
+  if (workerArchived) {
+    fatPanel.appendChild(el('div', { class: 'small muted' },
+      'Archived workers keep fatigue history, but new fatigue entries are disabled in the active pilot workflow.'
+    ));
+  } else {
+    fatPanel.appendChild(buildFatigueForm(workerId));
+  }
   view.appendChild(fatPanel);
 }
 
@@ -1543,6 +1623,7 @@ async function renderAudit(renderCycle) {
     'non_top_ranked_selected',
     'job_created',
     'job_status_changed',
+    'worker_removed',
     'worker_imported',
     'worker_import_completed',
     'preference_signal_created',
@@ -1611,7 +1692,7 @@ function auditEventPill(eventType) {
   if (['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied'].includes(eventType)) {
     return 'pill-bad';
   }
-  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied'].includes(eventType)) {
+  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed'].includes(eventType)) {
     return 'pill-warn';
   }
   if (['allocation_confirmed', 'job_created', 'worker_imported', 'preference_signal_created'].includes(eventType)) {
