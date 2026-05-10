@@ -444,6 +444,30 @@ ul.tag-list li {
   width: fit-content;
 }
 
+.schedule-controls {
+  margin-bottom: 16px;
+}
+
+.schedule-list {
+  display: grid;
+  gap: 10px;
+}
+
+.schedule-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.schedule-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 840px) {
   .topbar {
     flex-wrap: wrap;

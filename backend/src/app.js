@@ -17,6 +17,7 @@ app.use('/api/companies',    require('./routes/companies'));
 app.use('/api/users',        require('./routes/users'));
 app.use('/api/workers',      require('./routes/workers'));
 app.use('/api/jobs',         require('./routes/jobs'));
+app.use('/api/schedule',     require('./routes/schedule'));
 app.use('/api/audit-events', require('./routes/audit-events'));
 app.use('/api/metrics',      require('./routes/metrics'));
 

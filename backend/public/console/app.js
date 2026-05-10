@@ -14,6 +14,14 @@ const EMPLOYMENT_OPTIONS = ['permanent', 'casual', 'contractor', 'labour_hire'];
 const STATUS_OPTIONS = ['available', 'allocated', 'unavailable', 'on_leave', 'inactive'];
 const SHIFT_OPTIONS = ['day', 'night', 'split'];
 const RISK_OPTIONS = ['routine', 'complex', 'critical'];
+const COMMON_TIMEZONES = [
+  'Australia/Brisbane',
+  'Australia/Sydney',
+  'Australia/Melbourne',
+  'Australia/Perth',
+  'Pacific/Auckland'
+];
+const SCHEDULE_STATUS_OPTIONS = ['draft', 'planned', 'confirmed', 'completed', 'cancelled'];
 const CREDENTIAL_OPTIONS = [
   'high_risk_licence_crane',
   'high_risk_licence_dogging',
@@ -56,12 +64,51 @@ const fmtDateOnly = (value) => {
 const shortId = (value) => value ? String(value).slice(0, 8) : '-';
 const splitCsv = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 const splitPipe = (value) => String(value || '').split('|').map((item) => item.trim()).filter(Boolean);
+const splitLocalDateTime = (value) => {
+  if (!value || !String(value).includes(' ')) return { date: '', time: '' };
+  const [datePart, timePart] = String(value).split(' ');
+  return { date: datePart || '', time: timePart || '' };
+};
 const normalizeTag = (value) => String(value || '')
   .trim()
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '_')
   .replace(/^_+|_+$/g, '');
 const stars = (rating) => '★'.repeat(Math.max(0, Number(rating) || 0));
+
+function detectBrowserTimeZone() {
+  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  return detected || 'Australia/Brisbane';
+}
+
+function isoDateInTimeZone(date = new Date(), timeZone = detectBrowserTimeZone()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
+
+function addDaysIso(dateStr, days) {
+  const [year, month, day] = String(dateStr).split('-').map(Number);
+  const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  probe.setUTCDate(probe.getUTCDate() + days);
+  return probe.toISOString().slice(0, 10);
+}
+
+function startOfWeekIso(dateStr) {
+  const [year, month, day] = String(dateStr).split('-').map(Number);
+  const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  const daysToMonday = (probe.getUTCDay() + 6) % 7;
+  probe.setUTCDate(probe.getUTCDate() - daysToMonday);
+  return probe.toISOString().slice(0, 10);
+}
+
+function formatScheduleRange(schedule) {
+  if (!schedule?.has_schedule) return 'Draft - schedule not set';
+  return `${schedule.display_start_local} -> ${schedule.display_end_local} (${schedule.display_timezone})`;
+}
 
 function getHashState() {
   const raw = location.hash.replace(/^#\/?/, '') || 'dashboard';
@@ -307,6 +354,7 @@ function router() {
 
   const routes = {
     dashboard: () => renderDashboard(renderCycle),
+    schedule: () => renderSchedule(renderCycle),
     workers: () => {
       if (rest[0] === 'import') return renderWorkerImport(renderCycle);
       return rest[0] ? renderWorkerDetail(rest[0], renderCycle) : renderWorkersList(renderCycle);
@@ -364,6 +412,17 @@ function jobStatusPill(status) {
     allocated: 'pill-ok',
     in_progress: 'pill-warn',
     complete: 'pill-muted',
+    cancelled: 'pill-bad'
+  };
+  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, status);
+}
+
+function scheduleStatusPill(status) {
+  const map = {
+    draft: 'pill-muted',
+    planned: 'pill-info',
+    confirmed: 'pill-ok',
+    completed: 'pill-muted',
     cancelled: 'pill-bad'
   };
   return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, status);
@@ -502,6 +561,107 @@ function buildSecurityPanel() {
 
   panel.appendChild(el('div', { class: 'security-grid' }, copy, actions));
   return panel;
+}
+
+async function renderSchedule(renderCycle) {
+  const view = document.getElementById('view');
+  view.innerHTML = '';
+
+  const { query } = getHashState();
+  const requestedTimeZone = query.get('timezone') || detectBrowserTimeZone() || 'Australia/Brisbane';
+  const requestedStart = query.get('start') || startOfWeekIso(isoDateInTimeZone(new Date(), requestedTimeZone));
+  const requestedEnd = addDaysIso(requestedStart, 6);
+  const data = await api('GET', `/schedule?start=${encodeURIComponent(requestedStart)}&end=${encodeURIComponent(requestedEnd)}&timezone=${encodeURIComponent(requestedTimeZone)}`);
+  if (isStaleRender(renderCycle)) return;
+
+  const previousWeek = addDaysIso(data.range.start_date, -7);
+  const nextWeek = addDaysIso(data.range.start_date, 7);
+
+  view.appendChild(el('div', { class: 'toolbar' },
+    el('h2', {}, 'Dispatch calendar'),
+    el('div', { class: 'button-row' },
+      el('a', { href: `#/schedule?start=${previousWeek}&timezone=${encodeURIComponent(data.timezone)}` }, el('button', { class: 'secondary' }, '< Previous week')),
+      el('a', { href: `#/schedule?start=${startOfWeekIso(isoDateInTimeZone(new Date(), data.timezone))}&timezone=${encodeURIComponent(data.timezone)}` }, el('button', { class: 'secondary' }, 'Current week')),
+      el('a', { href: `#/schedule?start=${nextWeek}&timezone=${encodeURIComponent(data.timezone)}` }, el('button', { class: 'secondary' }, 'Next week >'))
+    )
+  ));
+
+  const timezoneInput = el('input', {
+    name: 'timezone',
+    value: data.timezone,
+    list: 'timezone-options',
+    placeholder: 'Australia/Brisbane'
+  });
+  const timezoneList = el('datalist', { id: 'timezone-options' },
+    ...COMMON_TIMEZONES.map((item) => el('option', { value: item }, item))
+  );
+  const applyButton = el('button', { type: 'submit' }, 'Apply timezone');
+  const rangeForm = el('form', { class: 'panel schedule-controls' });
+  rangeForm.appendChild(el('div', { class: 'row' },
+    buildFieldWrapper('Week start', el('input', { type: 'date', name: 'start', value: data.range.start_date })),
+    buildFieldWrapper('Display timezone', timezoneInput)
+  ));
+  rangeForm.appendChild(timezoneList);
+  rangeForm.appendChild(el('div', { class: 'button-row' }, applyButton));
+  rangeForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const fd = new FormData(rangeForm);
+    location.hash = `#/schedule?start=${fd.get('start')}&timezone=${encodeURIComponent(fd.get('timezone') || data.timezone)}`;
+  });
+  view.appendChild(rangeForm);
+
+  view.appendChild(el('div', { class: 'panel small muted' },
+    `Showing ${data.range.start_date} to ${data.range.end_date} in ${data.timezone}. `,
+    'Scheduled jobs are grouped by local dispatch time. Planned and confirmed allocations surface assigned workers here; double-booking is blocked or warned in SmartRank based on overlap severity.'
+  ));
+
+  for (let offset = 0; offset < 7; offset += 1) {
+    const day = addDaysIso(data.range.start_date, offset);
+    const jobsForDay = data.jobs.filter((job) => job.schedule?.display_start_local?.startsWith(day));
+    const panel = el('div', { class: 'panel' });
+    panel.appendChild(el('div', { class: 'toolbar' },
+      el('h3', {}, day),
+      el('span', { class: 'small muted' }, `${jobsForDay.length} scheduled job${jobsForDay.length === 1 ? '' : 's'}`)
+    ));
+
+    if (jobsForDay.length === 0) {
+      panel.appendChild(el('div', { class: 'empty' }, 'No scheduled jobs'));
+    } else {
+      const list = el('div', { class: 'schedule-list' });
+      for (const job of jobsForDay) {
+        const assigned = job.assigned_workers || [];
+        list.appendChild(el('div', { class: 'schedule-card' },
+          el('div', { class: 'schedule-card-head' },
+            el('div', {},
+              el('div', { class: 'rank-name' }, `${job.site_name} - ${job.client_name}`),
+              el('div', { class: 'rank-meta' }, formatScheduleRange(job.schedule))
+            ),
+            el('div', { class: 'button-row' },
+              scheduleStatusPill(job.schedule?.status || job.schedule_status),
+              jobStatusPill(job.status)
+            )
+          ),
+          el('div', { class: 'small', style: 'margin-top:10px;' },
+            el('strong', {}, 'Assigned: '),
+            assigned.length > 0
+              ? assigned.map((item) => `${item.worker_name} (${item.allocation_status || item.status})`).join(', ')
+              : 'Unallocated'
+          ),
+          el('div', { class: 'small', style: 'margin-top:6px;' },
+            el('strong', {}, 'Task tags: '),
+            (job.task_tags || []).join(', ') || 'none'
+          ),
+          el('div', { class: 'button-row', style: 'margin-top:10px;' },
+            el('a', { href: `#/jobs/${job.id}` }, el('button', { class: 'secondary' }, 'View job')),
+            el('a', { href: `#/jobs/${job.id}/smartrank` }, el('button', {}, assigned.length > 0 ? 'Re-run SmartRank' : 'Allocate'))
+          )
+        ));
+      }
+      panel.appendChild(list);
+    }
+
+    view.appendChild(panel);
+  }
 }
 
 async function renderWorkersList(renderCycle) {
@@ -1174,11 +1334,11 @@ async function renderJobsList(renderCycle) {
 
   const table = el('table');
   table.appendChild(el('thead', {}, el('tr', {},
-    el('th', {}, 'Date'),
+    el('th', {}, 'Schedule'),
     el('th', {}, 'Client'),
     el('th', {}, 'Site'),
     el('th', {}, 'Task tags'),
-    el('th', {}, 'Shift'),
+    el('th', {}, 'Timezone'),
     el('th', {}, 'Risk'),
     el('th', {}, 'Status'),
     el('th', {}, 'Actions')
@@ -1186,13 +1346,16 @@ async function renderJobsList(renderCycle) {
   const body = el('tbody');
   for (const job of jobs) {
     body.appendChild(el('tr', {},
-      el('td', {}, fmtDateOnly(job.date)),
+      el('td', {},
+        el('div', { class: 'small' }, formatScheduleRange(job.schedule)),
+        el('div', { class: 'small muted' }, `Schedule: ${job.schedule?.status || job.schedule_status}`)
+      ),
       el('td', {}, job.client_name),
       el('td', {}, el('a', { href: `#/jobs/${job.id}` }, job.site_name)),
       el('td', {}, (job.task_tags || []).join(', ') || '-'),
-      el('td', {}, job.shift_type),
+      el('td', {}, job.schedule?.timezone || job.job_timezone || '-'),
       el('td', {}, riskPill(job.lift_risk_level)),
-      el('td', {}, jobStatusPill(job.status)),
+      el('td', {}, el('div', { class: 'button-row' }, jobStatusPill(job.status), scheduleStatusPill(job.schedule?.status || job.schedule_status))),
       el('td', {}, el('a', { href: `#/jobs/${job.id}/smartrank` }, 'SmartRank'))
     ));
   }
@@ -1204,7 +1367,8 @@ function renderNewJob() {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const today = new Date().toISOString().slice(0, 10);
+  const detectedTimeZone = detectBrowserTimeZone() || 'Australia/Brisbane';
+  const today = isoDateInTimeZone(new Date(), detectedTimeZone);
   const form = el('form', { class: 'panel' });
   const errBox = el('div', { class: 'error' });
   form.appendChild(el('h2', {}, 'Create job'));
@@ -1213,8 +1377,16 @@ function renderNewJob() {
     buildInput('client_name', 'Client name', { required: true }),
     buildInput('site_name', 'Site name', { required: true }),
     buildInput('site_location', 'Site location'),
-    buildInput('date', 'Date', { type: 'date', required: true, value: today }),
-    buildInput('shift_start_time', 'Shift start time', { type: 'time' }),
+    buildInput('date', 'Scheduled date', { type: 'date', value: today }),
+    buildInput('shift_start_time', 'Scheduled start time', { type: 'time' }),
+    buildInput('scheduled_end_time', 'Scheduled end time', { type: 'time' }),
+    buildFieldWrapper('Timezone', el('input', {
+      name: 'job_timezone',
+      value: detectedTimeZone,
+      list: 'job-timezone-options',
+      placeholder: 'Australia/Brisbane'
+    })),
+    buildSelect('schedule_status', 'Schedule status', SCHEDULE_STATUS_OPTIONS, { value: 'planned' }),
     buildSelect('shift_type', 'Shift type', SHIFT_OPTIONS, { required: true }),
     buildInput('estimated_duration_hours', 'Estimated duration (hours)', { type: 'number', step: '0.5' }),
     buildInput('crane_class_required', 'Crane class required', { placeholder: 'Franna, Tower Crane, 55T' }),
@@ -1224,6 +1396,12 @@ function renderNewJob() {
     buildInput('site_conditions', 'Site conditions (comma-separated)'),
     buildSelect('lift_risk_level', 'Lift risk level', RISK_OPTIONS),
     buildSelect('travel_required', 'Travel required', ['false', 'true'])
+  ));
+  form.appendChild(el('datalist', { id: 'job-timezone-options' },
+    ...COMMON_TIMEZONES.map((item) => el('option', { value: item }, item))
+  ));
+  form.appendChild(el('div', { class: 'panel small muted' },
+    `Default timezone from this browser: ${detectedTimeZone}. Planned and confirmed jobs require start, end, and timezone; draft jobs can be saved without a schedule window.`
   ));
   form.appendChild(buildTextarea('notes', 'Notes'));
   form.appendChild(errBox);
@@ -1241,8 +1419,11 @@ function renderNewJob() {
       client_name: fd.get('client_name'),
       site_name: fd.get('site_name'),
       site_location: fd.get('site_location') || null,
-      date: fd.get('date'),
+      date: fd.get('date') || null,
       shift_start_time: fd.get('shift_start_time') || null,
+      scheduled_end_time: fd.get('scheduled_end_time') || null,
+      job_timezone: fd.get('job_timezone') || detectedTimeZone,
+      schedule_status: fd.get('schedule_status') || 'planned',
       shift_type: fd.get('shift_type'),
       estimated_duration_hours: fd.get('estimated_duration_hours') ? Number(fd.get('estimated_duration_hours')) : null,
       crane_class_required: fd.get('crane_class_required') || null,
@@ -1290,8 +1471,11 @@ async function renderJobDetail(jobId, renderCycle) {
     kv.appendChild(content);
   };
   addKv('Status', jobStatusPill(job.status));
+  addKv('Schedule', formatScheduleRange(job.schedule));
+  addKv('Schedule status', scheduleStatusPill(job.schedule?.status || job.schedule_status));
   addKv('Date', fmtDateOnly(job.date));
   addKv('Shift', `${job.shift_type}${job.shift_start_time ? ` @ ${job.shift_start_time}` : ''}`);
+  addKv('Timezone', job.schedule?.timezone || job.job_timezone || '-');
   addKv('Crane class', job.crane_class_required || '-');
   addKv('Task tags', renderTagList(job.task_tags, 'none'));
   addKv('Crew roles', (job.crew_roles_required || []).join(', ') || '-');
@@ -1332,6 +1516,12 @@ function renderAllocationCard(allocation) {
       allocation.override_reason
     ));
   }
+  if (allocation.schedule) {
+    card.appendChild(el('div', { class: 'alerts' },
+      el('strong', {}, 'Scheduled window: '),
+      formatScheduleRange(allocation.schedule)
+    ));
+  }
   if (allocation.active_warnings?.length) {
     const list = el('ul');
     for (const warning of allocation.active_warnings) list.appendChild(el('li', {}, warning.detail || warning.type));
@@ -1361,6 +1551,10 @@ async function renderSmartRank(jobId, renderCycle) {
 
   view.appendChild(el('div', { class: 'panel' },
     el('div', { class: 'small muted' }, `Generated ${fmtDate(result.generated_at)} · ${result.ranked.length} ranked, ${result.blocked.length} blocked`),
+    el('div', { class: 'small', style: 'margin-top:8px;' },
+      el('strong', {}, 'Scheduled window: '),
+      formatScheduleRange(result.job.schedule)
+    ),
     el('div', { class: 'small muted', style: 'margin-top:8px;' },
       'Dispatcher-approved learning may adjust the task preference factor, but it never overrides hard blocks or hides warnings.'
     ),
@@ -1515,6 +1709,7 @@ async function renderAllocate(jobId, workerId, renderCycle) {
   const errBox = el('div', { class: 'error' });
   const successBox = el('div', { class: 'panel hidden' });
   panel.appendChild(el('h3', {}, `${ranked.worker.name} - rank #${ranked.rank}, score ${ranked.score}`));
+  panel.appendChild(el('div', { class: 'small muted' }, `Scheduled window: ${formatScheduleRange(result.job.schedule)}`));
   if (!isTop) {
     panel.appendChild(el('div', { class: 'pill pill-warn' }, `Lower-ranked selection (top ranked worker is ${result.ranked[0]?.worker.name || 'n/a'})`));
   }
@@ -1622,6 +1817,7 @@ async function renderAudit(renderCycle) {
     'warning_acknowledged',
     'non_top_ranked_selected',
     'job_created',
+    'job_schedule_changed',
     'job_status_changed',
     'worker_removed',
     'worker_imported',
@@ -1692,7 +1888,7 @@ function auditEventPill(eventType) {
   if (['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied'].includes(eventType)) {
     return 'pill-bad';
   }
-  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed'].includes(eventType)) {
+  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed', 'job_schedule_changed'].includes(eventType)) {
     return 'pill-warn';
   }
   if (['allocation_confirmed', 'job_created', 'worker_imported', 'preference_signal_created'].includes(eventType)) {

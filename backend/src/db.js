@@ -21,6 +21,7 @@ const AUDIT_EVENT_TYPES = [
   'worker_import_completed',
   'worker_removed',
   'job_created',
+  'job_schedule_changed',
   'job_status_changed',
   'preference_signal_created',
   'preference_signal_updated',
@@ -84,6 +85,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_workers_company_email
   WHERE email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_workers_company_archived
   ON workers(company_id, archived_at);
+CREATE INDEX IF NOT EXISTS idx_jobs_company_schedule_start
+  ON jobs(company_id, scheduled_start_at_utc);
+CREATE INDEX IF NOT EXISTS idx_jobs_company_schedule_status
+  ON jobs(company_id, schedule_status);
+CREATE INDEX IF NOT EXISTS idx_allocations_worker_schedule
+  ON allocations(worker_id, allocation_start_at_utc, allocation_end_at_utc);
+CREATE INDEX IF NOT EXISTS idx_allocations_company_schedule
+  ON allocations(company_id, allocation_start_at_utc, allocation_end_at_utc);
 CREATE INDEX IF NOT EXISTS idx_preferences_worker ON worker_task_preferences(worker_id);
 CREATE INDEX IF NOT EXISTS idx_preferences_company ON worker_task_preferences(company_id, task_tag);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_preferences_worker_tag_source
@@ -116,7 +125,8 @@ function auditEventsNeedMigration(db) {
   return !row.sql.includes('learned_preference_applied')
     || !row.sql.includes('worker_imported')
     || !row.sql.includes('preference_signal_created')
-    || !row.sql.includes('worker_removed');
+    || !row.sql.includes('worker_removed')
+    || !row.sql.includes('job_schedule_changed');
 }
 
 function migrateAuditEvents(db) {
@@ -149,13 +159,34 @@ function migrateAuditEvents(db) {
 }
 
 function runMigrations(db) {
+  ensureColumn(db, 'companies', `timezone TEXT NOT NULL DEFAULT 'Australia/Brisbane'`, 'timezone');
   ensureColumn(db, 'users', `must_change_password INTEGER NOT NULL DEFAULT 0`, 'must_change_password');
   ensureColumn(db, 'workers', `email TEXT`, 'email');
   ensureColumn(db, 'workers', `archived_at TEXT`, 'archived_at');
   ensureColumn(db, 'workers', `archived_by_user_id TEXT`, 'archived_by_user_id');
   ensureColumn(db, 'workers', `archive_reason TEXT`, 'archive_reason');
   ensureColumn(db, 'jobs', `task_tags TEXT NOT NULL DEFAULT '[]'`, 'task_tags');
+  ensureColumn(db, 'jobs', `scheduled_start_at_utc TEXT`, 'scheduled_start_at_utc');
+  ensureColumn(db, 'jobs', `scheduled_end_at_utc TEXT`, 'scheduled_end_at_utc');
+  ensureColumn(db, 'jobs', `job_timezone TEXT NOT NULL DEFAULT 'Australia/Brisbane'`, 'job_timezone');
+  ensureColumn(db, 'jobs', `scheduled_start_local TEXT`, 'scheduled_start_local');
+  ensureColumn(db, 'jobs', `scheduled_end_local TEXT`, 'scheduled_end_local');
+  ensureColumn(db, 'jobs', `schedule_status TEXT NOT NULL DEFAULT 'planned'`, 'schedule_status');
+  ensureColumn(db, 'allocations', `allocation_start_at_utc TEXT`, 'allocation_start_at_utc');
+  ensureColumn(db, 'allocations', `allocation_end_at_utc TEXT`, 'allocation_end_at_utc');
+  ensureColumn(db, 'allocations', `allocation_timezone TEXT`, 'allocation_timezone');
+  ensureColumn(db, 'allocations', `allocation_status TEXT`, 'allocation_status');
   db.exec(`UPDATE jobs SET task_tags = '[]' WHERE task_tags IS NULL;`);
+  db.exec(`UPDATE companies SET timezone = 'Australia/Brisbane' WHERE timezone IS NULL OR trim(timezone) = '';`);
+  db.exec(`UPDATE jobs SET job_timezone = 'Australia/Brisbane' WHERE job_timezone IS NULL OR trim(job_timezone) = '';`);
+  db.exec(`
+    UPDATE jobs
+    SET schedule_status = CASE
+      WHEN scheduled_start_at_utc IS NULL OR scheduled_end_at_utc IS NULL THEN 'draft'
+      ELSE 'planned'
+    END
+    WHERE schedule_status IS NULL OR trim(schedule_status) = ''
+  `);
   db.exec(WORKER_TASK_PREFERENCES_SQL);
   migrateAuditEvents(db);
   db.exec(POST_MIGRATION_INDEX_SQL);

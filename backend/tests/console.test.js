@@ -43,6 +43,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /seeded admin credentials are compromised/i);
     assert.match(res.text, /href="#\/workers\/import"/);
     assert.match(res.text, />Import workers</);
+    assert.match(res.text, /href="#\/schedule"/);
+    assert.match(res.text, />Schedule</);
   });
 
   test('GET /console/styles.css returns CSS', async () => {
@@ -57,6 +59,7 @@ describe('Pilot console — static asset serving', () => {
     assert.equal(res.status, 200);
     assert.match(res.headers['content-type'], /javascript/);
     assert.match(res.text, /renderDashboard/);
+    assert.match(res.text, /renderSchedule/);
     assert.match(res.text, /renderWorkerImport/);
     assert.match(res.text, /renderSmartRank/);
     assert.match(res.text, /renderAllocate/);
@@ -64,6 +67,13 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Remove worker from active dispatch\?/);
     assert.match(res.text, /This will remove the worker from active dispatch and SmartRank recommendations\. Existing audit history will be kept\./);
     assert.match(res.text, /\/workers\/\$\{workerId\}\/remove/);
+    assert.match(res.text, /Dispatch calendar/);
+    assert.match(res.text, /Scheduled date/);
+    assert.match(res.text, /Scheduled start time/);
+    assert.match(res.text, /Scheduled end time/);
+    assert.match(res.text, /Schedule status/);
+    assert.match(res.text, /Apply timezone/);
+    assert.match(res.text, /double-booking is blocked or warned in SmartRank/i);
   });
 
   test('GET /samples exposes the employee onboarding sample files', async () => {

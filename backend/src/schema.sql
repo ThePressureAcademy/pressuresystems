@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS companies (
   id                TEXT PRIMARY KEY,
   name              TEXT NOT NULL,
   abn               TEXT,
+  timezone          TEXT NOT NULL DEFAULT 'Australia/Brisbane',
   locations         TEXT NOT NULL DEFAULT '[]',       -- JSON string[]
   operating_regions TEXT NOT NULL DEFAULT '[]',       -- JSON string[]
   status            TEXT NOT NULL DEFAULT 'pilot'
@@ -137,6 +138,15 @@ CREATE TABLE IF NOT EXISTS jobs (
   site_conditions          TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
   lift_risk_level          TEXT NOT NULL DEFAULT 'routine'
                            CHECK (lift_risk_level IN ('routine', 'complex', 'critical')),
+  scheduled_start_at_utc   TEXT,
+  scheduled_end_at_utc     TEXT,
+  job_timezone             TEXT NOT NULL DEFAULT 'Australia/Brisbane',
+  scheduled_start_local    TEXT,
+  scheduled_end_local      TEXT,
+  schedule_status          TEXT NOT NULL DEFAULT 'planned'
+                           CHECK (schedule_status IN (
+                             'draft', 'planned', 'confirmed', 'completed', 'cancelled'
+                           )),
   travel_required          INTEGER NOT NULL DEFAULT 0,
   travel_hours_estimated   REAL DEFAULT 0,
   notes                    TEXT,
@@ -165,6 +175,11 @@ CREATE TABLE IF NOT EXISTS allocations (
   active_warnings         TEXT NOT NULL DEFAULT '[]',         -- JSON
   active_blocks_on_others TEXT NOT NULL DEFAULT '[]',         -- JSON
   override_reason         TEXT,
+  allocation_start_at_utc TEXT,
+  allocation_end_at_utc   TEXT,
+  allocation_timezone     TEXT,
+  allocation_status       TEXT
+                          CHECK (allocation_status IN ('draft', 'planned', 'confirmed', 'completed', 'cancelled')),
   status                  TEXT NOT NULL DEFAULT 'confirmed'
                           CHECK (status IN ('confirmed', 'changed', 'cancelled')),
   allocated_at            TEXT NOT NULL DEFAULT (datetime('now')),
@@ -215,6 +230,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'worker_import_completed',
                   'worker_removed',
                   'job_created',
+                  'job_schedule_changed',
                   'job_status_changed',
                   'preference_signal_created',
                   'preference_signal_updated',

@@ -34,9 +34,9 @@ function seedCompanyAndUser(db, overrides = {}) {
   const mustChangePassword = overrides.mustChangePassword ? 1 : 0;
 
   db.prepare(`
-    INSERT INTO companies (id, name, locations, operating_regions, status, pilot_start_date)
-    VALUES (?, 'Test Company', '[]', '[]', 'pilot', '2026-01-01')
-  `).run(companyId);
+    INSERT INTO companies (id, name, timezone, locations, operating_regions, status, pilot_start_date)
+    VALUES (?, 'Test Company', ?, '[]', '[]', 'pilot', '2026-01-01')
+  `).run(companyId, overrides.timezone || 'Australia/Brisbane');
 
   db.prepare(`
     INSERT INTO users (id, company_id, name, email, password_hash, role, status, must_change_password)
@@ -103,12 +103,16 @@ function seedCredential(db, workerId, companyId, overrides = {}) {
 function seedJob(db, companyId, userId, overrides = {}) {
   const id  = overrides.id  || randomUUID();
   const now = new Date().toISOString();
+  const scheduleStatus = overrides.schedule_status
+    || ((overrides.scheduled_start_at_utc && overrides.scheduled_end_at_utc) ? 'planned' : 'draft');
   db.prepare(`
     INSERT INTO jobs (
       id, company_id, client_name, site_name, date, shift_type,
       task_tags, required_credentials, crew_roles_required, site_conditions,
-      lift_risk_level, status, created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+      lift_risk_level, scheduled_start_at_utc, scheduled_end_at_utc, job_timezone,
+      scheduled_start_local, scheduled_end_local, schedule_status,
+      shift_start_time, status, created_by_user_id, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(
     id, companyId,
     overrides.client_name           || 'Test Client',
@@ -120,6 +124,13 @@ function seedJob(db, companyId, userId, overrides = {}) {
     JSON.stringify(overrides.crew_roles_required  || []),
     JSON.stringify(overrides.site_conditions      || []),
     overrides.lift_risk_level       || 'routine',
+    overrides.scheduled_start_at_utc || null,
+    overrides.scheduled_end_at_utc || null,
+    overrides.job_timezone || 'Australia/Brisbane',
+    overrides.scheduled_start_local || null,
+    overrides.scheduled_end_local || null,
+    scheduleStatus,
+    overrides.shift_start_time || null,
     userId, now, now
   );
   return id;
@@ -152,4 +163,46 @@ function seedPreference(db, companyId, workerId, overrides = {}) {
   return id;
 }
 
-module.exports = { createTestDb, seedCompanyAndUser, seedWorker, seedCredential, seedJob, seedPreference };
+function seedAllocation(db, companyId, jobId, workerId, userId, overrides = {}) {
+  const id = overrides.id || randomUUID();
+  const now = overrides.allocated_at || new Date().toISOString();
+  db.prepare(`
+    INSERT INTO allocations (
+      id, job_id, worker_id, company_id, allocated_by_user_id,
+      smartrank_position, smartrank_score, smartrank_snapshot,
+      active_warnings, active_blocks_on_others, override_reason,
+      allocation_start_at_utc, allocation_end_at_utc, allocation_timezone, allocation_status,
+      status, allocated_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    jobId,
+    workerId,
+    companyId,
+    userId,
+    overrides.smartrank_position || 1,
+    overrides.smartrank_score || 84,
+    JSON.stringify(overrides.smartrank_snapshot || {}),
+    JSON.stringify(overrides.active_warnings || []),
+    JSON.stringify(overrides.active_blocks_on_others || []),
+    overrides.override_reason || null,
+    overrides.allocation_start_at_utc || null,
+    overrides.allocation_end_at_utc || null,
+    overrides.allocation_timezone || 'Australia/Brisbane',
+    overrides.allocation_status || 'planned',
+    overrides.status || 'confirmed',
+    now,
+    now
+  );
+  return id;
+}
+
+module.exports = {
+  createTestDb,
+  seedAllocation,
+  seedCompanyAndUser,
+  seedWorker,
+  seedCredential,
+  seedJob,
+  seedPreference
+};

@@ -7,6 +7,8 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { appendAuditEvent } = require('../services/audit');
 const { analyzeWorkerImport } = require('../services/worker-import');
 const { normalizeTaskTag } = require('../services/preferences');
+const { resolveScheduleRange } = require('../services/timezone');
+const { getCompanyTimeZone, serializeAllocation } = require('../services/schedule');
 
 const router = express.Router();
 
@@ -374,6 +376,57 @@ router.post('/import', requireAuth, requireRole('admin', 'dispatcher'), (req, re
     delimiter: preview.delimiter,
     summary,
     rows
+  });
+});
+
+// GET /api/workers/:id/schedule
+router.get('/:id/schedule', requireAuth, (req, res) => {
+  const db = getDb();
+  const worker = ensureWorker(db, req.params.id, req.user.company_id);
+  if (!worker) return res.status(404).json({ error: 'Worker not found' });
+
+  let range;
+  try {
+    range = resolveScheduleRange({
+      start: req.query.start,
+      end: req.query.end,
+      timezone: req.query.timezone || getCompanyTimeZone(db, req.user.company_id)
+    });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  const allocations = db.prepare(`
+    SELECT
+      a.*,
+      j.reference AS job_reference,
+      j.client_name,
+      j.site_name,
+      j.job_timezone,
+      j.schedule_status AS job_schedule_status,
+      j.scheduled_start_at_utc AS job_scheduled_start_at_utc,
+      j.scheduled_end_at_utc AS job_scheduled_end_at_utc,
+      j.scheduled_start_local,
+      j.scheduled_end_local
+    FROM allocations a
+    JOIN jobs j ON a.job_id = j.id
+    WHERE a.company_id = ?
+      AND a.worker_id = ?
+      AND a.status = 'confirmed'
+      AND COALESCE(a.allocation_start_at_utc, j.scheduled_start_at_utc) IS NOT NULL
+      AND COALESCE(a.allocation_end_at_utc, j.scheduled_end_at_utc) IS NOT NULL
+      AND COALESCE(a.allocation_start_at_utc, j.scheduled_start_at_utc) < ?
+      AND COALESCE(a.allocation_end_at_utc, j.scheduled_end_at_utc) > ?
+      AND COALESCE(a.allocation_status, j.schedule_status, 'planned') != 'cancelled'
+    ORDER BY COALESCE(a.allocation_start_at_utc, j.scheduled_start_at_utc) ASC
+  `).all(req.user.company_id, req.params.id, range.end_at_utc, range.start_at_utc)
+    .map((row) => serializeAllocation(row, range.timezone));
+
+  res.json({
+    worker: parseWorker(worker),
+    timezone: range.timezone,
+    range,
+    allocations
   });
 });
 
