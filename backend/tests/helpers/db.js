@@ -30,6 +30,8 @@ function seedCompanyAndUser(db, overrides = {}) {
   const userEmail = overrides.email || 'admin@test.com';
   const userPassword = overrides.password || 'testpass';
   const userRole = overrides.role || 'admin';
+  const userStatus = overrides.status || 'active';
+  const mustChangePassword = overrides.mustChangePassword ? 1 : 0;
 
   db.prepare(`
     INSERT INTO companies (id, name, locations, operating_regions, status, pilot_start_date)
@@ -37,9 +39,18 @@ function seedCompanyAndUser(db, overrides = {}) {
   `).run(companyId);
 
   db.prepare(`
-    INSERT INTO users (id, company_id, name, email, password_hash, role)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(userId, companyId, userName, userEmail, bcrypt.hashSync(userPassword, 1), userRole);
+    INSERT INTO users (id, company_id, name, email, password_hash, role, status, must_change_password)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    userId,
+    companyId,
+    userName,
+    userEmail,
+    bcrypt.hashSync(userPassword, 1),
+    userRole,
+    userStatus,
+    mustChangePassword
+  );
 
   return { companyId, userId };
 }
@@ -50,15 +61,21 @@ function seedCompanyAndUser(db, overrides = {}) {
 function seedWorker(db, companyId, overrides = {}) {
   const id = overrides.id || randomUUID();
   db.prepare(`
-    INSERT INTO workers (id, company_id, name, email, role, employment_type, crane_classes, status)
-    VALUES (?, ?, ?, ?, ?, 'permanent', ?, ?)
+    INSERT INTO workers (
+      id, company_id, name, email, role, employment_type, crane_classes, status,
+      archived_at, archived_by_user_id, archive_reason
+    )
+    VALUES (?, ?, ?, ?, ?, 'permanent', ?, ?, ?, ?, ?)
   `).run(
     id, companyId,
     overrides.name            || 'Test Worker',
     overrides.email           || null,
     overrides.role            || 'crane_operator',
     JSON.stringify(overrides.crane_classes || ['55T']),
-    overrides.status          || 'available'
+    overrides.status          || 'available',
+    overrides.archivedAt      || null,
+    overrides.archivedByUserId || null,
+    overrides.archiveReason   || null
   );
   return id;
 }

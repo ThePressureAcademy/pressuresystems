@@ -36,7 +36,7 @@ function fetchSmartRankData(db, companyId) {
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
   const workers = db.prepare(
-    `SELECT * FROM workers WHERE company_id = ? AND status != 'inactive'`
+    `SELECT * FROM workers WHERE company_id = ? AND status != 'inactive' AND archived_at IS NULL`
   ).all(companyId);
   workers.forEach(w => { w.crane_classes = JSON.parse(w.crane_classes || '[]'); });
 
@@ -314,6 +314,20 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
   const worker = db.prepare(`SELECT * FROM workers WHERE id = ? AND company_id = ?`)
     .get(worker_id, req.user.company_id);
   if (!worker) return res.status(404).json({ error: 'Worker not found' });
+  if (worker.archived_at) {
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'allocation_rejected',
+      userId: req.user.id,
+      workerId: worker_id,
+      jobId: job.id,
+      payload: {
+        reason: 'archived_worker',
+        archived_at: worker.archived_at
+      }
+    });
+    return res.status(422).json({ error: 'Worker has been removed from active dispatch.' });
+  }
 
   // Re-run SmartRank at allocation time to get current state + snapshot
   const { workers, credsByWorker, fatigueByWorker, allocsByWorker, preferencesByWorker } =

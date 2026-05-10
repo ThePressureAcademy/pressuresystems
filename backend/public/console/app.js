@@ -80,6 +80,13 @@ function setButtonBusy(button, busy, idleLabel, busyLabel) {
   button.textContent = busy ? busyLabel : idleLabel;
 }
 
+function disableFormControls(container) {
+  if (!container) return;
+  container.querySelectorAll('input, select, textarea, button').forEach((node) => {
+    node.disabled = true;
+  });
+}
+
 function nextRenderCycle() {
   state.renderCycle += 1;
   return state.renderCycle;
@@ -121,6 +128,11 @@ async function api(method, path, body) {
     throw { status: 401, error: 'Session expired. Please sign in again.', data };
   }
   if (!res.ok) {
+    if (res.status === 403 && data?.must_change_password) {
+      state.user = state.user ? { ...state.user, must_change_password: true } : { must_change_password: true };
+      localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+      showPasswordChange();
+    }
     throw { status: res.status, error: (data && data.error) || `HTTP ${res.status}`, data };
   }
   return data;
@@ -145,6 +157,12 @@ function saveSession(token, user) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+function setLoginNote(message = '') {
+  const node = document.getElementById('login-note');
+  node.textContent = message;
+  node.classList.toggle('hidden', !message);
+}
+
 function logout() {
   nextRenderCycle();
   state.token = null;
@@ -154,20 +172,78 @@ function logout() {
   showLogin();
 }
 
-function showLogin() {
+function showLogin(message = '') {
   document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('password-change-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.add('hidden');
   document.getElementById('login-error').textContent = '';
+  setLoginNote(message);
+}
+
+function showPasswordChange() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('password-change-screen').classList.remove('hidden');
+  document.getElementById('app-shell').classList.add('hidden');
+  document.getElementById('password-change-error').textContent = '';
+  document.getElementById('password-change-success').textContent = '';
+  document.getElementById('password-change-success').classList.add('hidden');
+  document.getElementById('password-change-context').textContent = state.user
+    ? `Signed in as ${state.user.email}. Replace the bootstrap password before opening the pilot console.`
+    : 'Your temporary bootstrap password must be replaced before console access.';
 }
 
 function showApp() {
+  if (state.user?.must_change_password) {
+    showPasswordChange();
+    return;
+  }
   document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('password-change-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
   document.getElementById('user-label').textContent = state.user
     ? `${state.user.name} - ${state.user.role}`
     : '';
   if (!location.hash) location.hash = '#/dashboard';
   else router();
+}
+
+async function submitPasswordChange(form, submit, options = {}) {
+  const errNode = options.errorNode || document.getElementById('password-change-error');
+  const successNode = options.successNode || document.getElementById('password-change-success');
+  errNode.textContent = '';
+  if (successNode) {
+    successNode.textContent = '';
+    successNode.classList.add('hidden');
+  }
+
+  const formData = new FormData(form);
+  const currentPassword = String(formData.get('current_password') || '');
+  const newPassword = String(formData.get('new_password') || '');
+  const confirmPassword = String(formData.get('confirm_new_password') || '');
+
+  if (newPassword !== confirmPassword) {
+    errNode.textContent = 'The new password confirmation does not match.';
+    return;
+  }
+
+  setButtonBusy(submit, true, 'Change password', 'Updating...');
+  try {
+    const result = await api('POST', '/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    });
+    form.reset();
+    if (successNode) {
+      successNode.textContent = result.message || 'Password updated. Please sign in again.';
+      successNode.classList.remove('hidden');
+    }
+    logout();
+    showLogin(result.message || 'Password updated. Please sign in again.');
+  } catch (err) {
+    errNode.textContent = err.error || 'Password change failed';
+  } finally {
+    setButtonBusy(submit, false, 'Change password', 'Updating...');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -185,7 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const result = await api('POST', '/auth/login', { email, password });
       saveSession(result.token, result.user);
-      showApp();
+      if (result.must_change_password || result.user?.must_change_password) {
+        showPasswordChange();
+      } else {
+        showApp();
+      }
     } catch (err) {
       errNode.textContent = err.error || 'Login failed';
     } finally {
@@ -193,16 +273,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  document.getElementById('password-change-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitPasswordChange(event.target, document.getElementById('password-change-submit'));
+  });
+
   document.getElementById('logout').addEventListener('click', logout);
   window.addEventListener('hashchange', router);
 
-  if (state.token) showApp();
+  if (state.token && state.user?.must_change_password) showPasswordChange();
+  else if (state.token) showApp();
   else showLogin();
 });
 
 function router() {
   if (!state.token) {
     showLogin();
+    return;
+  }
+  if (state.user?.must_change_password) {
+    showPasswordChange();
     return;
   }
 
@@ -382,48 +472,29 @@ function buildSecurityPanel() {
   } else {
     const form = el('form');
     const errBox = el('div', { class: 'error' });
-    const submit = el('button', { type: 'submit' }, 'Rotate password');
-    form.appendChild(el('h3', {}, 'Rotate current admin password'));
+    const submit = el('button', { type: 'submit' }, 'Change password');
+    form.appendChild(el('h3', {}, 'Change current admin password'));
+    form.appendChild(el('label', {},
+      el('span', {}, 'Current password'),
+      el('input', { name: 'current_password', type: 'password', required: true, autocomplete: 'current-password' })
+    ));
     form.appendChild(el('label', {},
       el('span', {}, 'New password'),
-      el('input', { name: 'password', type: 'password', required: true, minlength: '12', autocomplete: 'new-password' })
+      el('input', { name: 'new_password', type: 'password', required: true, minlength: '10', autocomplete: 'new-password' })
     ));
     form.appendChild(el('label', {},
       el('span', {}, 'Confirm new password'),
-      el('input', { name: 'confirm_password', type: 'password', required: true, minlength: '12', autocomplete: 'new-password' })
+      el('input', { name: 'confirm_new_password', type: 'password', required: true, minlength: '10', autocomplete: 'new-password' })
     ));
     form.appendChild(errBox);
     form.appendChild(el('div', { class: 'button-row' }, submit));
     form.appendChild(el('div', { class: 'status-note' },
-      'This uses the existing admin API. Your current browser session stays active after rotation.'
+      'A successful password change signs you out so the next login proves the new password works.'
     ));
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      errBox.textContent = '';
-      const fd = new FormData(form);
-      const password = String(fd.get('password') || '');
-      const confirm = String(fd.get('confirm_password') || '');
-
-      if (password.length < 12) {
-        errBox.textContent = 'Use at least 12 characters for the pilot admin password.';
-        return;
-      }
-      if (password !== confirm) {
-        errBox.textContent = 'The password confirmation does not match.';
-        return;
-      }
-
-      setButtonBusy(submit, true, 'Rotate password', 'Rotating...');
-      try {
-        await api('PATCH', `/users/${state.user.id}`, { password });
-        form.reset();
-        toast('Admin password rotated', 'success');
-      } catch (err) {
-        errBox.textContent = err.error || 'Password rotation failed';
-      } finally {
-        setButtonBusy(submit, false, 'Rotate password', 'Rotating...');
-      }
+      await submitPasswordChange(form, submit, { errorNode: errBox, successNode: null });
     });
 
     actions.appendChild(form);
@@ -453,7 +524,7 @@ async function renderWorkersList(renderCycle) {
     el('a', { href: '/samples/employee-import-sample.csv', target: '_blank' }, 'sample CSV'),
     ' or ',
     el('a', { href: '/samples/employee-import-sample.tsv', target: '_blank' }, 'sample TSV'),
-    '.'
+    '. Removed workers are hidden from this active dispatch list but kept in audit history.'
   ));
 
   if (workers.length === 0) {
@@ -723,6 +794,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
     api('GET', `/workers/${workerId}/preferences`)
   ]);
   if (isStaleRender(renderCycle)) return;
+  const workerArchived = Boolean(worker.archived_at);
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, worker.name),
@@ -731,6 +803,13 @@ async function renderWorkerDetail(workerId, renderCycle) {
       el('a', { href: '#/workers' }, el('button', { class: 'secondary' }, '< All workers'))
     )
   ));
+
+  if (workerArchived) {
+    view.appendChild(el('div', { class: 'read-only-banner' },
+      `Removed from active dispatch ${fmtDate(worker.archived_at)}. Existing audit history is preserved.`,
+      worker.archive_reason ? ` Reason: ${worker.archive_reason}` : ''
+    ));
+  }
 
   const editForm = el('form', { class: 'panel' });
   const editErr = el('div', { class: 'error' });
@@ -748,37 +827,86 @@ async function renderWorkerDetail(workerId, renderCycle) {
   ));
   editForm.appendChild(buildTextarea('notes', 'Notes', { value: worker.notes || '' }));
   editForm.appendChild(editErr);
-  editForm.appendChild(el('button', { type: 'submit' }, 'Save changes'));
-  editForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    editErr.textContent = '';
-    const fd = new FormData(editForm);
-    try {
-      await api('PATCH', `/workers/${workerId}`, {
-        name: fd.get('name'),
-        email: fd.get('email') || null,
-        status: fd.get('status'),
-        role: fd.get('role'),
-        employment_type: fd.get('employment_type'),
-        contact_number: fd.get('contact_number') || null,
-        crane_classes: splitCsv(fd.get('crane_classes')),
-        usual_depot: fd.get('usual_depot') || null,
-        availability_note: fd.get('availability_note') || null,
-        notes: fd.get('notes') || null
-      });
-      toast('Worker updated', 'success');
-      router();
-    } catch (err) {
-      editErr.textContent = err.error;
-    }
-  });
+  const editSubmit = el('button', { type: 'submit' }, 'Save changes');
+  editForm.appendChild(editSubmit);
+  if (workerArchived) {
+    disableFormControls(editForm);
+    editErr.textContent = 'Archived workers stay read-only in the pilot UI.';
+  } else {
+    editForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      editErr.textContent = '';
+      const fd = new FormData(editForm);
+      try {
+        await api('PATCH', `/workers/${workerId}`, {
+          name: fd.get('name'),
+          email: fd.get('email') || null,
+          status: fd.get('status'),
+          role: fd.get('role'),
+          employment_type: fd.get('employment_type'),
+          contact_number: fd.get('contact_number') || null,
+          crane_classes: splitCsv(fd.get('crane_classes')),
+          usual_depot: fd.get('usual_depot') || null,
+          availability_note: fd.get('availability_note') || null,
+          notes: fd.get('notes') || null
+        });
+        toast('Worker updated', 'success');
+        router();
+      } catch (err) {
+        editErr.textContent = err.error;
+      }
+    });
+  }
   view.appendChild(editForm);
+
+  if (!workerArchived) {
+    const removePanel = el('form', { class: 'panel danger-panel' });
+    const removeErr = el('div', { class: 'error' });
+    const removeSubmit = el('button', { type: 'submit', class: 'danger' }, 'Remove worker');
+    removePanel.appendChild(el('h3', {}, 'Remove worker from active dispatch?'));
+    removePanel.appendChild(el('p', { class: 'small muted' },
+      'This will remove the worker from active dispatch and SmartRank recommendations. Existing audit history will be kept.'
+    ));
+    removePanel.appendChild(buildTextarea('reason', 'Reason (optional)', {
+      placeholder: 'Optional internal note for why this worker is being removed from active dispatch'
+    }));
+    removePanel.appendChild(removeErr);
+    removePanel.appendChild(el('div', { class: 'button-row' },
+      removeSubmit,
+      el('a', { href: '#/workers' }, el('button', { type: 'button', class: 'secondary' }, 'Cancel'))
+    ));
+    removePanel.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      removeErr.textContent = '';
+      const confirmed = window.confirm(
+        'Remove worker from active dispatch?\n\nThis will remove the worker from active dispatch and SmartRank recommendations. Existing audit history will be kept.'
+      );
+      if (!confirmed) return;
+
+      const fd = new FormData(removePanel);
+      setButtonBusy(removeSubmit, true, 'Remove worker', 'Removing...');
+      try {
+        const result = await api('POST', `/workers/${workerId}/remove`, {
+          reason: fd.get('reason') || null
+        });
+        toast(result.message || 'Worker removed from active dispatch.', 'success');
+        location.hash = '#/workers';
+      } catch (err) {
+        removeErr.textContent = err.error || 'Could not remove worker';
+      } finally {
+        setButtonBusy(removeSubmit, false, 'Remove worker', 'Removing...');
+      }
+    });
+    view.appendChild(removePanel);
+  }
 
   const prefPanel = el('div', { class: 'panel' });
   const prefErr = el('div', { class: 'error' });
   prefPanel.appendChild(el('h3', {}, `Task preferences (${preferences.length})`));
   prefPanel.appendChild(el('div', { class: 'small muted' },
-    'Manual ratings are dispatcher-controlled. Imported and learned signals stay visible so SmartRank remains explainable.'
+    workerArchived
+      ? 'Imported, manual, and learned signals remain visible for history, but archived workers are removed from active dispatch workflows.'
+      : 'Manual ratings are dispatcher-controlled. Imported and learned signals stay visible so SmartRank remains explainable.'
   ));
 
   if (preferences.length === 0) {
@@ -797,7 +925,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
     const body = el('tbody');
     for (const preference of preferences) {
       const actionCell = el('td', {});
-      if (preference.source === 'manual') {
+      if (!workerArchived && preference.source === 'manual') {
         actionCell.appendChild(el('button', {
           type: 'button',
           class: 'secondary',
@@ -873,6 +1001,10 @@ async function renderWorkerDetail(workerId, renderCycle) {
       prefErr.textContent = err.error;
     }
   });
+  if (workerArchived) {
+    disableFormControls(prefForm);
+    prefErr.textContent = 'Archived workers cannot receive new preference changes.';
+  }
   prefPanel.appendChild(prefForm);
   view.appendChild(prefPanel);
 
@@ -904,7 +1036,13 @@ async function renderWorkerDetail(workerId, renderCycle) {
     table.appendChild(body);
     credPanel.appendChild(table);
   }
-  credPanel.appendChild(buildCredentialForm(workerId));
+  if (workerArchived) {
+    credPanel.appendChild(el('div', { class: 'small muted' },
+      'Archived workers keep existing credential history, but new credential entries are disabled in the active pilot workflow.'
+    ));
+  } else {
+    credPanel.appendChild(buildCredentialForm(workerId));
+  }
   view.appendChild(credPanel);
 
   const fatPanel = el('div', { class: 'panel' });
@@ -935,7 +1073,13 @@ async function renderWorkerDetail(workerId, renderCycle) {
     table.appendChild(body);
     fatPanel.appendChild(table);
   }
-  fatPanel.appendChild(buildFatigueForm(workerId));
+  if (workerArchived) {
+    fatPanel.appendChild(el('div', { class: 'small muted' },
+      'Archived workers keep fatigue history, but new fatigue entries are disabled in the active pilot workflow.'
+    ));
+  } else {
+    fatPanel.appendChild(buildFatigueForm(workerId));
+  }
   view.appendChild(fatPanel);
 }
 
@@ -1479,6 +1623,7 @@ async function renderAudit(renderCycle) {
     'non_top_ranked_selected',
     'job_created',
     'job_status_changed',
+    'worker_removed',
     'worker_imported',
     'worker_import_completed',
     'preference_signal_created',
@@ -1547,7 +1692,7 @@ function auditEventPill(eventType) {
   if (['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied'].includes(eventType)) {
     return 'pill-bad';
   }
-  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied'].includes(eventType)) {
+  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed'].includes(eventType)) {
     return 'pill-warn';
   }
   if (['allocation_confirmed', 'job_created', 'worker_imported', 'preference_signal_created'].includes(eventType)) {

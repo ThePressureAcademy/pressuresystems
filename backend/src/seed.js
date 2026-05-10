@@ -15,9 +15,10 @@ const { randomUUID } = require('crypto');
 const { getDb }  = require('./db');
 
 const companyName   = process.env.SEED_COMPANY_NAME    || 'Pilot Crane Company';
-const adminEmail    = process.env.SEED_ADMIN_EMAIL     || 'admin@example.com';
+const adminEmail    = process.env.SEED_ADMIN_EMAIL     || 'operations@raymonds.com.au';
 const adminPassword = process.env.SEED_ADMIN_PASSWORD  || 'changeme123';
-const adminName     = process.env.SEED_ADMIN_NAME      || 'LIFTIQ Admin';
+const adminName     = process.env.SEED_ADMIN_NAME      || 'Operations Admin';
+const mustChangePassword = adminPassword === 'changeme123' ? 1 : 0;
 
 if (adminPassword === 'changeme123') {
   console.warn('WARNING: Using default seed password. Set SEED_ADMIN_PASSWORD in .env before sharing.');
@@ -42,13 +43,13 @@ db.transaction(() => {
   `).run(companyId, companyName);
 
   db.prepare(`
-    INSERT INTO users (id, company_id, name, email, password_hash, role)
-    VALUES (?, ?, ?, ?, ?, 'admin')
-  `).run(userId, companyId, adminName, adminEmail, hash);
+    INSERT INTO users (id, company_id, name, email, password_hash, role, must_change_password)
+    VALUES (?, ?, ?, ?, ?, 'admin', ?)
+  `).run(userId, companyId, adminName, adminEmail, hash, mustChangePassword);
 })();
 
 console.log(`Seeded:`);
 console.log(`  Company : ${companyName} (${companyId})`);
 console.log(`  Admin   : ${adminEmail}`);
-console.log(`  Password: ${adminPassword}`);
+console.log(`  Must rotate password on first sign-in: ${mustChangePassword ? 'yes' : 'no'}`);
 console.log(`\nLogin with POST /api/auth/login { email, password }`);

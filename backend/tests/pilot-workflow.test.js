@@ -62,6 +62,8 @@ describe('Pilot workflow — full UI walkthrough', () => {
     assert.ok(res.body.token);
     assert.equal(res.body.user.email, 'pilot@example.com');
     assert.equal(res.body.user.role, 'admin');
+    assert.equal(res.body.user.must_change_password, false);
+    assert.equal(res.body.must_change_password, false);
     token = res.body.token;
   });
 

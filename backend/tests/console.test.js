@@ -36,6 +36,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.headers['content-type'], /html/);
     assert.match(res.text, /LIFTIQ Pilot Console/);
     assert.match(res.text, /id="login-screen"/);
+    assert.match(res.text, /id="password-change-screen"/);
     assert.match(res.text, /id="app-shell"/);
     assert.match(res.text, /\.\/app\.js/);
     assert.match(res.text, /\.\/styles\.css/);
@@ -60,6 +61,9 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderSmartRank/);
     assert.match(res.text, /renderAllocate/);
     assert.match(res.text, /renderAudit/);
+    assert.match(res.text, /Remove worker from active dispatch\?/);
+    assert.match(res.text, /This will remove the worker from active dispatch and SmartRank recommendations\. Existing audit history will be kept\./);
+    assert.match(res.text, /\/workers\/\$\{workerId\}\/remove/);
   });
 
   test('GET /samples exposes the employee onboarding sample files', async () => {
@@ -103,6 +107,8 @@ describe('Pilot console — static asset serving', () => {
       'buildCredentialForm', // credential entry
       'buildFatigueForm',    // fatigue entry
       'buildSecurityPanel',  // seeded admin warning + minimal password rotation
+      'showPasswordChange',  // forced bootstrap rotation screen
+      'submitPasswordChange',// password change submission flow
       'getHashState',        // audit filter hash routing
       'nextRenderCycle',     // async render guard
       'isStaleRender',       // async render guard
@@ -112,6 +118,7 @@ describe('Pilot console — static asset serving', () => {
       assert.match(appJs, new RegExp(`function ${fn}`),
         `Console must define ${fn}`);
     }
+    assert.match(appJs, /\/auth\/change-password/);
   });
 
   test('API 404 still works (does not collide with SPA)', async () => {

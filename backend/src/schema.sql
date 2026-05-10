@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
                 CHECK (role IN ('admin', 'dispatcher', 'supervisor', 'viewer')),
   status        TEXT NOT NULL DEFAULT 'active'
                 CHECK (status IN ('active', 'invited', 'deactivated')),
+  must_change_password INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   last_login_at TEXT
 );
@@ -57,6 +58,9 @@ CREATE TABLE IF NOT EXISTS workers (
                     CHECK (status IN (
                       'available', 'allocated', 'unavailable', 'on_leave', 'inactive'
                     )),
+  archived_at       TEXT,
+  archived_by_user_id TEXT REFERENCES users(id),
+  archive_reason    TEXT,
   availability_note TEXT,
   notes             TEXT,
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
@@ -209,6 +213,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'credential_expiry_alert',
                   'worker_imported',
                   'worker_import_completed',
+                  'worker_removed',
                   'job_created',
                   'job_status_changed',
                   'preference_signal_created',
