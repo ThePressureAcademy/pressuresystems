@@ -83,7 +83,7 @@ function describePreferenceSignal(signal) {
   const ratingText = `★${signal.rating}`;
 
   if (signal.source === 'learned') {
-    return `Learned allocation preference: ${label} ${ratingText} from ${signal.approval_count} approved allocation(s) (confidence ${Number(signal.confidence || 0).toFixed(2)})`;
+    return `Learned allocation preference: ${label} ${ratingText} from ${signal.approval_count} confirmed allocation(s) (confidence ${Number(signal.confidence || 0).toFixed(2)})`;
   }
 
   if (signal.source === 'manual') {
@@ -277,7 +277,7 @@ function upsertLearnedPreferencesFromAllocation(db, appendAuditEvent, {
         workerId,
         taskTag,
         rating,
-        'Learned from dispatcher-approved allocations',
+        'Learned from confirmed allocations',
         approvalCount,
         overrideSelectionCount,
         confidence,

@@ -320,6 +320,45 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   gap: 12px;
 }
 
+.crane-form-section {
+  margin-top: 8px;
+}
+
+.crane-form-alerts,
+.crane-planning-alerts {
+  background: rgba(101, 197, 255, 0.08);
+  border: 1px solid rgba(101, 197, 255, 0.25);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.crane-form-alerts ul,
+.crane-planning-alerts ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.crane-planning-panel.compact {
+  margin-top: 16px;
+}
+
+.crane-transport-section {
+  margin-top: 16px;
+}
+
+.crane-transport-section h4 {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.crane-transport-list {
+  display: grid;
+  gap: 10px;
+}
+
 .preference-section {
   margin-top: 12px;
 }

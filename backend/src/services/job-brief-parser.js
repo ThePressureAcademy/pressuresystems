@@ -36,6 +36,7 @@ const SECTION_LABELS = [
   'required crew',
   'crew',
   'crane',
+  'transport',
   'timing',
   'requirements',
   'notes',
@@ -47,7 +48,8 @@ const CRANE_CLASS_MATCHERS = [
   { pattern: /\bcity crane\b/i, value: 'City Crane' },
   { pattern: /\btower crane\b/i, value: 'Tower Crane' },
   { pattern: /\bmobile crane\b/i, value: 'Mobile Crane' },
-  { pattern: /\bcrawler crane\b/i, value: 'Crawler Crane' }
+  { pattern: /\bcrawler crane\b/i, value: 'Crawler Crane' },
+  { pattern: /\b150\s*t(?:onne)?\s+crane\b/i, value: '150T' }
 ];
 
 const ROLE_MATCHERS = [
@@ -75,6 +77,13 @@ const TASK_TAG_MATCHERS = [
   { pattern: /\blow[\s_-]*complexity\b/i, value: 'low_complexity' },
   { pattern: /\btower crane\b/i, value: 'tower_crane' },
   { pattern: /\bfranna\b/i, value: 'franna' },
+  { pattern: /\bmobile crane\b/i, value: 'mobile_crane' },
+  { pattern: /\bgmk5150l-1\b/i, value: 'gmk5150l_1' },
+  { pattern: /\bgmk5150l\b/i, value: 'gmk5150l' },
+  { pattern: /\bcounterweight\b/i, value: 'counterweight' },
+  { pattern: /\bsemi[\s_-]*trailer\b/i, value: 'semi_trailer' },
+  { pattern: /\blow[\s_-]*loader\b/i, value: 'low_loader' },
+  { pattern: /\bsupport truck\b/i, value: 'support_truck' },
   { pattern: /\bdogman\b/i, value: 'dogman' },
   { pattern: /\brigger\b/i, value: 'rigger' },
   { pattern: /\bsupervisor\b/i, value: 'supervisor' },
@@ -284,7 +293,107 @@ function inferLiftRiskLevel(taskTags, text) {
 function inferTravelRequired(taskTags, travelNotes, text) {
   if ((taskTags || []).includes('long_travel')) return true;
   if (travelNotes) return true;
-  return /\btravel\b|\bremote\b|\bovernight\b/i.test(text || '');
+  return /\btravel\b|\bremote\b|\bovernight\b|\bsemi[\s_-]*trailer\b|\blow[\s_-]*loader\b|\btransport\b/i.test(text || '');
+}
+
+function minConfidence(...levels) {
+  const order = { low: 1, medium: 2, high: 3 };
+  const filtered = levels.filter((level) => ['low', 'medium', 'high'].includes(level));
+  if (filtered.length === 0) return 'low';
+  return filtered.reduce((lowest, current) => (
+    order[current] < order[lowest] ? current : lowest
+  ));
+}
+
+function findCraneModelByName(availableCraneModels = [], modelName) {
+  return (availableCraneModels || []).find((item) => String(item.model || '').toLowerCase() === String(modelName || '').toLowerCase()) || null;
+}
+
+function detectCraneModel(text, availableCraneModels, warnings) {
+  const body = String(text || '');
+  if (/\bgmk\s*5150l-1\b/i.test(body)) {
+    const model = findCraneModelByName(availableCraneModels, 'GMK5150L-1');
+    return {
+      crane_model_id: model?.id || null,
+      crane_model_name: model ? `${model.manufacturer} ${model.model}` : 'Grove GMK5150L-1',
+      confidence: 'high'
+    };
+  }
+  if (/\bgrove\s+gmk\s*5150l\b|\bgmk\s*5150l\b/i.test(body)) {
+    const model = findCraneModelByName(availableCraneModels, 'GMK5150L');
+    return {
+      crane_model_id: model?.id || null,
+      crane_model_name: model ? `${model.manufacturer} ${model.model}` : 'Grove GMK5150L',
+      confidence: 'high'
+    };
+  }
+  if (/\bgmk\s*5150\b/i.test(body)) {
+    warnings.push('GMK 5150 family detected. Confirm the exact crane variant before using counterweight travel-state assumptions.');
+    return {
+      crane_model_id: null,
+      crane_model_name: 'GMK 5150 family',
+      confidence: 'low'
+    };
+  }
+  return {
+    crane_model_id: null,
+    crane_model_name: null,
+    confidence: 'low'
+  };
+}
+
+function detectCounterweightRequirement(text, craneModel, warnings) {
+  const body = String(text || '');
+  const explicit = body.match(/\b(\d+(?:\.\d+)?)\s*t(?:onne|on)?s?\s+counterweight\b/i);
+  if (explicit) {
+    return { value: Number(explicit[1]), confidence: 'high' };
+  }
+
+  if (/\bfull counterweight\b/i.test(body)) {
+    if (craneModel?.max_counterweight_tonnes != null) {
+      return { value: Number(craneModel.max_counterweight_tonnes), confidence: 'medium' };
+    }
+    warnings.push('Full counterweight mentioned, but the exact crane model was not confirmed. Check the required counterweight.');
+    return { value: null, confidence: 'low' };
+  }
+
+  if (/\breduced counterweight\b/i.test(body)) {
+    warnings.push('Reduced counterweight mentioned without an exact tonnage. Confirm the required counterweight.');
+  }
+
+  return { value: null, confidence: 'low' };
+}
+
+function detectRequiredCapacity(text, warnings) {
+  const body = String(text || '');
+  if (/\b100\s*t(?:onne)?\s+setup\b|\b100t-class\b/i.test(body)) {
+    warnings.push('Crane setup inferred. Confirm required capacity and counterweight.');
+    return { value: 100, confidence: 'medium' };
+  }
+
+  const explicit = body.match(/\b(\d+(?:\.\d+)?)\s*t(?:onne)?\s+setup\b/i);
+  if (explicit) {
+    warnings.push('Crane setup inferred. Confirm required capacity and counterweight.');
+    return { value: Number(explicit[1]), confidence: 'medium' };
+  }
+
+  return { value: null, confidence: 'low' };
+}
+
+function extractTransportSentences(text) {
+  return String(text || '')
+    .split(/[.\n]/)
+    .map((item) => trimToNull(item))
+    .filter((item) => /\bcounterweight\b|\bsemi[\s_-]*trailer\b|\blow[\s_-]*loader\b|\bfloat\b|\bsupport truck\b|\btransport\b|\bnhvr\b|\bpermit\b|\brestricted access\b|\broad limits\b|\baxle\b|\broadable\b/i.test(item))
+    .join('. ');
+}
+
+function extractAccessSentences(text) {
+  return String(text || '')
+    .split(/[.\n]/)
+    .map((item) => trimToNull(item))
+    .filter((item) => /\brestricted access\b|\bbridge\b|\bpermit\b|\bnhvr\b|\bescort\b|\bpilot\b|\blow[\s_-]*loader\b|\bsemi[\s_-]*trailer\b|\broad limits\b/i.test(item))
+    .join('. ');
 }
 
 function validateJobBriefImportPayload(input) {
@@ -345,7 +454,8 @@ function parseExplicitTaskTags(lines) {
   );
 }
 
-function parseJobBrief(text) {
+function parseJobBrief(text, options = {}) {
+  const availableCraneModels = options.availableCraneModels || [];
   const lines = toLines(text);
   const warnings = [];
   const confidence = {
@@ -358,6 +468,10 @@ function parseJobBrief(text) {
     end_time: 'low',
     timezone: 'low',
     crane_class: 'low',
+    crane_model: 'low',
+    crane_travel_state: 'low',
+    required_capacity_tonnes: 'low',
+    counterweight_required_tonnes: 'low',
     required_roles: 'low',
     required_credentials: 'low',
     task_tags: 'low',
@@ -365,6 +479,9 @@ function parseJobBrief(text) {
     travel_notes: 'low',
     contact_name: 'low',
     contact_phone: 'low',
+    site_access_notes: 'low',
+    setup_notes: 'low',
+    source_confidence: 'low',
     source_note: 'high'
   };
 
@@ -442,14 +559,34 @@ function parseJobBrief(text) {
     warnings.push('Multiple crane classes were detected. Confirm the required crane class before creating the job.');
   }
 
+  const detectedCraneModel = detectCraneModel(text, availableCraneModels, warnings);
+  if (detectedCraneModel.crane_model_name) {
+    confidence.crane_model = detectedCraneModel.confidence;
+  }
+
+  const selectedCraneModel = detectedCraneModel.crane_model_id
+    ? (availableCraneModels || []).find((item) => Number(item.id) === Number(detectedCraneModel.crane_model_id)) || null
+    : null;
+
+  const counterweightRequirement = detectCounterweightRequirement(text, selectedCraneModel, warnings);
+  if (counterweightRequirement.value != null) {
+    confidence.counterweight_required_tonnes = counterweightRequirement.confidence;
+  }
+
+  const requiredCapacity = detectRequiredCapacity(text, warnings);
+  if (requiredCapacity.value != null) {
+    confidence.required_capacity_tonnes = requiredCapacity.confidence;
+  }
+
   const notesText = extractSectionText(lines, ['notes']);
+  const transportText = extractSectionText(lines, ['transport']);
   const riskNotes = trimToNull(notesText);
   if (riskNotes) {
     confidence.risk_notes = 'medium';
   }
 
   const travelNotes = trimToNull(
-    (notesText || '')
+    `${notesText || ''} ${transportText || ''}`
       .split(/[.]/)
       .filter((item) => /\btravel\b|\bremote\b|\bovernight\b|\bearly arrival\b/i.test(item))
       .join('. ')
@@ -457,6 +594,23 @@ function parseJobBrief(text) {
   if (travelNotes) {
     confidence.travel_notes = 'medium';
   }
+
+  const siteAccessNotes = trimToNull(extractAccessSentences(`${transportText || ''} ${notesText || ''}`));
+  if (siteAccessNotes) {
+    confidence.site_access_notes = 'medium';
+  }
+
+  const setupNotes = trimToNull(extractTransportSentences(`${craneText || ''} ${transportText || ''}`));
+  if (setupNotes) {
+    confidence.setup_notes = 'medium';
+  }
+
+  const sourceConfidence = minConfidence(
+    detectedCraneModel.confidence,
+    counterweightRequirement.confidence,
+    requiredCapacity.confidence
+  );
+  confidence.source_confidence = sourceConfidence;
 
   const extracted = {
     client_name: clientName,
@@ -468,6 +622,15 @@ function parseJobBrief(text) {
     end_time: endTime,
     timezone: timezone.value,
     crane_class: craneClass,
+    crane_model_id: detectedCraneModel.crane_model_id,
+    crane_model_name: detectedCraneModel.crane_model_name,
+    crane_travel_state_id: null,
+    crane_travel_state_label: null,
+    required_capacity_tonnes: requiredCapacity.value,
+    lift_weight_tonnes: null,
+    radius_m: null,
+    height_m: null,
+    counterweight_required_tonnes: counterweightRequirement.value,
     required_roles: requiredRoles,
     required_credentials: requiredCredentials,
     task_tags: taskTags,
@@ -475,6 +638,9 @@ function parseJobBrief(text) {
     travel_notes: travelNotes,
     contact_name: contact.name,
     contact_phone: contact.phone,
+    site_access_notes: siteAccessNotes,
+    setup_notes: setupNotes,
+    source_confidence: sourceConfidence,
     source_note: String(text || '').trim()
   };
 
