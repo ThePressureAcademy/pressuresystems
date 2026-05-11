@@ -83,6 +83,12 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Cancel import/);
     assert.match(res.text, /LIFTIQ does not verify job details automatically/i);
     assert.match(res.text, /\/jobs\/import-brief\/\$\{preview\.import_id\}\/create-job/);
+    assert.match(res.text, /Crane, counterweight and transport/);
+    assert.match(res.text, /Select travel state/);
+    assert.match(res.text, /Review required/);
+    assert.match(res.text, /Counterweight transport may be required/);
+    assert.match(res.text, /NHVR \/ state notice or permit check may be required/);
+    assert.equal(/\bapproved\b|compliant|legal to travel|safe to dispatch|engineered lift confirmed/i.test(res.text), false);
   });
 
   test('GET /samples exposes the employee onboarding sample files', async () => {
@@ -105,6 +111,16 @@ describe('Pilot console — static asset serving', () => {
     assert.equal(briefMd.status, 200);
     assert.match(briefMd.text, /# Client/);
     assert.match(briefMd.text, /# Required crew/);
+
+    const counterweightTxt = await supertest(app).get('/samples/job-brief-counterweight-sample.txt');
+    assert.equal(counterweightTxt.status, 200);
+    assert.match(counterweightTxt.text, /Grove GMK5150L 150T crane required as a 100T setup/);
+    assert.match(counterweightTxt.text, /Counterweight requires one semi trailer/);
+
+    const counterweightMd = await supertest(app).get('/samples/job-brief-counterweight-sample.md');
+    assert.equal(counterweightMd.status, 200);
+    assert.match(counterweightMd.text, /# Crane/);
+    assert.match(counterweightMd.text, /# Transport/);
   });
 
   test('GET /console/<arbitrary> falls back to index.html (SPA routing)', async () => {

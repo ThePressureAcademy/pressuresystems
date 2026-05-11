@@ -37,7 +37,7 @@ router.get('/', requireAuth, (req, res) => {
       AND scheduled_end_at_utc > ?
     ORDER BY scheduled_start_at_utc ASC, site_name ASC
   `).all(req.user.company_id, range.end_at_utc, range.start_at_utc)
-    .map((row) => serializeJob(row, range.timezone));
+    .map((row) => serializeJob(row, range.timezone, db));
 
   const allocations = db.prepare(`
     SELECT

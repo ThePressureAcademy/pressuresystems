@@ -5,6 +5,7 @@ const path     = require('path');
 const fs       = require('fs');
 const { randomUUID } = require('crypto');
 const bcrypt   = require('bcryptjs');
+const { runMigrations } = require('../../src/db');
 
 const SCHEMA_PATH = path.join(__dirname, '../../src/schema.sql');
 
@@ -16,6 +17,7 @@ function createTestDb() {
   const db = new Database(':memory:');
   db.pragma('foreign_keys = ON');
   db.exec(fs.readFileSync(SCHEMA_PATH, 'utf8'));
+  runMigrations(db);
   return db;
 }
 

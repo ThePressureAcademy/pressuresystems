@@ -20,6 +20,13 @@ const {
   validateJobBriefImportPayload
 } = require('../services/job-brief-parser');
 const {
+  findTravelStateByCarriedCounterweight,
+  listCraneModels
+} = require('../services/crane-model-catalog');
+const {
+  buildCraneTransportPlan
+} = require('../services/crane-transport-planning');
+const {
   getCompanyTimeZone,
   serializeAllocation,
   serializeJob
@@ -160,6 +167,336 @@ function parseJsonObject(value) {
 function trimText(value) {
   const normalized = String(value || '').trim();
   return normalized ? normalized : null;
+}
+
+function toNumberOrNull(value) {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+const PLANNING_FIELDS = [
+  'crane_model_id',
+  'crane_travel_state_id',
+  'crane_class',
+  'required_capacity_tonnes',
+  'lift_weight_tonnes',
+  'radius_m',
+  'height_m',
+  'counterweight_required_tonnes',
+  'site_access_notes',
+  'setup_notes',
+  'source_confidence',
+  'estimated_transport_loads'
+];
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function planningValue(input, key, existing = null) {
+  if (hasOwn(input, key)) {
+    return input[key] === '' ? null : input[key];
+  }
+  return existing ? existing[key] : null;
+}
+
+function shouldAssessPlanning(input, existingRequirement = null) {
+  if (PLANNING_FIELDS.some((field) => hasOwn(input, field))) return true;
+  if (!existingRequirement) return false;
+  return hasOwn(input, 'travel_notes')
+    || hasOwn(input, 'source_note')
+    || hasOwn(input, 'crane_class_required');
+}
+
+function getJobCraneRequirementRow(db, jobId) {
+  return db.prepare(`
+    SELECT *
+    FROM job_crane_requirements
+    WHERE job_id = ?
+  `).get(jobId);
+}
+
+function buildPlanningAssessmentInput(input, existingRequirement = null) {
+  return {
+    crane_model_id: planningValue(input, 'crane_model_id', existingRequirement),
+    crane_travel_state_id: planningValue(input, 'crane_travel_state_id', existingRequirement),
+    crane_class: planningValue(input, 'crane_class', existingRequirement)
+      || (hasOwn(input, 'crane_class_required')
+        ? (input.crane_class_required || null)
+        : (existingRequirement?.crane_class || null)),
+    required_capacity_tonnes: planningValue(input, 'required_capacity_tonnes', existingRequirement),
+    lift_weight_tonnes: planningValue(input, 'lift_weight_tonnes', existingRequirement),
+    radius_m: planningValue(input, 'radius_m', existingRequirement),
+    height_m: planningValue(input, 'height_m', existingRequirement),
+    counterweight_required_tonnes: planningValue(input, 'counterweight_required_tonnes', existingRequirement),
+    site_access_notes: planningValue(input, 'site_access_notes', existingRequirement),
+    setup_notes: planningValue(input, 'setup_notes', existingRequirement),
+    source_confidence: planningValue(input, 'source_confidence', existingRequirement),
+    estimated_transport_loads: planningValue(input, 'estimated_transport_loads', existingRequirement),
+    transport_notes: [input.travel_notes, input.source_note].filter(Boolean).join(' ')
+  };
+}
+
+function transportRequirementNotes(plan) {
+  return [plan.review_reason, ...(plan.messages || [])]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function persistJobCraneAssessment(db, user, jobId, input) {
+  const existingRequirement = getJobCraneRequirementRow(db, jobId);
+  if (!shouldAssessPlanning(input, existingRequirement)) {
+    return existingRequirement ? serializeJob(
+      db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(jobId),
+      null,
+      db
+    ).crane_planning : null;
+  }
+
+  const currentJobRow = db.prepare(`
+    SELECT travel_notes, source_note
+    FROM jobs
+    WHERE id = ?
+  `).get(jobId) || {};
+  const assessmentInput = buildPlanningAssessmentInput(input, existingRequirement);
+  assessmentInput.transport_notes = [
+    currentJobRow.travel_notes,
+    currentJobRow.source_note,
+    assessmentInput.transport_notes
+  ].filter(Boolean).join(' ');
+  const plan = buildCraneTransportPlan(db, assessmentInput);
+  const now = new Date().toISOString();
+  let requirementId = existingRequirement?.id || null;
+
+  if (existingRequirement) {
+    db.prepare(`
+      UPDATE job_crane_requirements
+      SET crane_model_id = ?,
+          crane_travel_state_id = ?,
+          crane_class = ?,
+          required_capacity_tonnes = ?,
+          lift_weight_tonnes = ?,
+          radius_m = ?,
+          height_m = ?,
+          counterweight_required_tonnes = ?,
+          counterweight_carried_on_crane_tonnes = ?,
+          counterweight_to_transport_tonnes = ?,
+          requires_counterweight_transport = ?,
+          support_truck_required = ?,
+          estimated_transport_loads = ?,
+          transport_review_required = ?,
+          route_review_required = ?,
+          osom_review_required = ?,
+          nhvr_review_required = ?,
+          permit_review_required = ?,
+          manual_review_required = ?,
+          review_reason = ?,
+          site_access_notes = ?,
+          setup_notes = ?,
+          source_confidence = ?,
+          updated_at = ?
+      WHERE id = ?
+    `).run(
+      plan.crane_model_id,
+      plan.crane_travel_state_id,
+      plan.crane_class,
+      plan.required_capacity_tonnes,
+      plan.lift_weight_tonnes,
+      plan.radius_m,
+      plan.height_m,
+      plan.counterweight_required_tonnes,
+      plan.counterweight_carried_on_crane_tonnes,
+      plan.counterweight_to_transport_tonnes,
+      plan.requires_counterweight_transport ? 1 : 0,
+      plan.support_truck_required ? 1 : 0,
+      plan.estimated_transport_loads,
+      plan.transport_review_required ? 1 : 0,
+      plan.route_review_required ? 1 : 0,
+      plan.osom_review_required ? 1 : 0,
+      plan.nhvr_review_required ? 1 : 0,
+      plan.permit_review_required ? 1 : 0,
+      plan.manual_review_required ? 1 : 0,
+      plan.review_reason,
+      plan.site_access_notes,
+      plan.setup_notes,
+      plan.source_confidence,
+      now,
+      existingRequirement.id
+    );
+  } else {
+    const result = db.prepare(`
+      INSERT INTO job_crane_requirements (
+        company_id, job_id, crane_model_id, crane_travel_state_id, crane_class,
+        required_capacity_tonnes, lift_weight_tonnes, radius_m, height_m,
+        counterweight_required_tonnes, counterweight_carried_on_crane_tonnes,
+        counterweight_to_transport_tonnes, requires_counterweight_transport,
+        support_truck_required, estimated_transport_loads, transport_review_required,
+        route_review_required, osom_review_required, nhvr_review_required,
+        permit_review_required, manual_review_required, review_reason,
+        site_access_notes, setup_notes, source_confidence, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      user.company_id,
+      jobId,
+      plan.crane_model_id,
+      plan.crane_travel_state_id,
+      plan.crane_class,
+      plan.required_capacity_tonnes,
+      plan.lift_weight_tonnes,
+      plan.radius_m,
+      plan.height_m,
+      plan.counterweight_required_tonnes,
+      plan.counterweight_carried_on_crane_tonnes,
+      plan.counterweight_to_transport_tonnes,
+      plan.requires_counterweight_transport ? 1 : 0,
+      plan.support_truck_required ? 1 : 0,
+      plan.estimated_transport_loads,
+      plan.transport_review_required ? 1 : 0,
+      plan.route_review_required ? 1 : 0,
+      plan.osom_review_required ? 1 : 0,
+      plan.nhvr_review_required ? 1 : 0,
+      plan.permit_review_required ? 1 : 0,
+      plan.manual_review_required ? 1 : 0,
+      plan.review_reason,
+      plan.site_access_notes,
+      plan.setup_notes,
+      plan.source_confidence,
+      now,
+      now
+    );
+    requirementId = result.lastInsertRowid;
+  }
+
+  const needsTransportRequirement = plan.requires_counterweight_transport
+    || plan.transport_review_required
+    || plan.route_review_required
+    || plan.nhvr_review_required
+    || plan.permit_review_required
+    || Boolean(plan.vehicle_type);
+
+  const existingTransportRequirement = requirementId
+    ? db.prepare(`
+        SELECT *
+        FROM transport_requirements
+        WHERE job_crane_requirement_id = ? AND transport_type = 'counterweight_support'
+      `).get(requirementId)
+    : null;
+
+  if (needsTransportRequirement && requirementId) {
+    const transportVehicleType = plan.vehicle_type || 'unknown_manual_review';
+    const loadDescription = plan.counterweight_to_transport_tonnes > 0
+      ? 'Counterweight package support load'
+      : 'Counterweight support transport review';
+
+    if (existingTransportRequirement) {
+      db.prepare(`
+        UPDATE transport_requirements
+        SET company_id = ?,
+            job_id = ?,
+            load_description = ?,
+            estimated_tonnes = ?,
+            vehicle_type = ?,
+            driver_required = ?,
+            rigger_required = ?,
+            pilot_or_escort_review = ?,
+            nhvr_review_required = ?,
+            route_review_required = ?,
+            permit_review_required = ?,
+            notes = ?
+        WHERE id = ?
+      `).run(
+        user.company_id,
+        jobId,
+        loadDescription,
+        plan.counterweight_to_transport_tonnes,
+        transportVehicleType,
+        plan.driver_required ? 1 : 0,
+        plan.rigger_required ? 1 : 0,
+        plan.osom_review_required || plan.route_review_required ? 1 : 0,
+        plan.nhvr_review_required ? 1 : 0,
+        plan.route_review_required ? 1 : 0,
+        plan.permit_review_required ? 1 : 0,
+        transportRequirementNotes(plan),
+        existingTransportRequirement.id
+      );
+    } else {
+      const transportResult = db.prepare(`
+        INSERT INTO transport_requirements (
+          company_id, job_id, job_crane_requirement_id, transport_type,
+          load_description, estimated_tonnes, vehicle_type, driver_required,
+          rigger_required, pilot_or_escort_review, nhvr_review_required,
+          route_review_required, permit_review_required, notes, created_at
+        ) VALUES (?, ?, ?, 'counterweight_support', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        user.company_id,
+        jobId,
+        requirementId,
+        loadDescription,
+        plan.counterweight_to_transport_tonnes,
+        transportVehicleType,
+        plan.driver_required ? 1 : 0,
+        plan.rigger_required ? 1 : 0,
+        plan.osom_review_required || plan.route_review_required ? 1 : 0,
+        plan.nhvr_review_required ? 1 : 0,
+        plan.route_review_required ? 1 : 0,
+        plan.permit_review_required ? 1 : 0,
+        transportRequirementNotes(plan),
+        now
+      );
+
+      appendAuditEvent(db, {
+        companyId: user.company_id,
+        eventType: 'transport_requirement_created',
+        userId: user.id,
+        jobId,
+        payload: {
+          job_id: jobId,
+          job_crane_requirement_id: requirementId,
+          transport_requirement_id: transportResult.lastInsertRowid,
+          transport_type: 'counterweight_support',
+          vehicle_type: transportVehicleType,
+          estimated_tonnes: plan.counterweight_to_transport_tonnes,
+          driver_required: plan.driver_required,
+          rigger_required: plan.rigger_required,
+          nhvr_review_required: plan.nhvr_review_required,
+          route_review_required: plan.route_review_required,
+          permit_review_required: plan.permit_review_required,
+          review_reason: plan.review_reason
+        }
+      });
+    }
+  } else if (existingTransportRequirement) {
+    db.prepare(`
+      DELETE FROM transport_requirements
+      WHERE id = ?
+    `).run(existingTransportRequirement.id);
+  }
+
+  appendAuditEvent(db, {
+    companyId: user.company_id,
+    eventType: 'job_counterweight_transport_assessed',
+    userId: user.id,
+    jobId,
+    payload: {
+      job_id: jobId,
+      crane_model_id: plan.crane_model_id,
+      crane_travel_state_id: plan.crane_travel_state_id,
+      counterweight_required_tonnes: plan.counterweight_required_tonnes,
+      counterweight_carried_on_crane_tonnes: plan.counterweight_carried_on_crane_tonnes,
+      counterweight_to_transport_tonnes: plan.counterweight_to_transport_tonnes,
+      requires_counterweight_transport: plan.requires_counterweight_transport,
+      support_truck_required: plan.support_truck_required,
+      transport_review_required: plan.transport_review_required,
+      nhvr_review_required: plan.nhvr_review_required,
+      permit_review_required: plan.permit_review_required,
+      manual_review_required: plan.manual_review_required,
+      source_confidence: plan.source_confidence,
+      review_reason: plan.review_reason
+    }
+  });
+
+  return plan;
 }
 
 function validateShiftType(shiftType) {
@@ -359,7 +696,7 @@ function insertJob(db, user, payload) {
     }
   });
 
-  return serializeJob(db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(jobId));
+  return serializeJob(db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(jobId), null, db);
 }
 
 function normalizeBriefCreatePayload(input) {
@@ -398,7 +735,17 @@ function normalizeBriefCreatePayload(input) {
     travel_hours_estimated: input.travel_hours_estimated ?? null,
     travel_notes: travelNotes,
     source_note: trimText(input.source_note),
-    notes: trimText(input.notes)
+    notes: trimText(input.notes),
+    crane_model_id: input.crane_model_id ?? null,
+    crane_travel_state_id: input.crane_travel_state_id ?? null,
+    required_capacity_tonnes: input.required_capacity_tonnes ?? null,
+    lift_weight_tonnes: input.lift_weight_tonnes ?? null,
+    radius_m: input.radius_m ?? null,
+    height_m: input.height_m ?? null,
+    counterweight_required_tonnes: input.counterweight_required_tonnes ?? null,
+    site_access_notes: trimText(input.site_access_notes),
+    setup_notes: trimText(input.setup_notes),
+    source_confidence: trimText(input.source_confidence)
   };
 }
 
@@ -429,7 +776,7 @@ router.get('/', requireAuth, (req, res) => {
   }
   sql += ` ORDER BY COALESCE(scheduled_start_at_utc, date || 'T00:00:00Z') ASC, created_at DESC`;
 
-  const jobs = db.prepare(sql).all(...params).map((row) => serializeJob(row, timezone || null));
+  const jobs = db.prepare(sql).all(...params).map((row) => serializeJob(row, timezone || null, db));
   res.json(jobs);
 });
 
@@ -442,7 +789,17 @@ router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => 
       ...req.body,
       notes: req.body.notes
     }, companyTimeZone);
-    const job = insertJob(db, req.user, payload);
+    let job;
+    db.transaction(() => {
+      job = insertJob(db, req.user, payload);
+      persistJobCraneAssessment(db, req.user, job.id, {
+        ...req.body,
+        crane_class_required: payload.crane_class_required,
+        travel_notes: payload.travel_notes,
+        source_note: payload.source_note
+      });
+      job = serializeJob(db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(job.id), null, db);
+    })();
     return res.status(201).json(job);
   } catch (error) {
     return res.status(400).json({ error: error.message });
@@ -458,7 +815,30 @@ router.post('/import-brief/preview', requireAuth, requireRole('admin', 'dispatch
   }
 
   const db = getDb();
-  const parsed = parseJobBrief(validated.content);
+  const availableCraneModels = listCraneModels(db);
+  const parsed = parseJobBrief(validated.content, { availableCraneModels });
+  if (
+    parsed.extracted.crane_model_id
+    && parsed.extracted.counterweight_required_tonnes != null
+    && !parsed.extracted.crane_travel_state_id
+  ) {
+    const matchedState = findTravelStateByCarriedCounterweight(
+      db,
+      parsed.extracted.crane_model_id,
+      parsed.extracted.counterweight_required_tonnes
+    );
+    if (matchedState) {
+      parsed.extracted.crane_travel_state_id = matchedState.id;
+      parsed.extracted.crane_travel_state_label = matchedState.state_label;
+      parsed.confidence.crane_travel_state = parsed.confidence.counterweight_required_tonnes || 'medium';
+      if (matchedState.review_required) {
+        parsed.warnings = Array.from(new Set([
+          ...(parsed.warnings || []),
+          'Matched travel state is review-gated. Confirm carried counterweight and road-access basis before dispatch.'
+        ]));
+      }
+    }
+  }
   const importId = randomUUID();
   const now = new Date().toISOString();
 
@@ -542,6 +922,11 @@ router.post('/import-brief/:importId/create-job', requireAuth, requireRole('admi
   const now = new Date().toISOString();
   db.transaction(() => {
     createdJob = insertJob(db, req.user, payload);
+    persistJobCraneAssessment(db, req.user, createdJob.id, {
+      ...req.body,
+      ...payload,
+      crane_class_required: payload.crane_class_required
+    });
     db.prepare(`
       UPDATE job_imports
       SET created_job_id = ?, status = 'job_created', parsed_payload_json = ?, updated_at = ?
@@ -565,6 +950,12 @@ router.post('/import-brief/:importId/create-job', requireAuth, requireRole('admi
         created_job_id: createdJob.id
       }
     });
+
+    createdJob = serializeJob(
+      db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(createdJob.id),
+      null,
+      db
+    );
   })();
 
   return res.status(201).json(createdJob);
@@ -573,7 +964,9 @@ router.post('/import-brief/:importId/create-job', requireAuth, requireRole('admi
 router.get('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const job = serializeJob(
-    db.prepare(`SELECT * FROM jobs WHERE id = ? AND company_id = ?`).get(req.params.id, req.user.company_id)
+    db.prepare(`SELECT * FROM jobs WHERE id = ? AND company_id = ?`).get(req.params.id, req.user.company_id),
+    null,
+    db
   );
   if (!job) return res.status(404).json({ error: 'Job not found' });
   res.json(job);
@@ -615,11 +1008,14 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
         client_name = COALESCE(?, client_name),
         site_name = COALESCE(?, site_name),
         site_location = COALESCE(?, site_location),
+        contact_name = COALESCE(?, contact_name),
+        contact_phone = COALESCE(?, contact_phone),
         date = ?,
         shift_start_time = ?,
         shift_type = COALESCE(?, shift_type),
         estimated_duration_hours = COALESCE(?, estimated_duration_hours),
         crane_class_required = COALESCE(?, crane_class_required),
+        job_description = COALESCE(?, job_description),
         task_tags = COALESCE(?, task_tags),
         crew_roles_required = COALESCE(?, crew_roles_required),
         required_credentials = COALESCE(?, required_credentials),
@@ -631,8 +1027,11 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
         scheduled_start_local = ?,
         scheduled_end_local = ?,
         schedule_status = ?,
+        risk_notes = COALESCE(?, risk_notes),
         travel_required = COALESCE(?, travel_required),
         travel_hours_estimated = COALESCE(?, travel_hours_estimated),
+        travel_notes = COALESCE(?, travel_notes),
+        source_note = COALESCE(?, source_note),
         notes = COALESCE(?, notes),
         status = COALESCE(?, status),
         updated_at = ?
@@ -642,11 +1041,14 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
     req.body.client_name !== undefined ? (req.body.client_name || null) : null,
     req.body.site_name !== undefined ? (req.body.site_name || null) : null,
     req.body.site_location !== undefined ? (req.body.site_location || null) : null,
+    req.body.contact_name !== undefined ? (req.body.contact_name || null) : null,
+    req.body.contact_phone !== undefined ? (req.body.contact_phone || null) : null,
     nextDate,
     scheduleFields.shift_start_time || null,
     req.body.shift_type !== undefined ? req.body.shift_type : null,
     req.body.estimated_duration_hours !== undefined ? req.body.estimated_duration_hours : null,
     req.body.crane_class_required !== undefined ? (req.body.crane_class_required || null) : null,
+    req.body.job_description !== undefined ? (req.body.job_description || null) : null,
     req.body.task_tags !== undefined ? JSON.stringify(req.body.task_tags || []) : null,
     req.body.crew_roles_required !== undefined ? JSON.stringify(req.body.crew_roles_required || []) : null,
     req.body.required_credentials !== undefined ? JSON.stringify(req.body.required_credentials || []) : null,
@@ -658,8 +1060,11 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
     scheduleFields.scheduled_start_local,
     scheduleFields.scheduled_end_local,
     scheduleFields.schedule_status,
+    req.body.risk_notes !== undefined ? (req.body.risk_notes || null) : null,
     req.body.travel_required !== undefined ? (req.body.travel_required ? 1 : 0) : null,
     req.body.travel_hours_estimated !== undefined ? req.body.travel_hours_estimated : null,
+    req.body.travel_notes !== undefined ? (req.body.travel_notes || null) : null,
+    req.body.source_note !== undefined ? (req.body.source_note || null) : null,
     req.body.notes !== undefined ? (req.body.notes || null) : null,
     req.body.status !== undefined ? req.body.status : null,
     now,
@@ -667,6 +1072,7 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
     req.user.company_id
   );
 
+  persistJobCraneAssessment(db, req.user, req.params.id, req.body);
   const updated = db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(req.params.id);
   if (req.body.status && req.body.status !== existing.status) {
     appendAuditEvent(db, {
@@ -693,7 +1099,7 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
     });
   }
 
-  res.json(serializeJob(updated));
+  res.json(serializeJob(updated, null, db));
 });
 
 router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'supervisor'), (req, res) => {
@@ -702,7 +1108,7 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
     .get(req.params.id, req.user.company_id);
   if (!jobRow) return res.status(404).json({ error: 'Job not found' });
 
-  const job = serializeJob(jobRow);
+  const job = serializeJob(jobRow, null, db);
   let {
     workers,
     credsByWorker,
@@ -798,7 +1204,7 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
   const jobRow = db.prepare(`SELECT * FROM jobs WHERE id = ? AND company_id = ?`)
     .get(req.params.id, req.user.company_id);
   if (!jobRow) return res.status(404).json({ error: 'Job not found' });
-  const job = serializeJob(jobRow);
+  const job = serializeJob(jobRow, null, db);
 
   if (!['open', 'draft'].includes(job.status)) {
     return res.status(422).json({

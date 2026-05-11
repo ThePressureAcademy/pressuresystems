@@ -3,6 +3,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const { seedCraneModelCatalog } = require('./services/crane-model-catalog');
 
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 const AUDIT_EVENT_TYPES = [
@@ -23,8 +24,10 @@ const AUDIT_EVENT_TYPES = [
   'job_created',
   'job_brief_import_previewed',
   'job_created_from_brief',
+  'job_counterweight_transport_assessed',
   'job_schedule_changed',
   'job_status_changed',
+  'transport_requirement_created',
   'preference_signal_created',
   'preference_signal_updated',
   'learned_preference_applied'
@@ -101,6 +104,103 @@ CREATE TABLE IF NOT EXISTS job_imports (
 );
 `;
 
+const CRANE_MODELS_SQL = `
+CREATE TABLE IF NOT EXISTS crane_models (
+  id                           INTEGER PRIMARY KEY AUTOINCREMENT,
+  manufacturer                 TEXT NOT NULL,
+  model                        TEXT NOT NULL,
+  nominal_capacity_tonnes      REAL,
+  max_counterweight_tonnes     REAL,
+  transport_length_m           REAL,
+  transport_width_m            REAL,
+  transport_height_m           REAL,
+  gross_vehicle_weight_tonnes  REAL,
+  axle_configuration           TEXT,
+  source_url                   TEXT,
+  source_capture_date          TEXT,
+  source_confidence            TEXT,
+  notes                        TEXT,
+  created_at                   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at                   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
+const CRANE_MODEL_TRAVEL_STATES_SQL = `
+CREATE TABLE IF NOT EXISTS crane_model_travel_states (
+  id                           INTEGER PRIMARY KEY AUTOINCREMENT,
+  crane_model_id               INTEGER NOT NULL REFERENCES crane_models(id) ON DELETE CASCADE,
+  state_label                  TEXT NOT NULL,
+  carried_counterweight_tonnes REAL,
+  axle_basis                   TEXT,
+  roadability_basis            TEXT,
+  gross_vehicle_weight_tonnes  REAL,
+  transport_width_m            REAL,
+  transport_height_m           REAL,
+  transport_length_m           REAL,
+  review_required              INTEGER NOT NULL DEFAULT 1,
+  source_url                   TEXT,
+  source_capture_date          TEXT,
+  source_confidence            TEXT,
+  notes                        TEXT,
+  created_at                   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at                   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
+const JOB_CRANE_REQUIREMENTS_SQL = `
+CREATE TABLE IF NOT EXISTS job_crane_requirements (
+  id                                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id                            TEXT NOT NULL REFERENCES companies(id),
+  job_id                                TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  crane_model_id                        INTEGER REFERENCES crane_models(id),
+  crane_travel_state_id                 INTEGER REFERENCES crane_model_travel_states(id),
+  crane_class                           TEXT,
+  required_capacity_tonnes              REAL,
+  lift_weight_tonnes                    REAL,
+  radius_m                              REAL,
+  height_m                              REAL,
+  counterweight_required_tonnes         REAL,
+  counterweight_carried_on_crane_tonnes REAL,
+  counterweight_to_transport_tonnes     REAL,
+  requires_counterweight_transport      INTEGER NOT NULL DEFAULT 0,
+  support_truck_required                INTEGER NOT NULL DEFAULT 0,
+  estimated_transport_loads             INTEGER,
+  transport_review_required             INTEGER NOT NULL DEFAULT 0,
+  route_review_required                 INTEGER NOT NULL DEFAULT 0,
+  osom_review_required                  INTEGER NOT NULL DEFAULT 0,
+  nhvr_review_required                  INTEGER NOT NULL DEFAULT 0,
+  permit_review_required                INTEGER NOT NULL DEFAULT 0,
+  manual_review_required                INTEGER NOT NULL DEFAULT 0,
+  review_reason                         TEXT,
+  site_access_notes                     TEXT,
+  setup_notes                           TEXT,
+  source_confidence                     TEXT,
+  created_at                            TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at                            TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
+const TRANSPORT_REQUIREMENTS_SQL = `
+CREATE TABLE IF NOT EXISTS transport_requirements (
+  id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id                TEXT NOT NULL REFERENCES companies(id),
+  job_id                    TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  job_crane_requirement_id  INTEGER REFERENCES job_crane_requirements(id) ON DELETE CASCADE,
+  transport_type            TEXT,
+  load_description          TEXT,
+  estimated_tonnes          REAL,
+  vehicle_type              TEXT,
+  driver_required           INTEGER NOT NULL DEFAULT 0,
+  rigger_required           INTEGER NOT NULL DEFAULT 0,
+  pilot_or_escort_review    INTEGER NOT NULL DEFAULT 0,
+  nhvr_review_required      INTEGER NOT NULL DEFAULT 0,
+  route_review_required     INTEGER NOT NULL DEFAULT 0,
+  permit_review_required    INTEGER NOT NULL DEFAULT 0,
+  notes                     TEXT,
+  created_at                TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
 const POST_MIGRATION_INDEX_SQL = `
 CREATE UNIQUE INDEX IF NOT EXISTS idx_workers_company_email
   ON workers(company_id, email)
@@ -123,6 +223,18 @@ CREATE INDEX IF NOT EXISTS idx_preferences_worker ON worker_task_preferences(wor
 CREATE INDEX IF NOT EXISTS idx_preferences_company ON worker_task_preferences(company_id, task_tag);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_preferences_worker_tag_source
   ON worker_task_preferences(company_id, worker_id, task_tag, source);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_crane_models_make_model
+  ON crane_models(manufacturer, model);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_crane_model_travel_state_unique
+  ON crane_model_travel_states(crane_model_id, state_label);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_job_crane_requirements_job
+  ON job_crane_requirements(job_id);
+CREATE INDEX IF NOT EXISTS idx_job_crane_requirements_company
+  ON job_crane_requirements(company_id, manual_review_required, transport_review_required);
+CREATE INDEX IF NOT EXISTS idx_transport_requirements_job
+  ON transport_requirements(job_id, transport_type);
+CREATE INDEX IF NOT EXISTS idx_transport_requirements_crane_requirement
+  ON transport_requirements(job_crane_requirement_id);
 CREATE INDEX IF NOT EXISTS idx_audit_company ON audit_events(company_id);
 CREATE INDEX IF NOT EXISTS idx_audit_job ON audit_events(job_id);
 CREATE INDEX IF NOT EXISTS idx_audit_worker ON audit_events(worker_id);
@@ -154,7 +266,9 @@ function auditEventsNeedMigration(db) {
     || !row.sql.includes('worker_removed')
     || !row.sql.includes('job_schedule_changed')
     || !row.sql.includes('job_brief_import_previewed')
-    || !row.sql.includes('job_created_from_brief');
+    || !row.sql.includes('job_created_from_brief')
+    || !row.sql.includes('job_counterweight_transport_assessed')
+    || !row.sql.includes('transport_requirement_created');
 }
 
 function migrateAuditEvents(db) {
@@ -223,9 +337,14 @@ function runMigrations(db) {
   `);
   db.exec(WORKER_TASK_PREFERENCES_SQL);
   db.exec(JOB_IMPORTS_SQL);
+  db.exec(CRANE_MODELS_SQL);
+  db.exec(CRANE_MODEL_TRAVEL_STATES_SQL);
+  db.exec(JOB_CRANE_REQUIREMENTS_SQL);
+  db.exec(TRANSPORT_REQUIREMENTS_SQL);
   ensureColumn(db, 'job_imports', `warnings_json TEXT NOT NULL DEFAULT '[]'`, 'warnings_json');
   migrateAuditEvents(db);
   db.exec(POST_MIGRATION_INDEX_SQL);
+  seedCraneModelCatalog(db);
 }
 
 function getDb() {
