@@ -21,6 +21,8 @@ const AUDIT_EVENT_TYPES = [
   'worker_import_completed',
   'worker_removed',
   'job_created',
+  'job_brief_import_previewed',
+  'job_created_from_brief',
   'job_schedule_changed',
   'job_status_changed',
   'preference_signal_created',
@@ -79,6 +81,26 @@ CREATE TABLE IF NOT EXISTS worker_task_preferences (
 );
 `;
 
+const JOB_IMPORTS_SQL = `
+CREATE TABLE IF NOT EXISTS job_imports (
+  id                  TEXT PRIMARY KEY,
+  company_id          TEXT NOT NULL REFERENCES companies(id),
+  user_id             TEXT NOT NULL REFERENCES users(id),
+  source_type         TEXT NOT NULL
+                      CHECK (source_type IN ('pasted_text', 'txt', 'markdown', 'docx')),
+  filename            TEXT,
+  original_text       TEXT NOT NULL,
+  parsed_payload_json TEXT NOT NULL DEFAULT '{}',
+  confidence_json     TEXT NOT NULL DEFAULT '{}',
+  warnings_json       TEXT NOT NULL DEFAULT '[]',
+  created_job_id      TEXT REFERENCES jobs(id),
+  status              TEXT NOT NULL DEFAULT 'parsed'
+                      CHECK (status IN ('parsed', 'job_created', 'cancelled', 'failed')),
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
 const POST_MIGRATION_INDEX_SQL = `
 CREATE UNIQUE INDEX IF NOT EXISTS idx_workers_company_email
   ON workers(company_id, email)
@@ -93,6 +115,10 @@ CREATE INDEX IF NOT EXISTS idx_allocations_worker_schedule
   ON allocations(worker_id, allocation_start_at_utc, allocation_end_at_utc);
 CREATE INDEX IF NOT EXISTS idx_allocations_company_schedule
   ON allocations(company_id, allocation_start_at_utc, allocation_end_at_utc);
+CREATE INDEX IF NOT EXISTS idx_job_imports_company
+  ON job_imports(company_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_job_imports_status
+  ON job_imports(company_id, status);
 CREATE INDEX IF NOT EXISTS idx_preferences_worker ON worker_task_preferences(worker_id);
 CREATE INDEX IF NOT EXISTS idx_preferences_company ON worker_task_preferences(company_id, task_tag);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_preferences_worker_tag_source
@@ -126,7 +152,9 @@ function auditEventsNeedMigration(db) {
     || !row.sql.includes('worker_imported')
     || !row.sql.includes('preference_signal_created')
     || !row.sql.includes('worker_removed')
-    || !row.sql.includes('job_schedule_changed');
+    || !row.sql.includes('job_schedule_changed')
+    || !row.sql.includes('job_brief_import_previewed')
+    || !row.sql.includes('job_created_from_brief');
 }
 
 function migrateAuditEvents(db) {
@@ -172,6 +200,12 @@ function runMigrations(db) {
   ensureColumn(db, 'jobs', `scheduled_start_local TEXT`, 'scheduled_start_local');
   ensureColumn(db, 'jobs', `scheduled_end_local TEXT`, 'scheduled_end_local');
   ensureColumn(db, 'jobs', `schedule_status TEXT NOT NULL DEFAULT 'planned'`, 'schedule_status');
+  ensureColumn(db, 'jobs', `contact_name TEXT`, 'contact_name');
+  ensureColumn(db, 'jobs', `contact_phone TEXT`, 'contact_phone');
+  ensureColumn(db, 'jobs', `job_description TEXT`, 'job_description');
+  ensureColumn(db, 'jobs', `risk_notes TEXT`, 'risk_notes');
+  ensureColumn(db, 'jobs', `travel_notes TEXT`, 'travel_notes');
+  ensureColumn(db, 'jobs', `source_note TEXT`, 'source_note');
   ensureColumn(db, 'allocations', `allocation_start_at_utc TEXT`, 'allocation_start_at_utc');
   ensureColumn(db, 'allocations', `allocation_end_at_utc TEXT`, 'allocation_end_at_utc');
   ensureColumn(db, 'allocations', `allocation_timezone TEXT`, 'allocation_timezone');
@@ -188,6 +222,8 @@ function runMigrations(db) {
     WHERE schedule_status IS NULL OR trim(schedule_status) = ''
   `);
   db.exec(WORKER_TASK_PREFERENCES_SQL);
+  db.exec(JOB_IMPORTS_SQL);
+  ensureColumn(db, 'job_imports', `warnings_json TEXT NOT NULL DEFAULT '[]'`, 'warnings_json');
   migrateAuditEvents(db);
   db.exec(POST_MIGRATION_INDEX_SQL);
 }

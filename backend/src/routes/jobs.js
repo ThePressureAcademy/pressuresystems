@@ -16,6 +16,10 @@ const {
   normalizeScheduleStatus
 } = require('../services/timezone');
 const {
+  parseJobBrief,
+  validateJobBriefImportPayload
+} = require('../services/job-brief-parser');
+const {
   getCompanyTimeZone,
   serializeAllocation,
   serializeJob
@@ -26,6 +30,7 @@ const router = express.Router();
 const VALID_JOB_STATUSES = ['draft', 'open', 'allocated', 'in_progress', 'complete', 'cancelled'];
 const VALID_RISK_LEVELS = ['routine', 'complex', 'critical'];
 const VALID_SHIFT_TYPES = ['day', 'night', 'split'];
+const VALID_JOB_IMPORT_STATUSES = ['parsed', 'job_created', 'cancelled', 'failed'];
 
 function parseJsonArray(value) {
   if (Array.isArray(value)) return value;
@@ -142,6 +147,261 @@ function buildJobFields(input, companyTimeZone, existing = null) {
   });
 }
 
+function parseJsonObject(value) {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function trimText(value) {
+  const normalized = String(value || '').trim();
+  return normalized ? normalized : null;
+}
+
+function validateShiftType(shiftType) {
+  if (!shiftType) {
+    throw new Error('shift_type is required');
+  }
+  if (!VALID_SHIFT_TYPES.includes(shiftType)) {
+    throw new Error(`shift_type must be one of: ${VALID_SHIFT_TYPES.join(', ')}`);
+  }
+  return shiftType;
+}
+
+function validateLiftRiskLevel(value) {
+  const normalized = value || 'routine';
+  if (!VALID_RISK_LEVELS.includes(normalized)) {
+    throw new Error(`lift_risk_level must be one of: ${VALID_RISK_LEVELS.join(', ')}`);
+  }
+  return normalized;
+}
+
+function durationHoursFromTimes(startTime, endTime) {
+  if (!startTime || !endTime) return null;
+  const [startHour, startMinute] = String(startTime).split(':').map(Number);
+  const [endHour, endMinute] = String(endTime).split(':').map(Number);
+  if ([startHour, startMinute, endHour, endMinute].some((value) => Number.isNaN(value))) {
+    return null;
+  }
+  const minutes = ((endHour * 60) + endMinute) - ((startHour * 60) + startMinute);
+  if (minutes <= 0) return null;
+  return Math.round((minutes / 60) * 100) / 100;
+}
+
+function inferShiftTypeFromTime(startTime, taskTags = []) {
+  if ((taskTags || []).includes('night_shift')) {
+    return 'night';
+  }
+  if (!startTime) return 'day';
+  const hour = Number(String(startTime).split(':')[0]);
+  if (Number.isNaN(hour)) return 'day';
+  return (hour >= 18 || hour < 5) ? 'night' : 'day';
+}
+
+function inferRiskLevel(taskTags = [], riskNotes = '', jobDescription = '') {
+  const body = `${riskNotes || ''} ${jobDescription || ''}`;
+  if ((taskTags || []).includes('critical_lift') || /critical lift/i.test(body)) {
+    return 'critical';
+  }
+  if (/complex/i.test(body)) {
+    return 'complex';
+  }
+  return 'routine';
+}
+
+function inferTravelRequired(taskTags = [], travelNotes = '', jobDescription = '') {
+  if ((taskTags || []).includes('long_travel')) return true;
+  return /\btravel\b|\bremote\b|\bovernight\b|\bearly arrival\b/i.test(`${travelNotes || ''} ${jobDescription || ''}`);
+}
+
+function deriveSiteConditions(riskNotes = '') {
+  const conditions = [];
+  const body = String(riskNotes || '');
+  if (/restricted access/i.test(body)) conditions.push('restricted_access');
+  if (/critical lift/i.test(body)) conditions.push('critical_lift_planning');
+  if (/early arrival/i.test(body)) conditions.push('early_arrival_required');
+  return conditions;
+}
+
+function buildJobNotes(input) {
+  const notes = [];
+  if (trimText(input.job_description)) notes.push(`Job description: ${trimText(input.job_description)}`);
+  if (trimText(input.risk_notes)) notes.push(`Risk notes: ${trimText(input.risk_notes)}`);
+  if (trimText(input.travel_notes)) notes.push(`Travel notes: ${trimText(input.travel_notes)}`);
+  if (trimText(input.contact_name) || trimText(input.contact_phone)) {
+    notes.push(`Contact: ${[trimText(input.contact_name), trimText(input.contact_phone)].filter(Boolean).join(' / ')}`);
+  }
+  if (trimText(input.notes)) notes.push(trimText(input.notes));
+  return notes.length > 0 ? notes.join('\n\n') : null;
+}
+
+function buildCreateJobPayload(input, companyTimeZone) {
+  const clientName = trimText(input.client_name);
+  const siteName = trimText(input.site_name);
+  const scheduleStatus = input.schedule_status !== undefined
+    ? input.schedule_status
+    : ((input.date && input.shift_start_time && input.scheduled_end_time) ? 'planned' : 'draft');
+  const shiftType = validateShiftType(input.shift_type);
+  const liftRiskLevel = validateLiftRiskLevel(input.lift_risk_level);
+
+  if (!clientName || !siteName) {
+    throw new Error('client_name and site_name are required');
+  }
+
+  const scheduleFields = buildJobFields({
+    ...input,
+    schedule_status: scheduleStatus
+  }, companyTimeZone);
+
+  const persistedDate = input.date || scheduleFields.scheduled_start_local?.slice(0, 10) || currentLocalDate(companyTimeZone);
+
+  return {
+    reference: trimText(input.reference),
+    client_name: clientName,
+    site_name: siteName,
+    site_location: trimText(input.site_location),
+    contact_name: trimText(input.contact_name),
+    contact_phone: trimText(input.contact_phone),
+    date: persistedDate,
+    shift_start_time: scheduleFields.shift_start_time || null,
+    shift_type: shiftType,
+    estimated_duration_hours: input.estimated_duration_hours ?? null,
+    crane_class_required: trimText(input.crane_class_required),
+    job_description: trimText(input.job_description),
+    task_tags: Array.isArray(input.task_tags) ? input.task_tags : parseJsonArray(input.task_tags),
+    crew_roles_required: Array.isArray(input.crew_roles_required) ? input.crew_roles_required : parseJsonArray(input.crew_roles_required),
+    required_credentials: Array.isArray(input.required_credentials) ? input.required_credentials : parseJsonArray(input.required_credentials),
+    site_conditions: Array.isArray(input.site_conditions) ? input.site_conditions : parseJsonArray(input.site_conditions),
+    lift_risk_level: liftRiskLevel,
+    scheduled_start_at_utc: scheduleFields.scheduled_start_at_utc,
+    scheduled_end_at_utc: scheduleFields.scheduled_end_at_utc,
+    job_timezone: scheduleFields.job_timezone,
+    scheduled_start_local: scheduleFields.scheduled_start_local,
+    scheduled_end_local: scheduleFields.scheduled_end_local,
+    schedule_status: scheduleFields.schedule_status,
+    risk_notes: trimText(input.risk_notes),
+    travel_required: input.travel_required ? 1 : 0,
+    travel_hours_estimated: input.travel_hours_estimated ?? 0,
+    travel_notes: trimText(input.travel_notes),
+    source_note: trimText(input.source_note),
+    notes: buildJobNotes(input)
+  };
+}
+
+function insertJob(db, user, payload) {
+  const jobId = randomUUID();
+  const now = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO jobs (
+      id, company_id, reference, client_name, site_name, site_location,
+      contact_name, contact_phone, date, shift_start_time, shift_type,
+      estimated_duration_hours, crane_class_required, job_description, task_tags,
+      crew_roles_required, required_credentials, site_conditions, lift_risk_level,
+      scheduled_start_at_utc, scheduled_end_at_utc, job_timezone, scheduled_start_local,
+      scheduled_end_local, schedule_status, risk_notes, travel_required,
+      travel_hours_estimated, travel_notes, source_note, notes, status,
+      created_by_user_id, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+  `).run(
+    jobId,
+    user.company_id,
+    payload.reference,
+    payload.client_name,
+    payload.site_name,
+    payload.site_location,
+    payload.contact_name,
+    payload.contact_phone,
+    payload.date,
+    payload.shift_start_time,
+    payload.shift_type,
+    payload.estimated_duration_hours,
+    payload.crane_class_required,
+    payload.job_description,
+    JSON.stringify(payload.task_tags || []),
+    JSON.stringify(payload.crew_roles_required || []),
+    JSON.stringify(payload.required_credentials || []),
+    JSON.stringify(payload.site_conditions || []),
+    payload.lift_risk_level,
+    payload.scheduled_start_at_utc,
+    payload.scheduled_end_at_utc,
+    payload.job_timezone,
+    payload.scheduled_start_local,
+    payload.scheduled_end_local,
+    payload.schedule_status,
+    payload.risk_notes,
+    payload.travel_required,
+    payload.travel_hours_estimated,
+    payload.travel_notes,
+    payload.source_note,
+    payload.notes,
+    user.id,
+    now,
+    now
+  );
+
+  appendAuditEvent(db, {
+    companyId: user.company_id,
+    eventType: 'job_created',
+    userId: user.id,
+    jobId,
+    payload: {
+      client_name: payload.client_name,
+      site_name: payload.site_name,
+      date: payload.date,
+      shift_type: payload.shift_type,
+      source: payload.source_note ? 'job_brief_import' : 'manual_console',
+      ...scheduleAuditPayload(payload)
+    }
+  });
+
+  return serializeJob(db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(jobId));
+}
+
+function normalizeBriefCreatePayload(input) {
+  const taskTags = parseJsonArray(input.task_tags).map((tag) => String(tag)).filter(Boolean);
+  const startTime = trimText(input.start_time);
+  const endTime = trimText(input.end_time);
+  const jobDescription = trimText(input.job_description);
+  const riskNotes = trimText(input.risk_notes);
+  const travelNotes = trimText(input.travel_notes);
+
+  return {
+    reference: trimText(input.reference),
+    client_name: trimText(input.client_name),
+    site_name: trimText(input.site_name) || trimText(input.site_address),
+    site_location: trimText(input.site_address),
+    contact_name: trimText(input.contact_name),
+    contact_phone: trimText(input.contact_phone),
+    date: trimText(input.scheduled_date),
+    shift_start_time: startTime,
+    scheduled_end_time: endTime,
+    shift_type: validateShiftType(trimText(input.shift_type) || inferShiftTypeFromTime(startTime, taskTags)),
+    schedule_status: normalizeScheduleStatus(trimText(input.schedule_status) || ((input.scheduled_date && startTime && endTime) ? 'planned' : 'draft')),
+    estimated_duration_hours: input.estimated_duration_hours ?? durationHoursFromTimes(startTime, endTime),
+    crane_class_required: trimText(input.crane_class),
+    job_description: jobDescription,
+    task_tags: taskTags,
+    crew_roles_required: parseJsonArray(input.required_roles).map((role) => String(role)).filter(Boolean),
+    required_credentials: parseJsonArray(input.required_credentials).map((credential) => String(credential)).filter(Boolean),
+    site_conditions: deriveSiteConditions(riskNotes),
+    lift_risk_level: inferRiskLevel(taskTags, riskNotes, jobDescription),
+    job_timezone: trimText(input.timezone),
+    risk_notes: riskNotes,
+    travel_required: input.travel_required !== undefined
+      ? Boolean(input.travel_required)
+      : inferTravelRequired(taskTags, travelNotes, jobDescription),
+    travel_hours_estimated: input.travel_hours_estimated ?? null,
+    travel_notes: travelNotes,
+    source_note: trimText(input.source_note),
+    notes: trimText(input.notes)
+  };
+}
+
 function scheduleAuditPayload(jobRow) {
   return {
     schedule_status: jobRow.schedule_status,
@@ -174,105 +434,140 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
-  const {
-    reference,
-    client_name,
-    site_name,
-    site_location,
-    date,
-    shift_type,
-    estimated_duration_hours,
-    crane_class_required,
-    task_tags,
-    crew_roles_required,
-    required_credentials,
-    site_conditions,
-    lift_risk_level,
-    travel_required,
-    travel_hours_estimated,
-    notes
-  } = req.body;
-
-  if (!client_name || !site_name || !shift_type) {
-    return res.status(400).json({ error: 'client_name, site_name, and shift_type are required' });
-  }
-  if (!VALID_SHIFT_TYPES.includes(shift_type)) {
-    return res.status(400).json({ error: `shift_type must be one of: ${VALID_SHIFT_TYPES.join(', ')}` });
-  }
-  if (lift_risk_level && !VALID_RISK_LEVELS.includes(lift_risk_level)) {
-    return res.status(400).json({ error: `lift_risk_level must be one of: ${VALID_RISK_LEVELS.join(', ')}` });
-  }
-
   const db = getDb();
   const companyTimeZone = getCompanyTimeZone(db, req.user.company_id);
-  let scheduleFields;
+
   try {
-    scheduleFields = buildJobFields(req.body, companyTimeZone);
+    const payload = buildCreateJobPayload({
+      ...req.body,
+      notes: req.body.notes
+    }, companyTimeZone);
+    const job = insertJob(db, req.user, payload);
+    return res.status(201).json(job);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/import-brief/preview', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
+  let validated;
+  try {
+    validated = validateJobBriefImportPayload(req.body);
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }
 
-  const jobId = randomUUID();
+  const db = getDb();
+  const parsed = parseJobBrief(validated.content);
+  const importId = randomUUID();
   const now = new Date().toISOString();
-  const persistedDate = date || scheduleFields.scheduled_start_local?.slice(0, 10) || currentLocalDate(companyTimeZone);
 
   db.prepare(`
-    INSERT INTO jobs (
-      id, company_id, reference, client_name, site_name, site_location,
-      date, shift_start_time, shift_type, estimated_duration_hours,
-      crane_class_required, task_tags, crew_roles_required, required_credentials,
-      site_conditions, lift_risk_level, scheduled_start_at_utc, scheduled_end_at_utc,
-      job_timezone, scheduled_start_local, scheduled_end_local, schedule_status,
-      travel_required, travel_hours_estimated, notes, status, created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+    INSERT INTO job_imports (
+      id, company_id, user_id, source_type, filename, original_text,
+      parsed_payload_json, confidence_json, warnings_json, status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'parsed', ?, ?)
   `).run(
-    jobId,
+    importId,
     req.user.company_id,
-    reference || null,
-    client_name,
-    site_name,
-    site_location || null,
-    persistedDate,
-    scheduleFields.shift_start_time || null,
-    shift_type,
-    estimated_duration_hours || null,
-    crane_class_required || null,
-    JSON.stringify(task_tags || []),
-    JSON.stringify(crew_roles_required || []),
-    JSON.stringify(required_credentials || []),
-    JSON.stringify(site_conditions || []),
-    lift_risk_level || 'routine',
-    scheduleFields.scheduled_start_at_utc,
-    scheduleFields.scheduled_end_at_utc,
-    scheduleFields.job_timezone,
-    scheduleFields.scheduled_start_local,
-    scheduleFields.scheduled_end_local,
-    scheduleFields.schedule_status,
-    travel_required ? 1 : 0,
-    travel_hours_estimated || 0,
-    notes || null,
     req.user.id,
+    validated.source_type,
+    validated.filename,
+    validated.content,
+    JSON.stringify(parsed.extracted),
+    JSON.stringify(parsed.confidence),
+    JSON.stringify(parsed.warnings),
     now,
     now
   );
 
   appendAuditEvent(db, {
     companyId: req.user.company_id,
-    eventType: 'job_created',
+    eventType: 'job_brief_import_previewed',
     userId: req.user.id,
-    jobId,
     payload: {
-      client_name,
-      site_name,
-      date: persistedDate,
-      shift_type,
-      ...scheduleAuditPayload(scheduleFields)
+      import_id: importId,
+      source_type: validated.source_type,
+      filename: validated.filename,
+      extracted_summary: {
+        client_name: parsed.extracted.client_name,
+        site_name: parsed.extracted.site_name,
+        scheduled_date: parsed.extracted.scheduled_date,
+        timezone: parsed.extracted.timezone,
+        required_roles: parsed.extracted.required_roles,
+        required_credentials: parsed.extracted.required_credentials,
+        task_tags: parsed.extracted.task_tags
+      },
+      warning_count: parsed.warnings.length
     }
   });
 
-  res.status(201).json(serializeJob(
-    db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(jobId)
-  ));
+  return res.json({
+    import_id: importId,
+    extracted: parsed.extracted,
+    confidence: parsed.confidence,
+    warnings: parsed.warnings
+  });
+});
+
+router.post('/import-brief/:importId/create-job', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
+  const db = getDb();
+  const importRow = db.prepare(`
+    SELECT *
+    FROM job_imports
+    WHERE id = ? AND company_id = ?
+  `).get(req.params.importId, req.user.company_id);
+
+  if (!importRow) {
+    return res.status(404).json({ error: 'Job brief import not found' });
+  }
+
+  if (!VALID_JOB_IMPORT_STATUSES.includes(importRow.status) || importRow.status !== 'parsed') {
+    if (importRow.status === 'job_created' && importRow.created_job_id) {
+      return res.status(409).json({ error: 'A job has already been created from this brief', created_job_id: importRow.created_job_id });
+    }
+    return res.status(409).json({ error: 'Job brief import is not in a creatable state' });
+  }
+
+  const companyTimeZone = getCompanyTimeZone(db, req.user.company_id);
+  let payload;
+  try {
+    const normalizedImport = normalizeBriefCreatePayload(req.body);
+    payload = buildCreateJobPayload(normalizedImport, companyTimeZone);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  let createdJob;
+  const now = new Date().toISOString();
+  db.transaction(() => {
+    createdJob = insertJob(db, req.user, payload);
+    db.prepare(`
+      UPDATE job_imports
+      SET created_job_id = ?, status = 'job_created', parsed_payload_json = ?, updated_at = ?
+      WHERE id = ?
+    `).run(
+      createdJob.id,
+      JSON.stringify(req.body || {}),
+      now,
+      req.params.importId
+    );
+
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'job_created_from_brief',
+      userId: req.user.id,
+      jobId: createdJob.id,
+      payload: {
+        import_id: req.params.importId,
+        source_type: importRow.source_type,
+        filename: importRow.filename,
+        created_job_id: createdJob.id
+      }
+    });
+  })();
+
+  return res.status(201).json(createdJob);
 });
 
 router.get('/:id', requireAuth, (req, res) => {

@@ -126,12 +126,15 @@ CREATE TABLE IF NOT EXISTS jobs (
   client_name              TEXT NOT NULL,
   site_name                TEXT NOT NULL,
   site_location            TEXT,
+  contact_name             TEXT,
+  contact_phone            TEXT,
   date                     TEXT NOT NULL,   -- YYYY-MM-DD
   shift_start_time         TEXT,            -- HH:MM
   shift_type               TEXT NOT NULL
                            CHECK (shift_type IN ('day', 'night', 'split')),
   estimated_duration_hours REAL,
   crane_class_required     TEXT,
+  job_description          TEXT,
   task_tags                TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
   crew_roles_required      TEXT NOT NULL DEFAULT '[]',    -- JSON
   required_credentials     TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
@@ -147,8 +150,11 @@ CREATE TABLE IF NOT EXISTS jobs (
                            CHECK (schedule_status IN (
                              'draft', 'planned', 'confirmed', 'completed', 'cancelled'
                            )),
+  risk_notes               TEXT,
   travel_required          INTEGER NOT NULL DEFAULT 0,
   travel_hours_estimated   REAL DEFAULT 0,
+  travel_notes             TEXT,
+  source_note              TEXT,
   notes                    TEXT,
   status                   TEXT NOT NULL DEFAULT 'open'
                            CHECK (status IN (
@@ -189,6 +195,24 @@ CREATE TABLE IF NOT EXISTS allocations (
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Worker Task Preference
 -- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS job_imports (
+  id                  TEXT PRIMARY KEY,
+  company_id          TEXT NOT NULL REFERENCES companies(id),
+  user_id             TEXT NOT NULL REFERENCES users(id),
+  source_type         TEXT NOT NULL
+                      CHECK (source_type IN ('pasted_text', 'txt', 'markdown', 'docx')),
+  filename            TEXT,
+  original_text       TEXT NOT NULL,
+  parsed_payload_json TEXT NOT NULL DEFAULT '{}',
+  confidence_json     TEXT NOT NULL DEFAULT '{}',
+  warnings_json       TEXT NOT NULL DEFAULT '[]',
+  created_job_id      TEXT REFERENCES jobs(id),
+  status              TEXT NOT NULL DEFAULT 'parsed'
+                      CHECK (status IN ('parsed', 'job_created', 'cancelled', 'failed')),
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS worker_task_preferences (
   id                       TEXT PRIMARY KEY,
   company_id               TEXT NOT NULL REFERENCES companies(id),
@@ -230,6 +254,8 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'worker_import_completed',
                   'worker_removed',
                   'job_created',
+                  'job_brief_import_previewed',
+                  'job_created_from_brief',
                   'job_schedule_changed',
                   'job_status_changed',
                   'preference_signal_created',
@@ -270,6 +296,8 @@ CREATE INDEX IF NOT EXISTS idx_jobs_company         ON jobs(company_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_job      ON allocations(job_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_worker   ON allocations(worker_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_company  ON allocations(company_id, allocated_at);
+CREATE INDEX IF NOT EXISTS idx_job_imports_company  ON job_imports(company_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_job_imports_status   ON job_imports(company_id, status);
 CREATE INDEX IF NOT EXISTS idx_preferences_worker   ON worker_task_preferences(worker_id);
 CREATE INDEX IF NOT EXISTS idx_preferences_company  ON worker_task_preferences(company_id, task_tag);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_preferences_worker_tag_source

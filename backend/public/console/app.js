@@ -360,6 +360,7 @@ function router() {
       return rest[0] ? renderWorkerDetail(rest[0], renderCycle) : renderWorkersList(renderCycle);
     },
     jobs: () => {
+      if (rest[0] === 'import-brief') return renderJobBriefImport(renderCycle);
       if (!rest[0]) return renderJobsList(renderCycle);
       if (rest[1] === 'smartrank') return renderSmartRank(rest[0], renderCycle);
       if (rest[1] === 'allocate') return renderAllocate(rest[0], rest[2], renderCycle);
@@ -426,6 +427,14 @@ function scheduleStatusPill(status) {
     cancelled: 'pill-bad'
   };
   return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, status);
+}
+
+function confidencePill(level = 'low') {
+  const normalized = String(level || 'low').toLowerCase();
+  const className = normalized === 'high'
+    ? 'pill-ok'
+    : (normalized === 'medium' ? 'pill-warn' : 'pill-bad');
+  return el('span', { class: `pill ${className}` }, normalized);
 }
 
 function credPill(status) {
@@ -1315,6 +1324,277 @@ function buildFatigueForm(workerId) {
   return form;
 }
 
+function joinListValue(values) {
+  return Array.isArray(values) ? values.join(', ') : '';
+}
+
+function inputSourceTypeFromFilename(filename) {
+  const lower = String(filename || '').toLowerCase();
+  if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'markdown';
+  if (lower.endsWith('.txt')) return 'txt';
+  if (lower.endsWith('.docx')) return 'docx';
+  return 'pasted_text';
+}
+
+function appendConfidenceNote(field, confidenceMap, fieldName) {
+  const level = confidenceMap?.[fieldName] || 'low';
+  field.appendChild(el('div', { class: 'field-meta' },
+    confidencePill(level),
+    el('span', { class: 'small muted' },
+      level === 'low' ? 'Check this field before creating the job.' : `Extraction confidence: ${level}`
+    )
+  ));
+}
+
+function renderJobBriefImport(renderCycle) {
+  const view = document.getElementById('view');
+  view.innerHTML = '';
+
+  view.appendChild(el('div', { class: 'toolbar' },
+    el('h2', {}, 'Import job brief'),
+    el('a', { href: '#/jobs' }, el('button', { class: 'secondary' }, '< Back to Jobs'))
+  ));
+
+  const sourceForm = el('form', { class: 'panel' });
+  const sourceError = el('div', { class: 'error' });
+  const textArea = el('textarea', {
+    name: 'content',
+    class: 'large-textarea',
+    placeholder: 'Paste a job note, lift instruction, or copied message here...'
+  });
+  const fileInput = el('input', {
+    type: 'file',
+    accept: '.txt,.md,.markdown,.docx'
+  });
+  const previewHost = el('div', { class: 'panel' },
+    el('div', { class: 'empty' }, 'Paste text or upload a supported file to review extracted job details.')
+  );
+
+  sourceForm.appendChild(el('h3', {}, 'Paste or upload job details'));
+  sourceForm.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
+    'Review before creating. LIFTIQ does not verify job details automatically.'
+  ));
+  sourceForm.appendChild(buildTextareaField('Job brief text', textArea));
+  sourceForm.appendChild(buildFileField('Upload .txt or .md', fileInput));
+  sourceForm.appendChild(el('div', { class: 'status-note' },
+    'TXT and Markdown are supported in this pilot. DOCX is not supported yet.'
+  ));
+  sourceForm.appendChild(sourceError);
+  sourceForm.appendChild(el('div', { class: 'button-row' },
+    el('button', { type: 'submit' }, 'Import job brief'),
+    el('a', { href: '#/jobs' }, el('button', { type: 'button', class: 'secondary' }, 'Cancel import'))
+  ));
+
+  async function handlePreviewSubmit(event) {
+    event.preventDefault();
+    sourceError.textContent = '';
+
+    const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    let body;
+
+    if (file) {
+      const sourceType = inputSourceTypeFromFilename(file.name);
+      if (sourceType === 'docx') {
+        sourceError.textContent = 'DOCX import is not supported in this pilot yet. Use paste, .txt, or .md.';
+        return;
+      }
+      if (!['txt', 'markdown'].includes(sourceType)) {
+        sourceError.textContent = 'Unsupported file type. Use pasted text, .txt, or .md.';
+        return;
+      }
+      if (file.size > 1024 * 1024) {
+        sourceError.textContent = 'Job brief import is limited to 1MB for .txt and .md files.';
+        return;
+      }
+      body = {
+        filename: file.name,
+        source_type: sourceType,
+        content: await file.text()
+      };
+    } else {
+      const content = String(textArea.value || '');
+      if (!content.trim()) {
+        sourceError.textContent = 'Paste job details or upload a file to continue.';
+        return;
+      }
+      if (new Blob([content]).size > 1024 * 1024) {
+        sourceError.textContent = 'Job brief import is limited to 1MB for pasted text.';
+        return;
+      }
+      body = {
+        source_type: 'pasted_text',
+        content
+      };
+    }
+
+    try {
+      const preview = await api('POST', '/jobs/import-brief/preview', body);
+      if (isStaleRender(renderCycle)) return;
+      renderPreview(preview);
+      toast('Job brief preview ready', 'success');
+    } catch (err) {
+      sourceError.textContent = err.error || 'Job brief preview failed';
+    }
+  }
+
+  function renderPreview(preview) {
+    previewHost.innerHTML = '';
+    const previewForm = el('form', { class: 'job-brief-preview-form' });
+    const previewError = el('div', { class: 'error' });
+    const extracted = preview.extracted || {};
+    const confidence = preview.confidence || {};
+    const defaultScheduleStatus = extracted.scheduled_date && extracted.start_time && extracted.end_time
+      ? 'planned'
+      : 'draft';
+
+    previewHost.appendChild(el('h3', {}, 'Review extracted job details'));
+    previewHost.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
+      'Review before creating. LIFTIQ does not verify job details automatically.'
+    ));
+
+    if ((preview.warnings || []).length > 0) {
+      const warningList = el('ul');
+      for (const warning of preview.warnings) {
+        warningList.appendChild(el('li', {}, warning));
+      }
+      previewHost.appendChild(el('div', { class: 'alerts job-brief-warnings' },
+        el('strong', {}, 'Warnings'),
+        warningList
+      ));
+    }
+
+    const clientField = buildInput('client_name', 'Client name', { required: true, value: extracted.client_name || '' });
+    appendConfidenceNote(clientField, confidence, 'client_name');
+    const siteNameField = buildInput('site_name', 'Site name', { required: true, value: extracted.site_name || '' });
+    appendConfidenceNote(siteNameField, confidence, 'site_name');
+    const siteAddressField = buildInput('site_address', 'Site address', { value: extracted.site_address || '' });
+    appendConfidenceNote(siteAddressField, confidence, 'site_address');
+    const jobDescriptionField = buildTextarea('job_description', 'Job description', {
+      value: extracted.job_description || ''
+    });
+    appendConfidenceNote(jobDescriptionField, confidence, 'job_description');
+    const dateField = buildInput('scheduled_date', 'Scheduled date', { type: 'date', value: extracted.scheduled_date || '' });
+    appendConfidenceNote(dateField, confidence, 'scheduled_date');
+    const startTimeField = buildInput('start_time', 'Start time', { type: 'time', value: extracted.start_time || '' });
+    appendConfidenceNote(startTimeField, confidence, 'start_time');
+    const endTimeField = buildInput('end_time', 'End time', { type: 'time', value: extracted.end_time || '' });
+    appendConfidenceNote(endTimeField, confidence, 'end_time');
+    const timezoneField = buildFieldWrapper('Timezone', el('input', {
+      name: 'timezone',
+      value: extracted.timezone || detectBrowserTimeZone(),
+      list: 'job-brief-timezone-options',
+      placeholder: 'Australia/Brisbane'
+    }));
+    appendConfidenceNote(timezoneField, confidence, 'timezone');
+    const craneField = buildInput('crane_class', 'Crane class', { value: extracted.crane_class || '' });
+    appendConfidenceNote(craneField, confidence, 'crane_class');
+    const rolesField = buildInput('required_roles', 'Required roles (comma-separated)', { value: joinListValue(extracted.required_roles) });
+    appendConfidenceNote(rolesField, confidence, 'required_roles');
+    const credentialsField = buildInput('required_credentials', 'Required credentials (comma-separated)', { value: joinListValue(extracted.required_credentials) });
+    appendConfidenceNote(credentialsField, confidence, 'required_credentials');
+    const tagsField = buildInput('task_tags', 'Task tags (comma-separated)', { value: joinListValue(extracted.task_tags) });
+    appendConfidenceNote(tagsField, confidence, 'task_tags');
+    const riskField = buildTextarea('risk_notes', 'Risk notes', { value: extracted.risk_notes || '' });
+    appendConfidenceNote(riskField, confidence, 'risk_notes');
+    const travelField = buildTextarea('travel_notes', 'Travel notes', { value: extracted.travel_notes || '' });
+    appendConfidenceNote(travelField, confidence, 'travel_notes');
+    const contactNameField = buildInput('contact_name', 'Contact name', { value: extracted.contact_name || '' });
+    appendConfidenceNote(contactNameField, confidence, 'contact_name');
+    const contactPhoneField = buildInput('contact_phone', 'Contact phone', { value: extracted.contact_phone || '' });
+    appendConfidenceNote(contactPhoneField, confidence, 'contact_phone');
+    const sourceField = buildTextarea('source_note', 'Source note', {
+      value: extracted.source_note || '',
+      class: 'large-textarea'
+    });
+    appendConfidenceNote(sourceField, confidence, 'source_note');
+
+    previewForm.appendChild(el('div', { class: 'row' },
+      clientField,
+      siteNameField,
+      siteAddressField,
+      dateField,
+      startTimeField,
+      endTimeField,
+      timezoneField,
+      buildSelect('schedule_status', 'Create as', ['draft', 'planned', 'confirmed'], { value: defaultScheduleStatus }),
+      craneField,
+      rolesField,
+      credentialsField,
+      tagsField,
+      contactNameField,
+      contactPhoneField
+    ));
+    previewForm.appendChild(el('datalist', { id: 'job-brief-timezone-options' },
+      ...COMMON_TIMEZONES.map((item) => el('option', { value: item }, item))
+    ));
+    previewForm.appendChild(jobDescriptionField);
+    previewForm.appendChild(riskField);
+    previewForm.appendChild(travelField);
+    previewForm.appendChild(sourceField);
+    previewForm.appendChild(previewError);
+    previewForm.appendChild(el('div', { class: 'button-row' },
+      el('button', { type: 'submit' }, 'Create job from brief'),
+      el('button', {
+        type: 'button',
+        class: 'secondary',
+        onclick: () => { location.hash = '#/jobs'; }
+      }, 'Cancel import')
+    ));
+
+    previewForm.addEventListener('submit', async (submitEvent) => {
+      submitEvent.preventDefault();
+      previewError.textContent = '';
+      const fd = new FormData(previewForm);
+      try {
+        const createdJob = await api('POST', `/jobs/import-brief/${preview.import_id}/create-job`, {
+          client_name: fd.get('client_name') || null,
+          site_name: fd.get('site_name') || null,
+          site_address: fd.get('site_address') || null,
+          job_description: fd.get('job_description') || null,
+          scheduled_date: fd.get('scheduled_date') || null,
+          start_time: fd.get('start_time') || null,
+          end_time: fd.get('end_time') || null,
+          timezone: fd.get('timezone') || null,
+          schedule_status: fd.get('schedule_status') || 'draft',
+          crane_class: fd.get('crane_class') || null,
+          required_roles: splitCsv(fd.get('required_roles')),
+          required_credentials: splitCsv(fd.get('required_credentials')),
+          task_tags: splitCsv(fd.get('task_tags')),
+          risk_notes: fd.get('risk_notes') || null,
+          travel_notes: fd.get('travel_notes') || null,
+          contact_name: fd.get('contact_name') || null,
+          contact_phone: fd.get('contact_phone') || null,
+          source_note: fd.get('source_note') || null
+        });
+        toast('Job created from brief', 'success');
+        previewHost.innerHTML = '';
+        previewHost.appendChild(el('h3', {}, 'Job created from brief'));
+        previewHost.appendChild(el('div', { class: 'kv' },
+          el('div', {}, 'Job ID'), el('div', { class: 'mono' }, shortId(createdJob.id)),
+          el('div', {}, 'Client'), el('div', {}, createdJob.client_name),
+          el('div', {}, 'Site'), el('div', {}, createdJob.site_name),
+          el('div', {}, 'Schedule'), el('div', {}, formatScheduleRange(createdJob.schedule))
+        ));
+        previewHost.appendChild(el('div', { class: 'button-row', style: 'margin-top:12px;' },
+          el('a', { href: `#/jobs/${createdJob.id}` }, el('button', { type: 'button' }, 'View created job')),
+          el('a', { href: '#/jobs' }, el('button', { type: 'button', class: 'secondary' }, 'Back to Jobs')),
+          createdJob.schedule?.has_schedule
+            ? el('a', { href: '#/schedule' }, el('button', { type: 'button', class: 'secondary' }, 'Open Schedule'))
+            : null
+        ));
+      } catch (err) {
+        previewError.textContent = err.error || 'Job creation failed';
+      }
+    });
+
+    previewHost.appendChild(previewForm);
+  }
+
+  sourceForm.addEventListener('submit', handlePreviewSubmit);
+  view.appendChild(sourceForm);
+  view.appendChild(previewHost);
+}
+
 async function renderJobsList(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
@@ -1324,7 +1604,10 @@ async function renderJobsList(renderCycle) {
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, 'Jobs'),
-    el('a', { href: '#/new-job' }, el('button', {}, '+ New job'))
+    el('div', { class: 'button-row' },
+      el('a', { href: '#/jobs/import-brief' }, el('button', {}, 'Import job brief')),
+      el('a', { href: '#/new-job' }, el('button', { class: 'secondary' }, '+ New job'))
+    )
   ));
 
   if (jobs.length === 0) {
@@ -1476,14 +1759,20 @@ async function renderJobDetail(jobId, renderCycle) {
   addKv('Date', fmtDateOnly(job.date));
   addKv('Shift', `${job.shift_type}${job.shift_start_time ? ` @ ${job.shift_start_time}` : ''}`);
   addKv('Timezone', job.schedule?.timezone || job.job_timezone || '-');
+  addKv('Site address', job.site_location || '-');
+  addKv('Contact', [job.contact_name, job.contact_phone].filter(Boolean).join(' / ') || '-');
   addKv('Crane class', job.crane_class_required || '-');
+  addKv('Job description', job.job_description || '-');
   addKv('Task tags', renderTagList(job.task_tags, 'none'));
   addKv('Crew roles', (job.crew_roles_required || []).join(', ') || '-');
   addKv('Required credentials', (job.required_credentials || []).join(', ') || 'none');
   addKv('Site conditions', (job.site_conditions || []).join(', ') || '-');
   addKv('Risk level', riskPill(job.lift_risk_level));
+  addKv('Risk notes', job.risk_notes || '-');
   addKv('Travel', job.travel_required ? 'Yes' : 'No');
+  addKv('Travel notes', job.travel_notes || '-');
   addKv('Reference', job.reference || '-');
+  addKv('Source note', job.source_note || '-');
   addKv('Notes', job.notes || '-');
   view.appendChild(el('div', { class: 'panel' }, kv));
 
@@ -1817,6 +2106,8 @@ async function renderAudit(renderCycle) {
     'warning_acknowledged',
     'non_top_ranked_selected',
     'job_created',
+    'job_brief_import_previewed',
+    'job_created_from_brief',
     'job_schedule_changed',
     'job_status_changed',
     'worker_removed',
@@ -1862,6 +2153,7 @@ function auditEventReason(event) {
   if (payload.reason) return payload.reason;
   if (payload.from && payload.to) return `${payload.from} -> ${payload.to}`;
   if (payload.selected_rank) return `Selected rank #${payload.selected_rank}`;
+  if (payload.import_id) return `Import ${shortId(payload.import_id)}`;
   if (payload.client_name || payload.site_name) return [payload.client_name, payload.site_name].filter(Boolean).join(' / ');
   if (payload.email) return payload.email;
   if (payload.score != null) return `Score ${payload.score}`;
@@ -1880,6 +2172,7 @@ function auditEventSignals(event) {
   if (payload.applied_count != null) values.push(`${payload.applied_count} learned signal(s)`);
   if (payload.approval_count != null) values.push(`${payload.approval_count} approved allocation(s)`);
   if (payload.confidence != null) values.push(`conf ${Number(payload.confidence).toFixed(2)}`);
+  if (payload.warning_count != null) values.push(`${payload.warning_count} warning(s)`);
   if (!values.length) return '-';
   return values.slice(0, 4).join(' | ');
 }
@@ -1888,10 +2181,10 @@ function auditEventPill(eventType) {
   if (['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied'].includes(eventType)) {
     return 'pill-bad';
   }
-  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed', 'job_schedule_changed'].includes(eventType)) {
+  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed', 'job_schedule_changed', 'job_brief_import_previewed'].includes(eventType)) {
     return 'pill-warn';
   }
-  if (['allocation_confirmed', 'job_created', 'worker_imported', 'preference_signal_created'].includes(eventType)) {
+  if (['allocation_confirmed', 'job_created', 'job_created_from_brief', 'worker_imported', 'preference_signal_created'].includes(eventType)) {
     return 'pill-ok';
   }
   return 'pill-info';

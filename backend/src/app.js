@@ -5,7 +5,7 @@ const express = require('express');
 
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // Health check — no auth required
 app.get('/api/health', (req, res) => {

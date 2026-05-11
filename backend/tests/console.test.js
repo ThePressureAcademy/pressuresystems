@@ -45,6 +45,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, />Import workers</);
     assert.match(res.text, /href="#\/schedule"/);
     assert.match(res.text, />Schedule</);
+    assert.match(res.text, /href="#\/jobs"/);
   });
 
   test('GET /console/styles.css returns CSS', async () => {
@@ -61,6 +62,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderDashboard/);
     assert.match(res.text, /renderSchedule/);
     assert.match(res.text, /renderWorkerImport/);
+    assert.match(res.text, /renderJobBriefImport/);
     assert.match(res.text, /renderSmartRank/);
     assert.match(res.text, /renderAllocate/);
     assert.match(res.text, /renderAudit/);
@@ -74,6 +76,13 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Schedule status/);
     assert.match(res.text, /Apply timezone/);
     assert.match(res.text, /double-booking is blocked or warned in SmartRank/i);
+    assert.match(res.text, /Import job brief/);
+    assert.match(res.text, /Paste or upload job details/);
+    assert.match(res.text, /Review extracted job details/);
+    assert.match(res.text, /Create job from brief/);
+    assert.match(res.text, /Cancel import/);
+    assert.match(res.text, /LIFTIQ does not verify job details automatically/i);
+    assert.match(res.text, /\/jobs\/import-brief\/\$\{preview\.import_id\}\/create-job/);
   });
 
   test('GET /samples exposes the employee onboarding sample files', async () => {
@@ -86,6 +95,16 @@ describe('Pilot console — static asset serving', () => {
     assert.equal(tsv.status, 200);
     assert.match(tsv.text, /first_name\tlast_name\temail/);
     assert.match(tsv.text, /jack\.thompson@example\.com/);
+
+    const briefTxt = await supertest(app).get('/samples/job-brief-sample.txt');
+    assert.equal(briefTxt.status, 200);
+    assert.match(briefTxt.text, /Client: Raymonds Lift & Shift/);
+    assert.match(briefTxt.text, /Task tags: franna, critical_lift, short_notice/);
+
+    const briefMd = await supertest(app).get('/samples/job-brief-sample.md');
+    assert.equal(briefMd.status, 200);
+    assert.match(briefMd.text, /# Client/);
+    assert.match(briefMd.text, /# Required crew/);
   });
 
   test('GET /console/<arbitrary> falls back to index.html (SPA routing)', async () => {
@@ -105,6 +124,7 @@ describe('Pilot console — static asset serving', () => {
       'renderDashboard',     // login screen is in DOMContentLoaded login-form handler
       'renderWorkersList',   // workers list
       'renderWorkerImport',  // CSV / TSV import flow
+      'renderJobBriefImport',// job brief import flow
       'renderNewWorker',     // create worker
       'renderWorkerDetail',  // worker detail (also renders credentials + fatigue inline)
       'renderJobsList',      // jobs list
