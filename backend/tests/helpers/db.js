@@ -28,6 +28,7 @@ function createTestDb() {
 function seedCompanyAndUser(db, overrides = {}) {
   const companyId = overrides.companyId || randomUUID();
   const userId    = overrides.userId    || randomUUID();
+  const companyName = overrides.companyName || 'Test Company';
   const userName = overrides.name || 'Test Admin';
   const userEmail = overrides.email || 'admin@test.com';
   const userPassword = overrides.password || 'testpass';
@@ -36,9 +37,24 @@ function seedCompanyAndUser(db, overrides = {}) {
   const mustChangePassword = overrides.mustChangePassword ? 1 : 0;
 
   db.prepare(`
-    INSERT INTO companies (id, name, timezone, locations, operating_regions, status, pilot_start_date)
-    VALUES (?, 'Test Company', ?, '[]', '[]', 'pilot', '2026-01-01')
-  `).run(companyId, overrides.timezone || 'Australia/Brisbane');
+    INSERT INTO companies (
+      id, name, slug, display_name, timezone, locations, operating_regions,
+      status, pilot_start_date, access_status, pilot_type, pilot_starts_at,
+      pilot_expires_at, notes
+    )
+    VALUES (?, ?, ?, ?, ?, '[]', '[]', 'pilot', '2026-01-01', ?, ?, ?, ?, ?)
+  `).run(
+    companyId,
+    companyName,
+    overrides.slug || null,
+    overrides.displayName || companyName,
+    overrides.timezone || 'Australia/Brisbane',
+    overrides.accessStatus || 'active',
+    overrides.pilotType || 'internal',
+    overrides.pilotStartsAt || null,
+    overrides.pilotExpiresAt || null,
+    overrides.notes || null
+  );
 
   db.prepare(`
     INSERT INTO users (id, company_id, name, email, password_hash, role, status, must_change_password)

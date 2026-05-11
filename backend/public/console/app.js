@@ -180,6 +180,11 @@ async function api(method, path, body) {
       localStorage.setItem(USER_KEY, JSON.stringify(state.user));
       showPasswordChange();
     }
+    if (res.status === 403 && data?.company_access_status) {
+      state.user = state.user ? { ...state.user, company: data.company } : state.user;
+      if (state.user) localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+      showAccessBlocked(data.company, data.message || data.error);
+    }
     throw { status: res.status, error: (data && data.error) || `HTTP ${res.status}`, data };
   }
   return data;
@@ -331,6 +336,41 @@ function saveSession(token, user) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+function companyAccessStatus() {
+  return state.user?.company?.effective_access_status || 'active';
+}
+
+function isCompanyAccessBlocked() {
+  const status = companyAccessStatus();
+  return status === 'expired' || status === 'suspended';
+}
+
+function formatPilotType(value) {
+  const labels = {
+    internal: 'internal',
+    testing_partner: 'test portal',
+    founding_partner: 'founding partner',
+    commercial_pilot: 'commercial pilot'
+  };
+  return labels[value] || value || 'pilot';
+}
+
+function formatCompanyLabel() {
+  if (!state.user) return '';
+  const company = state.user.company || {};
+  const companyName = company.display_name || company.name || 'Company not set';
+  const parts = [
+    `${state.user.name} - ${state.user.role}`,
+    `Company: ${companyName}`
+  ];
+  if (company.pilot_type) parts.push(formatPilotType(company.pilot_type));
+  if (company.pilot_expires_at) {
+    const days = company.days_remaining ?? 0;
+    parts.push(days === 1 ? '1 day remaining' : `${days} days remaining`);
+  }
+  return parts.join(' | ');
+}
+
 function setLoginNote(message = '') {
   const node = document.getElementById('login-note');
   node.textContent = message;
@@ -366,6 +406,28 @@ function showPasswordChange() {
     : 'Your temporary bootstrap password must be replaced before console access.';
 }
 
+function showAccessBlocked(company = state.user?.company, message = '') {
+  nextRenderCycle();
+  const status = company?.effective_access_status || company?.access_status || 'expired';
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('password-change-screen').classList.add('hidden');
+  document.getElementById('app-shell').classList.remove('hidden');
+  document.getElementById('user-label').textContent = formatCompanyLabel();
+  document.querySelectorAll('#nav a').forEach((link) => link.classList.remove('active'));
+  const view = document.getElementById('view');
+  const companyName = company?.display_name || company?.name || 'This company';
+  const defaultMessage = status === 'suspended'
+    ? 'This pilot portal is suspended. Contact Pressure Systems to restore access.'
+    : 'This test portal has expired. Contact Pressure Systems to extend access.';
+  view.innerHTML = '';
+  view.appendChild(el('div', { class: 'panel access-blocked' },
+    el('h2', {}, status === 'suspended' ? 'Pilot access suspended' : 'Test portal expired'),
+    el('p', {}, `${companyName}: ${message || defaultMessage}`),
+    el('p', { class: 'muted' }, 'Company data remains isolated. Access must be restored before operational console views are available.'),
+    el('button', { type: 'button', onclick: logout }, 'Sign out')
+  ));
+}
+
 function showApp() {
   if (state.user?.must_change_password) {
     showPasswordChange();
@@ -374,9 +436,11 @@ function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('password-change-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
-  document.getElementById('user-label').textContent = state.user
-    ? `${state.user.name} - ${state.user.role}`
-    : '';
+  document.getElementById('user-label').textContent = formatCompanyLabel();
+  if (isCompanyAccessBlocked()) {
+    showAccessBlocked();
+    return;
+  }
   if (!location.hash) location.hash = '#/dashboard';
   else router();
 }
@@ -437,6 +501,8 @@ document.addEventListener('DOMContentLoaded', () => {
       saveSession(result.token, result.user);
       if (result.must_change_password || result.user?.must_change_password) {
         showPasswordChange();
+      } else if (result.user?.company?.effective_access_status === 'expired' || result.user?.company?.effective_access_status === 'suspended') {
+        showAccessBlocked(result.user.company);
       } else {
         showApp();
       }
@@ -467,6 +533,10 @@ function router() {
   }
   if (state.user?.must_change_password) {
     showPasswordChange();
+    return;
+  }
+  if (isCompanyAccessBlocked()) {
+    showAccessBlocked();
     return;
   }
 

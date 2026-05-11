@@ -7,6 +7,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS companies (
   id                TEXT PRIMARY KEY,
   name              TEXT NOT NULL,
+  slug              TEXT UNIQUE,
+  display_name      TEXT,
   abn               TEXT,
   timezone          TEXT NOT NULL DEFAULT 'Australia/Brisbane',
   locations         TEXT NOT NULL DEFAULT '[]',       -- JSON string[]
@@ -14,6 +16,13 @@ CREATE TABLE IF NOT EXISTS companies (
   status            TEXT NOT NULL DEFAULT 'pilot'
                     CHECK (status IN ('active', 'pilot', 'suspended')),
   pilot_start_date  TEXT,
+  access_status     TEXT NOT NULL DEFAULT 'active'
+                    CHECK (access_status IN ('active', 'suspended', 'expired')),
+  pilot_type        TEXT NOT NULL DEFAULT 'internal'
+                    CHECK (pilot_type IN ('internal', 'testing_partner', 'founding_partner', 'commercial_pilot')),
+  pilot_starts_at   TEXT,
+  pilot_expires_at  TEXT,
+  notes             TEXT,
   created_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

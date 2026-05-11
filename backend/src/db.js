@@ -3,6 +3,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { seedCraneModelCatalog } = require('./services/crane-model-catalog');
 
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
@@ -202,6 +203,9 @@ CREATE TABLE IF NOT EXISTS transport_requirements (
 `;
 
 const POST_MIGRATION_INDEX_SQL = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_slug
+  ON companies(slug)
+  WHERE slug IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_workers_company_email
   ON workers(company_id, email)
   WHERE email IS NOT NULL;
@@ -242,6 +246,18 @@ CREATE INDEX IF NOT EXISTS idx_audit_type ON audit_events(company_id, event_type
 `;
 
 let _db = null;
+
+function shouldUseWal(dbPath) {
+  if (process.env.LIFTIQ_DISABLE_WAL === '1') return false;
+  const resolvedPath = path.resolve(dbPath);
+  const tempRoot = path.resolve(os.tmpdir());
+  return !resolvedPath.startsWith(tempRoot);
+}
+
+function schemaForJournalMode(schema, useWal) {
+  if (useWal) return schema;
+  return schema.replace(/^PRAGMA journal_mode = WAL;\r?\n/i, '');
+}
 
 function hasColumn(db, tableName, columnName) {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
@@ -302,6 +318,13 @@ function migrateAuditEvents(db) {
 
 function runMigrations(db) {
   ensureColumn(db, 'companies', `timezone TEXT NOT NULL DEFAULT 'Australia/Brisbane'`, 'timezone');
+  ensureColumn(db, 'companies', `slug TEXT`, 'slug');
+  ensureColumn(db, 'companies', `display_name TEXT`, 'display_name');
+  ensureColumn(db, 'companies', `access_status TEXT NOT NULL DEFAULT 'active'`, 'access_status');
+  ensureColumn(db, 'companies', `pilot_type TEXT NOT NULL DEFAULT 'internal'`, 'pilot_type');
+  ensureColumn(db, 'companies', `pilot_starts_at TEXT`, 'pilot_starts_at');
+  ensureColumn(db, 'companies', `pilot_expires_at TEXT`, 'pilot_expires_at');
+  ensureColumn(db, 'companies', `notes TEXT`, 'notes');
   ensureColumn(db, 'users', `must_change_password INTEGER NOT NULL DEFAULT 0`, 'must_change_password');
   ensureColumn(db, 'workers', `email TEXT`, 'email');
   ensureColumn(db, 'workers', `archived_at TEXT`, 'archived_at');
@@ -326,6 +349,9 @@ function runMigrations(db) {
   ensureColumn(db, 'allocations', `allocation_status TEXT`, 'allocation_status');
   db.exec(`UPDATE jobs SET task_tags = '[]' WHERE task_tags IS NULL;`);
   db.exec(`UPDATE companies SET timezone = 'Australia/Brisbane' WHERE timezone IS NULL OR trim(timezone) = '';`);
+  db.exec(`UPDATE companies SET access_status = 'active' WHERE access_status IS NULL OR trim(access_status) = '';`);
+  db.exec(`UPDATE companies SET pilot_type = 'internal' WHERE pilot_type IS NULL OR trim(pilot_type) = '';`);
+  db.exec(`UPDATE companies SET display_name = name WHERE display_name IS NULL OR trim(display_name) = '';`);
   db.exec(`UPDATE jobs SET job_timezone = 'Australia/Brisbane' WHERE job_timezone IS NULL OR trim(job_timezone) = '';`);
   db.exec(`
     UPDATE jobs
@@ -355,10 +381,11 @@ function getDb() {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   _db = new Database(dbPath);
-  _db.pragma('journal_mode = WAL');
+  const useWal = shouldUseWal(dbPath);
+  _db.pragma(useWal ? 'journal_mode = WAL' : 'journal_mode = DELETE');
   _db.pragma('foreign_keys = ON');
 
-  const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
+  const schema = schemaForJournalMode(fs.readFileSync(SCHEMA_PATH, 'utf8'), useWal);
   _db.exec(schema);
   runMigrations(_db);
 

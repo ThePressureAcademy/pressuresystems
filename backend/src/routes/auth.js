@@ -4,16 +4,35 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
+const {
+  blockedCompanyResponse,
+  effectiveAccessStatus,
+  serializeCompanyAccess
+} = require('../services/company-access');
 
 const router = express.Router();
 
 function serializeUser(user) {
+  const company = user.company || {
+    id: user.company_id,
+    name: user.company_name,
+    slug: user.company_slug,
+    display_name: user.company_display_name,
+    access_status: user.company_access_status,
+    pilot_type: user.company_pilot_type,
+    pilot_start_date: user.company_pilot_start_date,
+    pilot_starts_at: user.company_pilot_starts_at,
+    pilot_expires_at: user.company_pilot_expires_at,
+    timezone: user.company_timezone,
+    notes: user.company_notes
+  };
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     company_id: user.company_id,
+    company: serializeCompanyAccess(company),
     must_change_password: Boolean(user.must_change_password)
   };
 }
@@ -50,12 +69,43 @@ router.post('/login', (req, res) => {
   }
 
   const db = getDb();
-  const user = db.prepare(
-    `SELECT * FROM users WHERE email = ? AND status = 'active'`
-  ).get(email.toLowerCase().trim());
+  const user = db.prepare(`
+    SELECT
+      u.*,
+      c.name AS company_name,
+      c.slug AS company_slug,
+      c.display_name AS company_display_name,
+      c.access_status AS company_access_status,
+      c.pilot_type AS company_pilot_type,
+      c.pilot_start_date AS company_pilot_start_date,
+      c.pilot_starts_at AS company_pilot_starts_at,
+      c.pilot_expires_at AS company_pilot_expires_at,
+      c.timezone AS company_timezone,
+      c.notes AS company_notes
+    FROM users u
+    JOIN companies c ON c.id = u.company_id
+    WHERE u.email = ? AND u.status = 'active'
+  `).get(email.toLowerCase().trim());
 
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  const company = {
+    id: user.company_id,
+    name: user.company_name,
+    slug: user.company_slug,
+    display_name: user.company_display_name,
+    access_status: user.company_access_status,
+    pilot_type: user.company_pilot_type,
+    pilot_start_date: user.company_pilot_start_date,
+    pilot_starts_at: user.company_pilot_starts_at,
+    pilot_expires_at: user.company_pilot_expires_at,
+    timezone: user.company_timezone,
+    notes: user.company_notes
+  };
+  const companyBlock = blockedCompanyResponse(company);
+  if (companyBlock?.company_access_status === 'suspended') {
+    return res.status(403).json(companyBlock);
   }
 
   db.prepare(`UPDATE users SET last_login_at = datetime('now') WHERE id = ?`).run(user.id);
@@ -70,19 +120,41 @@ router.post('/login', (req, res) => {
   res.json({
     token,
     user: serializeUser(user),
-    must_change_password: Boolean(user.must_change_password)
+    must_change_password: Boolean(user.must_change_password),
+    company_access_status: effectiveAccessStatus(company)
   });
 });
 
 router.get('/me', requireAuth, (req, res) => {
   const db = getDb();
-  const user = db.prepare(
-    `SELECT id, name, email, role, company_id, status, must_change_password, created_at, last_login_at
-     FROM users WHERE id = ?`
-  ).get(req.user.id);
+  const user = db.prepare(`
+    SELECT
+      u.id,
+      u.name,
+      u.email,
+      u.role,
+      u.company_id,
+      u.status,
+      u.must_change_password,
+      u.created_at,
+      u.last_login_at,
+      c.name AS company_name,
+      c.slug AS company_slug,
+      c.display_name AS company_display_name,
+      c.access_status AS company_access_status,
+      c.pilot_type AS company_pilot_type,
+      c.pilot_start_date AS company_pilot_start_date,
+      c.pilot_starts_at AS company_pilot_starts_at,
+      c.pilot_expires_at AS company_pilot_expires_at,
+      c.timezone AS company_timezone,
+      c.notes AS company_notes
+    FROM users u
+    JOIN companies c ON c.id = u.company_id
+    WHERE u.id = ?
+  `).get(req.user.id);
 
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json(user);
+  res.json(serializeUser(user));
 });
 
 router.post('/change-password', requireAuth, (req, res) => {

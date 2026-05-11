@@ -5,6 +5,12 @@ const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
 const { getDb } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const {
+  normalizeAccessStatus,
+  normalizePilotType,
+  normalizeSlug,
+  serializeCompanyAccess
+} = require('../services/company-access');
 
 const router = express.Router();
 
@@ -24,7 +30,8 @@ router.post('/', (req, res) => {
     return res.status(403).json({ error: 'Admin token required to create a company' });
   }
 
-  const { name, abn, locations, operating_regions, pilot_start_date,
+  const { name, slug, display_name, abn, locations, operating_regions, pilot_start_date,
+          access_status, pilot_type, pilot_starts_at, pilot_expires_at, timezone, notes,
           admin_name, admin_email, admin_password } = req.body;
 
   if (!name || !admin_name || !admin_email || !admin_password) {
@@ -41,22 +48,38 @@ router.post('/', (req, res) => {
   const companyId = randomUUID();
   const userId    = randomUUID();
   const hash      = bcrypt.hashSync(admin_password, 10);
+  const resolvedPilotStart = pilot_starts_at || pilot_start_date || new Date().toISOString();
+  const resolvedSlug = slug ? normalizeSlug(slug) : null;
 
   const create = db.transaction(() => {
     db.prepare(`
-      INSERT INTO companies (id, name, abn, locations, operating_regions, status, pilot_start_date)
-      VALUES (?, ?, ?, ?, ?, 'pilot', ?)
+      INSERT INTO companies (
+        id, name, slug, display_name, abn, timezone, locations, operating_regions,
+        status, pilot_start_date, access_status, pilot_type, pilot_starts_at,
+        pilot_expires_at, notes
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pilot', ?, ?, ?, ?, ?, ?)
     `).run(
-      companyId, name, abn || null,
+      companyId,
+      name,
+      resolvedSlug || null,
+      display_name || name,
+      abn || null,
+      timezone || 'Australia/Brisbane',
       JSON.stringify(locations || []),
       JSON.stringify(operating_regions || []),
-      pilot_start_date || new Date().toISOString().slice(0, 10)
+      String(resolvedPilotStart).slice(0, 10),
+      normalizeAccessStatus(access_status),
+      normalizePilotType(pilot_type),
+      resolvedPilotStart,
+      pilot_expires_at || null,
+      notes || null
     );
 
     db.prepare(`
-      INSERT INTO users (id, company_id, name, email, password_hash, role)
-      VALUES (?, ?, ?, ?, ?, 'admin')
-    `).run(userId, companyId, admin_name, admin_email.toLowerCase(), hash);
+      INSERT INTO users (id, company_id, name, email, password_hash, role, must_change_password)
+      VALUES (?, ?, ?, ?, ?, 'admin', 1)
+    `).run(userId, companyId, admin_name, admin_email.toLowerCase().trim(), hash);
   });
 
   create();
@@ -65,7 +88,7 @@ router.post('/', (req, res) => {
   company.locations         = JSON.parse(company.locations);
   company.operating_regions = JSON.parse(company.operating_regions);
 
-  res.status(201).json({ company, admin_user_id: userId });
+  res.status(201).json({ company: { ...company, access: serializeCompanyAccess(company) }, admin_user_id: userId });
 });
 
 // GET /api/companies/:id
@@ -81,24 +104,55 @@ router.get('/:id', requireAuth, requireOwnCompany, (req, res) => {
 // PATCH /api/companies/:id — admin only
 router.patch('/:id', requireAuth, requireOwnCompany, requireRole('admin'), (req, res) => {
   const db = getDb();
-  const { name, abn, locations, operating_regions, status, pilot_start_date } = req.body;
+  const {
+    name,
+    slug,
+    display_name,
+    abn,
+    locations,
+    operating_regions,
+    status,
+    pilot_start_date,
+    access_status,
+    pilot_type,
+    pilot_starts_at,
+    pilot_expires_at,
+    timezone,
+    notes
+  } = req.body;
 
   db.prepare(`
     UPDATE companies
     SET name = COALESCE(?, name),
+        slug = COALESCE(?, slug),
+        display_name = COALESCE(?, display_name),
         abn  = COALESCE(?, abn),
+        timezone = COALESCE(?, timezone),
         locations = COALESCE(?, locations),
         operating_regions = COALESCE(?, operating_regions),
         status = COALESCE(?, status),
-        pilot_start_date = COALESCE(?, pilot_start_date)
+        pilot_start_date = COALESCE(?, pilot_start_date),
+        access_status = COALESCE(?, access_status),
+        pilot_type = COALESCE(?, pilot_type),
+        pilot_starts_at = COALESCE(?, pilot_starts_at),
+        pilot_expires_at = COALESCE(?, pilot_expires_at),
+        notes = COALESCE(?, notes)
     WHERE id = ?
   `).run(
     name || null,
+    slug ? normalizeSlug(slug) : null,
+    display_name || null,
     abn  || null,
+    timezone || null,
     locations         ? JSON.stringify(locations)         : null,
     operating_regions ? JSON.stringify(operating_regions) : null,
     status            || null,
     pilot_start_date  || null,
+    access_status ? normalizeAccessStatus(access_status) : null,
+    pilot_type ? normalizePilotType(pilot_type) : null,
+    pilot_starts_at || null,
+    pilot_expires_at || null,
+    notes || null,
     req.params.id
   );
 

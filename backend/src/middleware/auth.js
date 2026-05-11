@@ -2,6 +2,11 @@
 
 const jwt = require('jsonwebtoken');
 const { getDb } = require('../db');
+const {
+  blockedCompanyResponse,
+  effectiveAccessStatus,
+  serializeCompanyAccess
+} = require('../services/company-access');
 
 function getSecret() {
   return process.env.JWT_SECRET || 'dev-secret-change-in-production';
@@ -10,9 +15,27 @@ function getSecret() {
 function loadActiveUser(userId) {
   const db = getDb();
   return db.prepare(`
-    SELECT id, company_id, name, email, role, status, must_change_password
-    FROM users
-    WHERE id = ?
+    SELECT
+      u.id,
+      u.company_id,
+      u.name,
+      u.email,
+      u.role,
+      u.status,
+      u.must_change_password,
+      c.name AS company_name,
+      c.slug AS company_slug,
+      c.display_name AS company_display_name,
+      c.access_status AS company_access_status,
+      c.pilot_type AS company_pilot_type,
+      c.pilot_start_date AS company_pilot_start_date,
+      c.pilot_starts_at AS company_pilot_starts_at,
+      c.pilot_expires_at AS company_pilot_expires_at,
+      c.timezone AS company_timezone,
+      c.notes AS company_notes
+    FROM users u
+    JOIN companies c ON c.id = u.company_id
+    WHERE u.id = ?
   `).get(userId);
 }
 
@@ -32,6 +55,23 @@ function requireAuth(req, res, next) {
     if (!user || user.status !== 'active') {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
+    const company = {
+      id: user.company_id,
+      name: user.company_name,
+      slug: user.company_slug,
+      display_name: user.company_display_name,
+      access_status: user.company_access_status,
+      pilot_type: user.company_pilot_type,
+      pilot_start_date: user.company_pilot_start_date,
+      pilot_starts_at: user.company_pilot_starts_at,
+      pilot_expires_at: user.company_pilot_expires_at,
+      timezone: user.company_timezone,
+      notes: user.company_notes
+    };
+    const companyBlock = blockedCompanyResponse(company);
+    if (companyBlock?.company_access_status === 'suspended') {
+      return res.status(403).json(companyBlock);
+    }
     req.user = {
       id: user.id,
       company_id: user.company_id,
@@ -39,8 +79,12 @@ function requireAuth(req, res, next) {
       email: user.email,
       role: user.role,
       status: user.status,
-      must_change_password: Boolean(user.must_change_password)
+      must_change_password: Boolean(user.must_change_password),
+      company: serializeCompanyAccess(company)
     };
+    if (effectiveAccessStatus(company) === 'expired' && !passwordChangeAllowed(req)) {
+      return res.status(403).json(companyBlock);
+    }
     if (req.user.must_change_password && !passwordChangeAllowed(req)) {
       return res.status(403).json({
         error: 'Password change required before accessing the console',
