@@ -1,0 +1,17 @@
+reference,title,date,start,end,timezone,crane_class,primary_demo_use,demo_note
+DEMO-LIQ-001,Brisbane Rooftop Plant Lift,2026-05-18,06:00,11:00,Australia/Brisbane,55T,Job Brief Import and clean schedule,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-002,Gold Coast Precast Panel Install,2026-05-19,07:00,15:00,Australia/Brisbane,100T,CredentialGate and critical lift review,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-003,Hemmant Shutdown Pump Changeout,2026-05-20,06:00,16:00,Australia/Brisbane,100T,SmartRank task preferences and shutdown context,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-004,Eagle Farm Container Repositioning,2026-05-21,08:00,12:00,Australia/Brisbane,Franna,Clean SmartRank ranking,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-005,Ipswich Transformer Placement,2026-05-22,06:30,14:30,Australia/Brisbane,100T,CredentialGate hard block,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-006,Lytton Pipe Rack Lift,2026-05-25,06:00,13:00,Australia/Brisbane,150T,GMK5150L-1 and 30.9t travel-state review,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-007,Sunshine Coast Machinery Relocation,2026-05-26,07:00,13:00,Australia/Brisbane,Franna,Long travel and machinery move,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-008,Brisbane CBD Restricted Access Lift,2026-05-27,05:30,10:30,Australia/Brisbane,City Crane,Restricted access and availability block,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-009,Night Shift Shutdown Rigging Support,2026-05-28,20:00,23:30,Australia/Brisbane,55T,FatigueGuard warning and block,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-010,Tower Crane Support Allocation,2026-06-01,06:30,14:30,Australia/Brisbane,Tower Crane,Dogman and rigger allocation,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-011,Pinkenba Counterweight Transport Lift,2026-06-02,06:00,13:00,Australia/Brisbane,150T,GMK5150L 24t vs 44.5t counterweight gap,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-012,Redbank Equipment Unload,2026-06-04,08:00,12:00,Australia/Brisbane,Franna,Low-complexity casual operator job,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-013,Toowoomba Regional Lift,2026-06-08,07:00,15:00,Australia/Brisbane,100T,Long-travel counterweight review,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-014,Port Access Mobile Crane Job,2026-06-10,05:30,13:30,Australia/Brisbane,150T,NHVR and road-access review flags,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-015,Logan Warehouse Mezzanine Install,2026-06-12,07:00,14:00,Australia/Brisbane,25T,Warehouse machinery install,DEMO_JOB DEMO_DATASET_2026_05 synthetic
+DEMO-LIQ-016,Schedule Conflict Test Lift,2026-05-18,08:00,12:00,Australia/Brisbane,55T,Schedule conflict detection,DEMO_JOB DEMO_DATASET_2026_05 synthetic
