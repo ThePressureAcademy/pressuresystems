@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>How LiftIQ Works | Pilot-stage dispatch workflow for crane and lifting operations</title>
-  <meta name="description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, credentials, fatigue checks, explainable SmartRank recommendations, allocation confirmation, and allocation-level audit proof." />
+  <meta name="description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, job brief import, scheduling, crane and transport review flags, SmartRank, allocation confirmation, audit events, and pilot metrics." />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://pressuresystems.au/liftiq/how-it-works/" />
   <meta property="og:title" content="How LiftIQ Works" />
-  <meta property="og:description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, credentials, fatigue checks, explainable SmartRank recommendations, allocation confirmation, and allocation-level audit proof." />
+  <meta property="og:description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, job brief import, scheduling, crane and transport review flags, SmartRank, allocation confirmation, audit events, and pilot metrics." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pressuresystems.au/liftiq/how-it-works/" />
   <meta property="og:image" content="https://pressuresystems.au/assets/social/LiftIQ_System_OG_1200x630.png" />
@@ -16,7 +16,7 @@
   <meta property="og:site_name" content="LiftIQ by Pressure Systems" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="How LiftIQ Works" />
-  <meta name="twitter:description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, credentials, fatigue checks, explainable SmartRank recommendations, allocation confirmation, and allocation-level audit proof." />
+  <meta name="twitter:description" content="See how LiftIQ's pilot-stage dispatch workflow handles worker import, job brief import, scheduling, crane and transport review flags, SmartRank, allocation confirmation, audit events, and pilot metrics." />
   <meta name="twitter:image" content="https://pressuresystems.au/assets/social/LiftIQ_System_OG_1200x630.png" />
   <meta name="twitter:image:alt" content="LiftIQ by Pressure Systems social card explaining the pilot-stage dispatch workflow and visible recommendation logic." />
   <meta name="theme-color" content="#08111D" />
@@ -58,7 +58,7 @@
         <div>
           <span class="lq-eyebrow"><span class="lq-eyebrow-dot"></span>Founding-partner pilot workflow</span>
           <h1 class="lq-page-title">LiftIQ is a browser-based dispatcher pilot workflow for crane and lifting operations.</h1>
-          <p class="lq-lead">Pressure Systems is developing LiftIQ as a pilot-stage dispatch intelligence layer for operators who need visible reasoning before a dispatcher, planner, or branch lead commits the job. The live pilot workflow now covers worker onboarding, checks before allocation, explainable ranking, override capture, and audit-backed proof.</p>
+          <p class="lq-lead">Pressure Systems is developing LiftIQ as a pilot-stage dispatch intelligence layer for operators who need visible reasoning before a dispatcher, planner, or branch lead commits the job. The live pilot workflow now covers worker onboarding, job brief import, timezone-aware scheduling, crane and transport review flags, explainable ranking, override capture, audit-backed proof, and tenant-isolated pilot access.</p>
           <div class="lq-page-links" style="margin-top:24px;">
             <a href="/liftiq/modules/">Module status</a>
             <a href="https://liftiq-pilot.fly.dev/console/">Pilot portal access</a>
@@ -74,7 +74,7 @@
         <div class="lq-section-head">
           <span class="lq-kicker">Current logic path</span>
           <h2>What LiftIQ does now, in truthful terms.</h2>
-          <p>LiftIQ now supports a browser-based dispatcher pilot workflow: import or create workers, record credentials and fatigue, create jobs, run explainable SmartRank recommendations, review hard blocks and warnings, confirm allocations, capture override reasons where needed, and keep allocation-level audit proof.</p>
+          <p>LiftIQ now supports a browser-based dispatcher pilot workflow: import or create workers, import a job brief or create a job manually, add schedule and requirement details, review crane and transport flags, run explainable SmartRank recommendations, review hard blocks and warnings, confirm allocations, capture override reasons where needed, and keep allocation-level audit proof.</p>
         </div>
         <div class="lq-timeline">
           <article class="lq-step">
@@ -87,36 +87,50 @@
           <article class="lq-step">
             <div class="lq-step-num">2</div>
             <div>
-              <h3>Record credentials and fatigue</h3>
-              <p>Worker credentials and fatigue records are entered before job allocation so credential gaps, fatigue warnings, and hard blocks are visible early.</p>
+              <h3>Import a job brief or create a job manually</h3>
+              <p>Dispatchers can paste brief text or import .txt and .md files, then review extracted fields before creating a job.</p>
             </div>
           </article>
           <article class="lq-step">
             <div class="lq-step-num">3</div>
             <div>
-              <h3>Create jobs and run SmartRank</h3>
-              <p>Jobs carry the role, crane class, credentials, and task context needed to rank workers, show score breakdowns, and expose warning or hard-block states clearly.</p>
+              <h3>Add schedule, timezone, role, credential, and crane requirements</h3>
+              <p>Jobs carry role, required credentials, timezone-aware windows, crane class, crane model, travel state, counterweight requirement, site access, and setup notes where known.</p>
             </div>
           </article>
           <article class="lq-step">
             <div class="lq-step-num">4</div>
             <div>
-              <h3>Review warnings and confirm allocation</h3>
-              <p>Dispatchers remain the decision-maker, review CredentialGate and FatigueGuard results, and provide an override reason for warning or lower-ranked selections when the workflow requires it.</p>
+              <h3>Review crane model, travel state, counterweight, and transport review flags</h3>
+              <p>LiftIQ can calculate a counterweight gap from the selected crane travel state and surface support transport, road-access, NHVR / state notice, and permit review prompts for human confirmation.</p>
             </div>
           </article>
           <article class="lq-step">
             <div class="lq-step-num">5</div>
             <div>
-              <h3>Write audit events and metrics</h3>
-              <p>Confirmed allocations create append-only audit events, update pilot metrics, and keep an operational proof trail inside the pilot workflow.</p>
+              <h3>Run SmartRank</h3>
+              <p>LiftIQ ranks worker options with visible score breakdowns, manual/imported/learned preference signals, CredentialGate hard blocks, and FatigueGuard warnings.</p>
             </div>
           </article>
           <article class="lq-step">
             <div class="lq-step-num">6</div>
             <div>
-              <h3>Learn from dispatcher-approved patterns</h3>
-              <p>Manual, imported, and learned preference signals can influence future SmartRank results, but hard blocks still override preference signals every time.</p>
+              <h3>Review hard blocks, warnings, schedule conflicts, and preference signals</h3>
+              <p>The dispatcher reviews the visible readiness signals before allocation, including lower-ranked selections, warnings, hard blocks, and schedule conflict cues.</p>
+            </div>
+          </article>
+          <article class="lq-step">
+            <div class="lq-step-num">7</div>
+            <div>
+              <h3>Confirm allocation or record override reason</h3>
+              <p>Dispatchers remain the decision-maker and provide an override reason when they select a warning state or lower-ranked worker.</p>
+            </div>
+          </article>
+          <article class="lq-step">
+            <div class="lq-step-num">8</div>
+            <div>
+              <h3>Review audit trail and pilot metrics</h3>
+              <p>Confirmed allocations, job brief imports, counterweight transport assessments, warnings, overrides, and audit activity remain visible inside pilot metrics and audit views.</p>
             </div>
           </article>
         </div>
@@ -131,9 +145,11 @@
             <h2 class="lq-panel-heading">Live founding-partner pilot console with bounded workflow scope.</h2>
             <ul class="lq-list" style="margin-top:14px;">
               <li>Worker import from CSV or pasted spreadsheet data plus manual worker entry.</li>
-              <li>Credential and fatigue checks before allocation.</li>
-              <li>Explainable SmartRank recommendations with visible score breakdowns.</li>
-              <li>Append-only allocation-level audit events and pilot metrics within pilot scope.</li>
+              <li>Job Brief Import from pasted text, .txt, and .md with review before job creation.</li>
+              <li>Timezone-aware scheduling, schedule conflict detection, and upcoming job views.</li>
+              <li>Explainable SmartRank recommendations with visible score breakdowns, CredentialGate hard blocks, and FatigueGuard warnings.</li>
+              <li>Crane model, travel-state, counterweight gap, support transport, and road-access review flags.</li>
+              <li>Allocation-level audit events, counterweight assessment events, and pilot metrics within pilot scope.</li>
             </ul>
           </article>
           <article class="lq-panel">
@@ -141,11 +157,19 @@
             <h2 class="lq-panel-heading">Dispatcher-led workflow, not autonomous allocation.</h2>
             <ul class="lq-list" style="margin-top:14px;">
               <li>Dispatcher remains the decision-maker and final confirmer.</li>
-              <li>No payroll, invoicing, or FCC-replacement claim.</li>
-              <li>No WHS or legal-compliance guarantee claim.</li>
-              <li>Any Xero or MYOB alignment remains later, access-dependent work only.</li>
+              <li>No payroll, invoicing, quote-builder, maintenance, or FCC-replacement claim.</li>
+              <li>No permit, WHS, legal, or engineering guarantee claim.</li>
+              <li>No route optimisation, permit automation, external calendar sync, OCR/PDF parsing, or inbox ingestion claim.</li>
             </ul>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="lq-section">
+      <div class="lq-shell">
+        <div class="lq-callout">
+          <strong>Decision boundary:</strong> LiftIQ does not approve permits, engineer lifts, guarantee compliance, or replace dispatcher judgement. It surfaces structured review points before a dispatch decision is confirmed.
         </div>
       </div>
     </section>
@@ -171,8 +195,8 @@
             <span>Append-only allocation-level audit events and pilot metrics exist inside the pilot workflow.</span>
           </div>
           <div class="lq-highlight">
-            <strong>Finance</strong>
-            <span>Planned later alignment with systems such as Xero and MYOB for job-cost and labour-cost context, not current support.</span>
+            <strong>Future integrations</strong>
+            <span>External systems, route workflows, permit workflows, OCR/PDF parsing, inbox ingestion, and calendar sync remain future questions, not current support.</span>
           </div>
         </div>
       </div>
@@ -181,7 +205,7 @@
     <section class="lq-section">
       <div class="lq-shell">
         <div class="lq-callout">
-          <strong>Truth boundary:</strong> LiftIQ does not claim autonomous dispatch, WHS/legal compliance guarantees, payroll logic, invoice automation, or live Xero or MYOB integration on this page. Those remain later architecture questions only if pilot evidence and client system access justify them.
+          <strong>Truth boundary:</strong> LiftIQ does not claim autonomous dispatch, WHS/legal compliance guarantees, payroll logic, invoice automation, route optimisation, permit automation, OCR/PDF parsing, inbox ingestion, external calendar sync, or live external integrations on this page. Those remain later architecture questions only if pilot evidence and client system access justify them.
         </div>
       </div>
     </section>
@@ -211,7 +235,7 @@
         <div class="lq-footer-grid">
           <div class="lq-footer-brand">
             <strong>LiftIQ</strong>
-            <p>LiftIQ is a fatigue-aware, credential-aware dispatch intelligence layer for crane and lifting operations. Built for founding-partner pilot validation under Pressure Systems.</p>
+            <p>LiftIQ is a pilot-stage dispatch intelligence layer for crane and lifting operations, with worker import, job brief import, scheduling, SmartRank, audit events, crane and transport review flags, and tenant-isolated pilot access.</p>
             <p class="lq-footer-note">Already in the pilot? <a class="lq-inline-link" href="https://liftiq-pilot.fly.dev/console/">Open the portal.</a></p>
           </div>
           <div class="lq-footer-col">
