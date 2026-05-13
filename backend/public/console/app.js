@@ -193,6 +193,7 @@ async function api(method, path, body) {
 let craneModelsCache = null;
 const craneTravelStateCache = new Map();
 let companyCatalogueCache = null;
+let companyAssetsCache = null;
 
 async function loadCraneModels() {
   if (craneModelsCache) return craneModelsCache;
@@ -213,6 +214,12 @@ async function loadCompanyCatalogue(force = false) {
   if (companyCatalogueCache && !force) return companyCatalogueCache;
   companyCatalogueCache = await api('GET', '/company/catalogue-selections');
   return companyCatalogueCache;
+}
+
+async function loadCompanyAssets(force = false) {
+  if (companyAssetsCache && !force) return companyAssetsCache;
+  companyAssetsCache = await api('GET', '/company/assets');
+  return companyAssetsCache;
 }
 
 function boolLabel(value) {
@@ -389,6 +396,7 @@ function logout() {
   state.token = null;
   state.user = null;
   companyCatalogueCache = null;
+  companyAssetsCache = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   showLogin();
@@ -743,6 +751,27 @@ function selectedRequirementIdsFromForm(form) {
     .filter(Number.isFinite);
 }
 
+function selectedCompanyAssetIdsFromForm(form) {
+  return Array.from(form.querySelectorAll('select[name="company_asset_ids"]'))
+    .map((node) => Number(node.value))
+    .filter(Number.isFinite);
+}
+
+function assetItemsFromCatalogue(catalogue = {}) {
+  return (catalogue.items || [])
+    .filter((item) => item.is_enabled && ['equipment', 'transport'].includes(item.category));
+}
+
+function assetsGroupedByCatalogueItem(assets = []) {
+  const grouped = new Map();
+  for (const asset of assets || []) {
+    const key = String(asset.catalogue_item_id);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(asset);
+  }
+  return grouped;
+}
+
 function renderStructuredRequirementsSummary(requirements = []) {
   const panel = el('div', { class: 'panel' });
   panel.appendChild(el('h3', {}, 'Job requirements'));
@@ -761,6 +790,40 @@ function renderStructuredRequirementsSummary(requirements = []) {
   if (customCount > 0) {
     panel.appendChild(el('div', { class: 'alerts crane-form-alerts' },
       'One-off requirements are job-scoped only and require dispatcher review before allocation.'
+    ));
+  }
+
+  return panel;
+}
+
+function renderAssetAssignmentsSummary(assignments = [], warnings = []) {
+  const panel = el('div', { class: 'panel' });
+  panel.appendChild(el('h3', {}, 'Selected assets / plant'));
+  if (!assignments || assignments.length === 0) {
+    panel.appendChild(el('div', { class: 'empty' }, 'No exact asset selected. Job remains at requirement-class level.'));
+    return panel;
+  }
+
+  panel.appendChild(el('div', { class: 'asset-list' }, ...assignments.map((assignment) => {
+    const asset = assignment.asset || assignment;
+    return el('div', { class: 'asset-row' },
+      el('div', {},
+        el('strong', {}, asset.asset_number),
+        el('div', { class: 'small muted' }, asset.display_name || asset.catalogue_item?.label || 'Asset')
+      ),
+      el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, asset.asset_status || 'active'),
+      el('span', { class: 'small muted' }, asset.home_location || '-')
+    );
+  })));
+
+  const allWarnings = Array.from(new Set([
+    ...(warnings || []),
+    ...assignments.flatMap((assignment) => assignment.asset?.warnings || [])
+  ]));
+  if (allWarnings.length > 0) {
+    panel.appendChild(el('div', { class: 'alerts crane-form-alerts' },
+      el('strong', {}, 'Asset review'),
+      el('ul', {}, ...allWarnings.map((warning) => el('li', {}, warning)))
     ));
   }
 
@@ -835,7 +898,10 @@ async function renderDashboard(renderCycle) {
 async function renderOurBusiness(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
-  const catalogue = await loadCompanyCatalogue(true);
+  const [catalogue, assetsPayload] = await Promise.all([
+    loadCompanyCatalogue(true),
+    loadCompanyAssets(true)
+  ]);
   if (isStaleRender(renderCycle)) return;
 
   const form = el('form', { class: 'panel' });
@@ -899,6 +965,171 @@ async function renderOurBusiness(renderCycle) {
   });
 
   view.appendChild(form);
+  view.appendChild(renderAssetRegister(catalogue, assetsPayload));
+}
+
+function renderAssetRegister(catalogue, assetsPayload = {}) {
+  const panel = el('div', { class: 'panel asset-register' });
+  const assets = assetsPayload.assets || [];
+  const assetsByItem = assetsGroupedByCatalogueItem(assets);
+  const enabledAssetItems = assetItemsFromCatalogue(catalogue);
+  const registerItems = new Map();
+  for (const item of enabledAssetItems) registerItems.set(String(item.id), item);
+  for (const asset of assets) {
+    if (!registerItems.has(String(asset.catalogue_item_id))) {
+      registerItems.set(String(asset.catalogue_item_id), {
+        id: asset.catalogue_item_id,
+        label: asset.catalogue_item?.label || asset.display_name,
+        category: asset.catalogue_item?.category || 'equipment',
+        group_label: asset.catalogue_item?.group_label || 'Assets',
+        is_enabled: false
+      });
+    }
+  }
+
+  panel.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h3', {}, 'Asset Register'),
+      el('div', { class: 'small muted' },
+        'Register actual machines by asset number / plant number under enabled equipment and transport classes. This is not fleet maintenance or availability automation.'
+      )
+    ),
+    el('span', { class: 'pill pill-info' }, `${assets.length} active asset(s)`)
+  ));
+
+  if (registerItems.size === 0) {
+    panel.appendChild(el('div', { class: 'empty' },
+      'Enable an equipment or transport item above, then add plant numbers for actual machines.'
+    ));
+    return panel;
+  }
+
+  for (const item of Array.from(registerItems.values()).sort((a, b) => String(a.label).localeCompare(String(b.label)))) {
+    const group = el('details', { class: 'asset-group', open: item.is_enabled ? 'true' : null });
+    const existingAssets = assetsByItem.get(String(item.id)) || [];
+    group.appendChild(el('summary', {},
+      el('strong', {}, item.label),
+      el('span', { class: 'small muted' }, ` ${item.group_label || item.category}`),
+      !item.is_enabled ? el('span', { class: 'pill pill-warn', style: 'margin-left:8px;' }, 'class not enabled') : null
+    ));
+
+    if (!item.is_enabled) {
+      group.appendChild(el('div', { class: 'alerts crane-form-alerts' },
+        "This asset's catalogue class is not currently enabled in Our Business."
+      ));
+    }
+
+    if (existingAssets.length === 0) {
+      group.appendChild(el('div', { class: 'small muted' }, `No specific assets registered for ${item.label}.`));
+    } else {
+      group.appendChild(el('div', { class: 'asset-list' }, ...existingAssets.map((asset) =>
+        el('div', { class: 'asset-row' },
+          el('div', {},
+            el('strong', {}, asset.asset_number),
+            el('div', { class: 'small muted' }, asset.display_name || asset.catalogue_item?.label || item.label)
+          ),
+          el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, asset.asset_status),
+          el('span', { class: 'small muted' }, asset.home_location || '-'),
+          el('button', {
+            type: 'button',
+            class: 'secondary',
+            onclick: async () => {
+              try {
+                await api('POST', `/company/assets/${asset.id}/archive`);
+                companyAssetsCache = null;
+                toast('Asset archived', 'success');
+                router();
+              } catch (err) {
+                toast(err.error || 'Could not archive asset', 'error');
+              }
+            }
+          }, 'Archive')
+        )
+      )));
+    }
+
+    const addForm = el('form', { class: 'asset-add-form' });
+    const errBox = el('div', { class: 'error' });
+    addForm.appendChild(el('div', { class: 'row' },
+      buildInput('asset_number', 'Asset number / plant number', { placeholder: 'MC20-001', required: true }),
+      buildInput('display_name', 'Display name', { placeholder: `${item.label} / MC20-001` }),
+      buildSelect('asset_status', 'Status', ['active', 'inactive', 'unavailable', 'retired'], { value: 'active' }),
+      buildInput('home_location', 'Home location', { placeholder: 'Brisbane' })
+    ));
+    addForm.appendChild(buildTextarea('notes', 'Notes'));
+    addForm.appendChild(errBox);
+    addForm.appendChild(el('div', { class: 'button-row' },
+      el('button', { type: 'submit' }, 'Add asset')
+    ));
+    addForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      errBox.textContent = '';
+      const fd = new FormData(addForm);
+      try {
+        await api('POST', '/company/assets', {
+          catalogue_item_id: item.id,
+          asset_number: fd.get('asset_number'),
+          display_name: fd.get('display_name') || null,
+          asset_status: fd.get('asset_status') || 'active',
+          home_location: fd.get('home_location') || null,
+          notes: fd.get('notes') || null
+        });
+        companyAssetsCache = null;
+        toast('Asset added', 'success');
+        router();
+      } catch (err) {
+        errBox.textContent = err.error || 'Could not add asset';
+      }
+    });
+    group.appendChild(addForm);
+    panel.appendChild(group);
+  }
+
+  return panel;
+}
+
+function renderJobAssetSelector(catalogue = {}, assetsPayload = {}) {
+  const panel = el('div', { class: 'asset-selector-panel' });
+  const assetsByItem = assetsGroupedByCatalogueItem(assetsPayload.assets || []);
+  const itemsById = new Map((catalogue.items || []).map((item) => [String(item.id), item]));
+
+  const refresh = (form) => {
+    panel.innerHTML = '';
+    const selectedIds = selectedRequirementIdsFromForm(form).map((id) => String(id));
+    const selectedAssetItems = selectedIds
+      .map((id) => itemsById.get(id))
+      .filter((item) => item && ['equipment', 'transport'].includes(item.category));
+
+    panel.appendChild(el('h4', {}, 'Optional asset / plant selection'));
+    if (selectedAssetItems.length === 0) {
+      panel.appendChild(el('div', { class: 'small muted' },
+        'Select an equipment or transport requirement to optionally choose a specific asset / plant number.'
+      ));
+      return;
+    }
+
+    for (const item of selectedAssetItems) {
+      const assets = (assetsByItem.get(String(item.id)) || []).filter((asset) => asset.asset_status !== 'retired');
+      if (assets.length === 0) {
+        panel.appendChild(el('div', { class: 'small muted asset-select-row' },
+          `No specific assets registered for ${item.label}. The job will use the requirement only.`
+        ));
+        continue;
+      }
+
+      const select = el('select', { name: 'company_asset_ids' });
+      select.appendChild(el('option', { value: '' }, `Any available ${item.label}`));
+      for (const asset of assets) {
+        select.appendChild(el('option', { value: String(asset.id) },
+          `${asset.asset_number} - ${asset.display_name || item.label} (${asset.asset_status})`
+        ));
+      }
+      panel.appendChild(buildFieldWrapper(`Select asset / plant number for ${item.label}`, select));
+    }
+  };
+
+  panel.refresh = refresh;
+  return panel;
 }
 
 function buildSecurityPanel() {
@@ -1971,6 +2202,8 @@ function renderJobBriefImport(renderCycle) {
     const selectedRequirements = requirementMapping.selected_catalogue_items || [];
     const suggestedRequirements = requirementMapping.suggested_catalogue_items || [];
     const oneOffRequirements = requirementMapping.one_off_custom_requirements || [];
+    const suggestedAssets = extracted.suggested_assets || [];
+    const unknownAssetNumbers = extracted.unknown_asset_numbers || [];
     const requirementPanel = el('div', { class: 'panel requirement-form-section' });
     requirementPanel.appendChild(el('h3', {}, 'Mapped job requirements'));
     requirementPanel.appendChild(el('div', { class: 'small muted' },
@@ -1991,6 +2224,19 @@ function renderJobBriefImport(renderCycle) {
       requirementPanel.appendChild(el('div', { class: 'alerts job-brief-warnings' },
         el('strong', {}, 'One-off custom requirements'),
         el('ul', {}, ...oneOffRequirements.map((item) => el('li', {}, item.label || String(item))))
+      ));
+    }
+    if (suggestedAssets.length > 0 || unknownAssetNumbers.length > 0) {
+      requirementPanel.appendChild(el('div', { class: 'alerts job-brief-warnings' },
+        el('strong', {}, 'Asset / plant references'),
+        el('ul', {},
+          ...suggestedAssets.map((asset) => el('li', {},
+            `${asset.asset_number} - ${asset.display_name || asset.catalogue_item?.label || 'Asset'}`
+          )),
+          ...unknownAssetNumbers.map((assetNumber) => el('li', {},
+            `${assetNumber} mentioned but not found in company asset register.`
+          ))
+        )
       ));
     }
     previewForm.appendChild(requirementPanel);
@@ -2069,6 +2315,7 @@ function renderJobBriefImport(renderCycle) {
           source_note: fd.get('source_note') || null,
           requirement_item_ids: extracted.requirement_item_ids || [],
           requirement_item_keys: extracted.requirement_item_keys || [],
+          company_asset_ids: extracted.company_asset_ids || [],
           custom_requirements: extracted.custom_requirements || []
         });
         toast('Job created from brief', 'success');
@@ -2161,9 +2408,10 @@ async function renderNewJob(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [craneModels, companyCatalogue] = await Promise.all([
+  const [craneModels, companyCatalogue, companyAssets] = await Promise.all([
     loadCraneModels(),
-    loadCompanyCatalogue()
+    loadCompanyCatalogue(),
+    loadCompanyAssets()
   ]);
   if (isStaleRender(renderCycle)) return;
 
@@ -2219,6 +2467,8 @@ async function renderNewJob(renderCycle) {
       : 'Recommended defaults are shown. Configure your company equipment and requirements in Our Business to reduce this list.'
   ));
   requirementsSection.appendChild(renderRequirementChecklist(enabledCompanyCatalogue));
+  const assetSelectorPanel = renderJobAssetSelector(enabledCompanyCatalogue, companyAssets);
+  requirementsSection.appendChild(assetSelectorPanel);
   requirementsSection.appendChild(buildInput('custom_requirements', 'Add one-off requirement', {
     placeholder: '40T Franna, special access ticket, client induction'
   }));
@@ -2226,6 +2476,10 @@ async function renderNewJob(renderCycle) {
     'One-off requirements attach to this job only and require review before allocation.'
   ));
   form.appendChild(requirementsSection);
+  assetSelectorPanel.refresh(form);
+  requirementsSection.querySelectorAll('input[name="requirement_item_ids"]').forEach((checkbox) => {
+    checkbox.addEventListener('change', () => assetSelectorPanel.refresh(form));
+  });
 
   const craneSection = el('div', { class: 'panel crane-form-section' });
   craneSection.appendChild(el('h3', {}, 'Crane, counterweight and transport'));
@@ -2319,6 +2573,7 @@ async function renderNewJob(renderCycle) {
       site_access_notes: fd.get('site_access_notes') || null,
       setup_notes: fd.get('setup_notes') || null,
       requirement_item_ids: selectedRequirementIdsFromForm(form),
+      company_asset_ids: selectedCompanyAssetIdsFromForm(form),
       custom_requirements: splitCsv(fd.get('custom_requirements')).map((label) => ({
         category: 'custom',
         label
@@ -2382,6 +2637,7 @@ async function renderJobDetail(jobId, renderCycle) {
   addKv('Notes', job.notes || '-');
   view.appendChild(el('div', { class: 'panel' }, kv));
   view.appendChild(renderStructuredRequirementsSummary(job.structured_requirements || []));
+  view.appendChild(renderAssetAssignmentsSummary(job.asset_assignments || [], job.asset_assignment_warnings || []));
   view.appendChild(renderCranePlanningSummary(job.crane_planning));
 
   const allocPanel = el('div', { class: 'panel' });
@@ -2469,6 +2725,18 @@ async function renderSmartRank(jobId, renderCycle) {
       ? el('div', { class: 'alerts crane-planning-alerts' },
           el('strong', {}, 'Requirement review'),
           el('ul', {}, ...result.job.structured_requirement_warnings.map((message) => el('li', {}, message)))
+        )
+      : null,
+    result.job.asset_assignments?.length
+      ? el('div', { class: 'small', style: 'margin-top:8px;' },
+          el('strong', {}, 'Selected assets: '),
+          result.job.asset_assignments.map((assignment) => assignment.asset.asset_number).join(', ')
+        )
+      : null,
+    result.job.asset_assignment_warnings?.length
+      ? el('div', { class: 'alerts crane-planning-alerts' },
+          el('strong', {}, 'Asset review'),
+          el('ul', {}, ...result.job.asset_assignment_warnings.map((message) => el('li', {}, message)))
         )
       : null,
     el('div', { class: 'small', style: 'margin-top:8px;' },

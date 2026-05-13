@@ -391,6 +391,33 @@ CREATE TABLE IF NOT EXISTS job_requirement_items (
   )
 );
 
+CREATE TABLE IF NOT EXISTS company_assets (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id        TEXT NOT NULL REFERENCES companies(id),
+  catalogue_item_id INTEGER NOT NULL REFERENCES requirement_catalogue_items(id),
+  asset_number      TEXT NOT NULL,
+  display_name      TEXT,
+  asset_status      TEXT NOT NULL DEFAULT 'active'
+                    CHECK (asset_status IN ('active', 'inactive', 'unavailable', 'retired')),
+  home_location     TEXT,
+  notes             TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(company_id, asset_number)
+);
+
+CREATE TABLE IF NOT EXISTS job_asset_assignments (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id            TEXT NOT NULL REFERENCES companies(id),
+  job_id                TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  company_asset_id      INTEGER NOT NULL REFERENCES company_assets(id),
+  source                TEXT NOT NULL DEFAULT 'manual'
+                        CHECK (source IN ('manual', 'imported', 'suggested')),
+  created_by_user_id    TEXT REFERENCES users(id),
+  created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(company_id, job_id, company_asset_id)
+);
+
 CREATE TABLE IF NOT EXISTS audit_events (
   id            TEXT PRIMARY KEY,
   company_id    TEXT NOT NULL REFERENCES companies(id),
@@ -418,9 +445,13 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'job_status_changed',
                   'transport_requirement_created',
                   'company_catalogue_updated',
+                  'company_asset_created',
+                  'company_asset_updated',
+                  'company_asset_archived',
                   'job_requirements_updated',
                   'job_custom_requirement_added',
                   'job_requirement_imported_from_brief',
+                  'job_asset_selected',
                   'preference_signal_created',
                   'preference_signal_updated',
                   'learned_preference_applied'
@@ -491,6 +522,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_job_requirement_items_custom_unique
   WHERE custom_requirement_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_job_custom_requirements_job
   ON job_custom_requirements(company_id, job_id);
+CREATE INDEX IF NOT EXISTS idx_company_assets_company
+  ON company_assets(company_id, asset_status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_company_assets_company_number
+  ON company_assets(company_id, asset_number);
+CREATE INDEX IF NOT EXISTS idx_company_assets_catalogue_status
+  ON company_assets(company_id, catalogue_item_id, asset_status);
+CREATE INDEX IF NOT EXISTS idx_job_asset_assignments_job
+  ON job_asset_assignments(company_id, job_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_job_asset_assignments_unique
+  ON job_asset_assignments(company_id, job_id, company_asset_id);
 CREATE INDEX IF NOT EXISTS idx_audit_company        ON audit_events(company_id);
 CREATE INDEX IF NOT EXISTS idx_audit_job            ON audit_events(job_id);
 CREATE INDEX IF NOT EXISTS idx_audit_worker         ON audit_events(worker_id);

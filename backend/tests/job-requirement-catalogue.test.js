@@ -50,6 +50,17 @@ function createJobPayload(overrides = {}) {
   };
 }
 
+async function createAsset(catalogueItem, assetNumber, overrides = {}, currentToken = token) {
+  return request.post('/api/company/assets').set(auth(currentToken)).send({
+    catalogue_item_id: catalogueItem.id,
+    asset_number: assetNumber,
+    display_name: overrides.display_name,
+    asset_status: overrides.asset_status,
+    home_location: overrides.home_location || 'Brisbane',
+    notes: overrides.notes || 'Synthetic test asset'
+  });
+}
+
 beforeEach(() => {
   db = createTestDb();
   setDb(db);
@@ -178,6 +189,172 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(crossTenant.status, 404);
   });
 
+  test('company asset register supports multiple same-class assets with plant numbers', async () => {
+    const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
+    const articulated25 = itemByKey('equipment_articulated_crane_25t');
+    const lowLoader = itemByKey('transport_low_loader');
+
+    for (const number of ['MC20-001', 'MC20-002', 'MC20-003', 'MC20-004']) {
+      const created = await createAsset(mobile20, number);
+      assert.equal(created.status, 201);
+      assert.equal(created.body.catalogue_item.normalized_key, 'equipment_mobile_crane_20t_city');
+      assert.equal(created.body.asset_number, number);
+    }
+
+    const fr25A = await createAsset(articulated25, 'FR25-001');
+    const fr25B = await createAsset(articulated25, 'FR25-002');
+    const ll = await createAsset(lowLoader, 'LL-001');
+    assert.equal(fr25A.status, 201);
+    assert.equal(fr25B.status, 201);
+    assert.equal(ll.status, 201);
+
+    const list = await request.get('/api/company/assets').set(auth());
+    assert.equal(list.status, 200);
+    assert.equal(list.body.grouped.equipment_mobile_crane_20t_city.assets.length, 4);
+    assert.equal(list.body.grouped.equipment_articulated_crane_25t.assets.length, 2);
+    assert.equal(list.body.grouped.transport_low_loader.assets.length, 1);
+  });
+
+  test('asset validation rejects duplicates and non-asset catalogue items while keeping tenant scope', async () => {
+    const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
+    const c6 = itemByKey('credential_hrwl_c6');
+
+    const created = await createAsset(mobile20, 'MC20-001');
+    assert.equal(created.status, 201);
+
+    const duplicate = await createAsset(mobile20, 'MC20-001');
+    assert.equal(duplicate.status, 409);
+
+    const sameNumberOtherTenant = await createAsset(mobile20, 'MC20-001', {}, otherToken);
+    assert.equal(sameNumberOtherTenant.status, 201);
+
+    const credentialAsset = await createAsset(c6, 'C6-001');
+    assert.equal(credentialAsset.status, 400);
+    assert.match(credentialAsset.body.error, /Only equipment or transport catalogue items/i);
+
+    const ownList = await request.get('/api/company/assets').set(auth());
+    const otherList = await request.get('/api/company/assets').set(auth(otherToken));
+    assert.equal(ownList.status, 200);
+    assert.equal(otherList.status, 200);
+    assert.equal(ownList.body.assets.length, 1);
+    assert.equal(otherList.body.assets.length, 1);
+    assert.equal(otherList.body.assets[0].company_id, otherCompanyId);
+  });
+
+  test('asset update and archive are company scoped and audited', async () => {
+    const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
+    const created = await createAsset(mobile20, 'MC20-010');
+    assert.equal(created.status, 201);
+
+    const crossTenantUpdate = await request.patch(`/api/company/assets/${created.body.id}`).set(auth(otherToken)).send({
+      asset_status: 'unavailable'
+    });
+    assert.equal(crossTenantUpdate.status, 404);
+
+    const updated = await request.patch(`/api/company/assets/${created.body.id}`).set(auth()).send({
+      asset_status: 'unavailable',
+      home_location: 'Gold Coast',
+      notes: 'Held for demo readiness warning'
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.body.asset_status, 'unavailable');
+    assert.ok(updated.body.warnings.includes('Selected asset is not active in dispatch.'));
+
+    const archived = await request.post(`/api/company/assets/${created.body.id}/archive`).set(auth()).send({});
+    assert.equal(archived.status, 200);
+    assert.equal(archived.body.asset_status, 'retired');
+
+    const activeOnly = await request.get('/api/company/assets').set(auth());
+    assert.equal(activeOnly.status, 200);
+    assert.equal(activeOnly.body.assets.length, 0);
+
+    const includeArchived = await request.get('/api/company/assets?include_archived=true').set(auth());
+    assert.equal(includeArchived.status, 200);
+    assert.equal(includeArchived.body.assets.length, 1);
+
+    const audit = await request.get('/api/audit-events?limit=50').set(auth());
+    assert.equal(audit.status, 200);
+    assert.ok(audit.body.events.some((event) => event.event_type === 'company_asset_created'));
+    assert.ok(audit.body.events.some((event) => event.event_type === 'company_asset_updated'));
+    assert.ok(audit.body.events.some((event) => event.event_type === 'company_asset_archived'));
+  });
+
+  test('job intake can reference a selected company asset without forcing fleet scheduling', async () => {
+    const mobile100 = itemByKey('equipment_mobile_crane_100t');
+    const c6 = itemByKey('credential_hrwl_c6');
+    const asset = await createAsset(mobile100, 'MC100-002', { asset_status: 'unavailable' });
+    assert.equal(asset.status, 201);
+
+    const created = await request.post('/api/jobs').set(auth()).send(createJobPayload({
+      requirement_item_ids: [mobile100.id, c6.id],
+      company_asset_ids: [asset.body.id]
+    }));
+    assert.equal(created.status, 201);
+    assert.equal(created.body.asset_assignments.length, 1);
+    assert.equal(created.body.asset_assignments[0].asset.asset_number, 'MC100-002');
+    assert.ok(created.body.asset_assignment_warnings.includes('Selected asset is not active in dispatch.'));
+    assert.ok(created.body.structured_requirements.some((item) => item.normalized_key === 'equipment_mobile_crane_100t'));
+
+    const assets = await request.get(`/api/jobs/${created.body.id}/assets`).set(auth());
+    assert.equal(assets.status, 200);
+    assert.equal(assets.body.assignments[0].asset.asset_number, 'MC100-002');
+
+    const crossTenant = await request.get(`/api/jobs/${created.body.id}/assets`).set(auth(otherToken));
+    assert.equal(crossTenant.status, 404);
+
+    const smartrank = await request.get(`/api/jobs/${created.body.id}/smartrank`).set(auth());
+    assert.equal(smartrank.status, 200);
+    assert.equal(smartrank.body.job.asset_assignments[0].asset.asset_number, 'MC100-002');
+    assert.ok(smartrank.body.job.asset_assignment_warnings.includes('Selected asset is not active in dispatch.'));
+
+    const audit = await request.get('/api/audit-events?limit=50').set(auth());
+    assert.equal(audit.status, 200);
+    assert.ok(audit.body.events.some((event) => event.event_type === 'job_asset_selected'));
+  });
+
+  test('job brief import detects known and unknown asset numbers without creating unknown assets', async () => {
+    const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
+    const asset = await createAsset(mobile20, 'MC20-001');
+    assert.equal(asset.status, 201);
+
+    const preview = await request.post('/api/jobs/import-brief/preview').set(auth()).send({
+      source_type: 'pasted_text',
+      content: [
+        'Client: Synthetic Lift Co',
+        'Site: Pinkenba QLD',
+        'Job: 20T mobile crane lift.',
+        'Plant No. MC20-001 requested.',
+        'Backup crane number FR25-999 mentioned but not confirmed.',
+        'Timing:',
+        'Monday 1 June 2026',
+        'Start: 6:00 AM',
+        'Finish: 1:00 PM',
+        'Timezone: Australia/Brisbane'
+      ].join('\n')
+    });
+    assert.equal(preview.status, 200);
+    assert.equal(preview.body.extracted.suggested_assets.length, 1);
+    assert.equal(preview.body.extracted.suggested_assets[0].asset_number, 'MC20-001');
+    assert.deepEqual(preview.body.extracted.company_asset_ids, [asset.body.id]);
+    assert.ok(preview.body.extracted.unknown_asset_numbers.includes('FR25-999'));
+    assert.ok(preview.body.warnings.some((warning) => /not found in company asset register/i.test(warning)));
+
+    const created = await request.post(`/api/jobs/import-brief/${preview.body.import_id}/create-job`).set(auth()).send({
+      ...preview.body.extracted,
+      schedule_status: 'planned'
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.asset_assignments.length, 1);
+    assert.equal(created.body.asset_assignments[0].asset.asset_number, 'MC20-001');
+
+    const unknownCreated = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM company_assets
+      WHERE company_id = ? AND asset_number = 'FR25-999'
+    `).get(companyId);
+    assert.equal(unknownCreated.count, 0);
+  });
+
   test('job brief import maps common crane, credential, transport, and access terms to catalogue items', async () => {
     const c6 = itemByKey('credential_hrwl_c6');
     const mobile100 = itemByKey('equipment_mobile_crane_100t');
@@ -297,6 +474,8 @@ describe('Job intake requirement catalogue', () => {
     assert.ok(tables.includes('company_catalogue_selections'));
     assert.ok(tables.includes('job_requirement_items'));
     assert.ok(tables.includes('job_custom_requirements'));
+    assert.ok(tables.includes('company_assets'));
+    assert.ok(tables.includes('job_asset_assignments'));
     assert.ok(itemByKey('transport_low_loader'));
   });
 });

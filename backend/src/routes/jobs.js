@@ -38,6 +38,13 @@ const {
   serializeAllocation,
   serializeJob
 } = require('../services/schedule');
+const {
+  hasAssetPayload,
+  listJobAssetAssignments,
+  mapAssetReferencesFromText,
+  parseAssetIds,
+  persistJobAssetAssignments
+} = require('../services/company-assets');
 
 const router = express.Router();
 
@@ -740,6 +747,34 @@ function persistJobRequirementPayload(db, user, jobId, input, source = 'catalogu
   return requirements;
 }
 
+function persistJobAssetPayload(db, user, jobId, input, source = 'manual') {
+  if (!hasAssetPayload(input)) return null;
+  const assignments = persistJobAssetAssignments(db, {
+    companyId: user.company_id,
+    jobId,
+    userId: user.id,
+    assetIds: parseAssetIds(input),
+    source
+  });
+
+  if (assignments.length > 0) {
+    appendAuditEvent(db, {
+      companyId: user.company_id,
+      eventType: 'job_asset_selected',
+      userId: user.id,
+      jobId,
+      payload: {
+        job_id: jobId,
+        source,
+        asset_ids: assignments.map((assignment) => assignment.asset.id),
+        asset_numbers: assignments.map((assignment) => assignment.asset.asset_number)
+      }
+    });
+  }
+
+  return assignments;
+}
+
 function normalizeBriefCreatePayload(input) {
   const taskTags = parseJsonArray(input.task_tags).map((tag) => String(tag)).filter(Boolean);
   const startTime = trimText(input.start_time);
@@ -789,7 +824,8 @@ function normalizeBriefCreatePayload(input) {
     source_confidence: trimText(input.source_confidence),
     requirement_item_ids: Array.isArray(input.requirement_item_ids) ? input.requirement_item_ids : [],
     requirement_item_keys: Array.isArray(input.requirement_item_keys) ? input.requirement_item_keys : [],
-    custom_requirements: Array.isArray(input.custom_requirements) ? input.custom_requirements : []
+    custom_requirements: Array.isArray(input.custom_requirements) ? input.custom_requirements : [],
+    company_asset_ids: parseAssetIds(input)
   };
 }
 
@@ -843,6 +879,7 @@ router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => 
         source_note: payload.source_note
       });
       persistJobRequirementPayload(db, req.user, job.id, req.body, 'catalogue');
+      persistJobAssetPayload(db, req.user, job.id, req.body, 'manual');
       job = serializeJob(db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(job.id), null, db);
     })();
     return res.status(201).json(job);
@@ -885,13 +922,20 @@ router.post('/import-brief/preview', requireAuth, requireRole('admin', 'dispatch
     }
   }
   const requirementMapping = mapParsedTermsToCatalogue(db, req.user.company_id, validated.content);
+  const assetMapping = mapAssetReferencesFromText(db, req.user.company_id, validated.content);
   parsed.extracted.structured_requirements = requirementMapping;
   parsed.extracted.requirement_item_ids = requirementMapping.selected_catalogue_item_ids;
   parsed.extracted.requirement_item_keys = requirementMapping.selected_catalogue_item_keys;
   parsed.extracted.suggested_requirement_item_keys = requirementMapping.suggested_catalogue_item_keys;
   parsed.extracted.custom_requirements = requirementMapping.one_off_custom_requirements;
+  parsed.extracted.suggested_assets = assetMapping.matched_assets;
+  parsed.extracted.company_asset_ids = assetMapping.matched_asset_ids;
+  parsed.extracted.unknown_asset_numbers = assetMapping.unknown_asset_numbers;
   if (requirementMapping.warnings.length > 0) {
     parsed.warnings = Array.from(new Set([...(parsed.warnings || []), ...requirementMapping.warnings]));
+  }
+  if (assetMapping.warnings.length > 0) {
+    parsed.warnings = Array.from(new Set([...(parsed.warnings || []), ...assetMapping.warnings]));
   }
   const importId = randomUUID();
   const now = new Date().toISOString();
@@ -982,6 +1026,7 @@ router.post('/import-brief/:importId/create-job', requireAuth, requireRole('admi
       crane_class_required: payload.crane_class_required
     });
     persistJobRequirementPayload(db, req.user, createdJob.id, req.body, 'parsed_from_brief');
+    persistJobAssetPayload(db, req.user, createdJob.id, req.body, 'suggested');
     db.prepare(`
       UPDATE job_imports
       SET created_job_id = ?, status = 'job_created', parsed_payload_json = ?, updated_at = ?
@@ -1034,6 +1079,15 @@ router.get('/:id/requirements', requireAuth, (req, res) => {
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
   res.json(listJobRequirements(db, req.user.company_id, req.params.id));
+});
+
+router.get('/:id/assets', requireAuth, (req, res) => {
+  const db = getDb();
+  const job = db.prepare(`SELECT id FROM jobs WHERE id = ? AND company_id = ?`)
+    .get(req.params.id, req.user.company_id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  return res.json({ assignments: listJobAssetAssignments(db, req.user.company_id, req.params.id) });
 });
 
 router.post('/:id/custom-requirements', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {

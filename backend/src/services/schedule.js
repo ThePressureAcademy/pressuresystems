@@ -7,6 +7,7 @@ const {
 const { buildPlanningMessages } = require('./crane-transport-planning');
 const { normalizeConfidence } = require('./crane-model-catalog');
 const { applyStructuredRequirementsToJob } = require('./job-requirement-catalogue');
+const { applyAssetAssignmentsToJob } = require('./company-assets');
 
 function safeJsonParse(value, fallback = []) {
   try {
@@ -168,7 +169,12 @@ function serializeJob(row, displayTimeZone = null, db = null) {
     }, displayTimeZone)
   };
 
-  return db ? applyStructuredRequirementsToJob(db, row.company_id, serialized) : serialized;
+  if (!db) return serialized;
+  return applyAssetAssignmentsToJob(
+    db,
+    row.company_id,
+    applyStructuredRequirementsToJob(db, row.company_id, serialized)
+  );
 }
 
 function serializeAllocation(row, displayTimeZone = null) {
