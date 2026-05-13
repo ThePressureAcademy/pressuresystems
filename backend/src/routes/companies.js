@@ -7,6 +7,7 @@ const { getDb } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const {
   normalizeAccessStatus,
+  normalizeOperatingMode,
   normalizePilotType,
   normalizeSlug,
   serializeCompanyAccess
@@ -32,7 +33,7 @@ router.post('/', (req, res) => {
 
   const { name, slug, display_name, abn, locations, operating_regions, pilot_start_date,
           access_status, pilot_type, pilot_starts_at, pilot_expires_at, timezone, notes,
-          admin_name, admin_email, admin_password } = req.body;
+          operating_mode, admin_name, admin_email, admin_password } = req.body;
 
   if (!name || !admin_name || !admin_email || !admin_password) {
     return res.status(400).json({
@@ -56,9 +57,9 @@ router.post('/', (req, res) => {
       INSERT INTO companies (
         id, name, slug, display_name, abn, timezone, locations, operating_regions,
         status, pilot_start_date, access_status, pilot_type, pilot_starts_at,
-        pilot_expires_at, notes
+        pilot_expires_at, operating_mode, notes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pilot', ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pilot', ?, ?, ?, ?, ?, ?, ?)
     `).run(
       companyId,
       name,
@@ -73,6 +74,7 @@ router.post('/', (req, res) => {
       normalizePilotType(pilot_type),
       resolvedPilotStart,
       pilot_expires_at || null,
+      normalizeOperatingMode(operating_mode),
       notes || null
     );
 
@@ -117,6 +119,7 @@ router.patch('/:id', requireAuth, requireOwnCompany, requireRole('admin'), (req,
     pilot_type,
     pilot_starts_at,
     pilot_expires_at,
+    operating_mode,
     timezone,
     notes
   } = req.body;
@@ -136,6 +139,7 @@ router.patch('/:id', requireAuth, requireOwnCompany, requireRole('admin'), (req,
         pilot_type = COALESCE(?, pilot_type),
         pilot_starts_at = COALESCE(?, pilot_starts_at),
         pilot_expires_at = COALESCE(?, pilot_expires_at),
+        operating_mode = COALESCE(?, operating_mode),
         notes = COALESCE(?, notes)
     WHERE id = ?
   `).run(
@@ -152,6 +156,7 @@ router.patch('/:id', requireAuth, requireOwnCompany, requireRole('admin'), (req,
     pilot_type ? normalizePilotType(pilot_type) : null,
     pilot_starts_at || null,
     pilot_expires_at || null,
+    operating_mode ? normalizeOperatingMode(operating_mode) : null,
     notes || null,
     req.params.id
   );

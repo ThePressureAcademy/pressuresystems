@@ -386,6 +386,76 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   color: var(--warn);
 }
 
+.asset-register,
+.asset-selector-panel {
+  margin-top: 16px;
+}
+
+.asset-group {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.asset-group summary {
+  cursor: pointer;
+}
+
+.asset-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.asset-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto auto auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255,255,255,0.025);
+}
+
+.asset-add-form {
+  margin-top: 12px;
+}
+
+.asset-select-row {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  margin: 8px 0;
+}
+
+.mode-options {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.mode-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.mode-card input {
+  margin-top: 4px;
+}
+
+.mode-card strong,
+.mode-card span {
+  display: block;
+}
+
 .crane-form-alerts,
 .crane-planning-alerts {
   background: rgba(101, 197, 255, 0.08);

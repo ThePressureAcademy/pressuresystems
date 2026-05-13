@@ -192,7 +192,11 @@ async function api(method, path, body) {
 
 let craneModelsCache = null;
 const craneTravelStateCache = new Map();
+let companyProfileCache = null;
 let companyCatalogueCache = null;
+let companyAssetsCache = null;
+
+const LABOUR_ONLY_CATALOGUE_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
 
 async function loadCraneModels() {
   if (craneModelsCache) return craneModelsCache;
@@ -209,10 +213,26 @@ async function loadCraneTravelStates(craneModelId) {
   return states;
 }
 
+async function loadCompanyProfile(force = false) {
+  if (companyProfileCache && !force) return companyProfileCache;
+  companyProfileCache = await api('GET', '/company/profile');
+  if (state.user) {
+    state.user = { ...state.user, company: companyProfileCache };
+    localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+  }
+  return companyProfileCache;
+}
+
 async function loadCompanyCatalogue(force = false) {
   if (companyCatalogueCache && !force) return companyCatalogueCache;
   companyCatalogueCache = await api('GET', '/company/catalogue-selections');
   return companyCatalogueCache;
+}
+
+async function loadCompanyAssets(force = false) {
+  if (companyAssetsCache && !force) return companyAssetsCache;
+  companyAssetsCache = await api('GET', '/company/assets');
+  return companyAssetsCache;
 }
 
 function boolLabel(value) {
@@ -388,7 +408,9 @@ function logout() {
   nextRenderCycle();
   state.token = null;
   state.user = null;
+  companyProfileCache = null;
   companyCatalogueCache = null;
+  companyAssetsCache = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   showLogin();
@@ -688,6 +710,33 @@ function enabledCatalogueOnly(catalogue = {}) {
   };
 }
 
+function operatingMode(profile = companyProfileCache || state.user?.company || {}) {
+  return profile.operating_mode === 'labour_only' ? 'labour_only' : 'plant_and_labour';
+}
+
+function isLabourOnly(profile = companyProfileCache || state.user?.company || {}) {
+  return operatingMode(profile) === 'labour_only';
+}
+
+function filterCatalogueForOperatingMode(catalogue = {}, mode = 'plant_and_labour') {
+  if (mode !== 'labour_only') return catalogue;
+  const items = (catalogue.items || []).filter((item) => LABOUR_ONLY_CATALOGUE_CATEGORIES.has(item.category));
+  return {
+    ...catalogue,
+    items,
+    grouped: groupCatalogueItems(items),
+    enabled_count: items.filter((item) => item.is_enabled).length
+  };
+}
+
+function hiddenEnabledRequirementIds(fullCatalogue = {}, visibleCatalogue = {}) {
+  const visibleIds = new Set((visibleCatalogue.items || []).map((item) => Number(item.id)));
+  return (fullCatalogue.items || [])
+    .filter((item) => item.is_enabled && !visibleIds.has(Number(item.id)))
+    .map((item) => Number(item.id))
+    .filter(Number.isFinite);
+}
+
 function renderRequirementChecklist(catalogue, options = {}) {
   const name = options.name || 'requirement_item_ids';
   const selectedIds = new Set((options.selectedIds || []).map((id) => String(id)));
@@ -743,6 +792,27 @@ function selectedRequirementIdsFromForm(form) {
     .filter(Number.isFinite);
 }
 
+function selectedCompanyAssetIdsFromForm(form) {
+  return Array.from(form.querySelectorAll('select[name="company_asset_ids"]'))
+    .map((node) => Number(node.value))
+    .filter(Number.isFinite);
+}
+
+function assetItemsFromCatalogue(catalogue = {}) {
+  return (catalogue.items || [])
+    .filter((item) => item.is_enabled && ['equipment', 'transport'].includes(item.category));
+}
+
+function assetsGroupedByCatalogueItem(assets = []) {
+  const grouped = new Map();
+  for (const asset of assets || []) {
+    const key = String(asset.catalogue_item_id);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(asset);
+  }
+  return grouped;
+}
+
 function renderStructuredRequirementsSummary(requirements = []) {
   const panel = el('div', { class: 'panel' });
   panel.appendChild(el('h3', {}, 'Job requirements'));
@@ -761,6 +831,40 @@ function renderStructuredRequirementsSummary(requirements = []) {
   if (customCount > 0) {
     panel.appendChild(el('div', { class: 'alerts crane-form-alerts' },
       'One-off requirements are job-scoped only and require dispatcher review before allocation.'
+    ));
+  }
+
+  return panel;
+}
+
+function renderAssetAssignmentsSummary(assignments = [], warnings = []) {
+  const panel = el('div', { class: 'panel' });
+  panel.appendChild(el('h3', {}, 'Selected assets / plant'));
+  if (!assignments || assignments.length === 0) {
+    panel.appendChild(el('div', { class: 'empty' }, 'No exact asset selected. Job remains at requirement-class level.'));
+    return panel;
+  }
+
+  panel.appendChild(el('div', { class: 'asset-list' }, ...assignments.map((assignment) => {
+    const asset = assignment.asset || assignment;
+    return el('div', { class: 'asset-row' },
+      el('div', {},
+        el('strong', {}, asset.asset_number),
+        el('div', { class: 'small muted' }, asset.display_name || asset.catalogue_item?.label || 'Asset')
+      ),
+      el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, asset.asset_status || 'active'),
+      el('span', { class: 'small muted' }, asset.home_location || '-')
+    );
+  })));
+
+  const allWarnings = Array.from(new Set([
+    ...(warnings || []),
+    ...assignments.flatMap((assignment) => assignment.asset?.warnings || [])
+  ]));
+  if (allWarnings.length > 0) {
+    panel.appendChild(el('div', { class: 'alerts crane-form-alerts' },
+      el('strong', {}, 'Asset review'),
+      el('ul', {}, ...allWarnings.map((warning) => el('li', {}, warning)))
     ));
   }
 
@@ -832,11 +936,81 @@ async function renderDashboard(renderCycle) {
   ));
 }
 
+function renderOperatingModePanel(profile = {}) {
+  const form = el('form', { class: 'panel operating-mode-panel' });
+  const errBox = el('div', { class: 'error' });
+  const success = el('div', { class: 'success hidden' });
+  const currentMode = operatingMode(profile);
+  form.appendChild(el('h3', {}, 'Operating mode'));
+  form.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
+    'Choose whether this company allocates labour only or plant plus labour. This controls which job intake sections are shown by default.'
+  ));
+  const options = [
+    {
+      value: 'labour_only',
+      label: 'Labour only',
+      description: 'Use LIFTIQ for people, credentials, VOCs, scheduling, SmartRank, and audit. Hide plant and crane planning by default.'
+    },
+    {
+      value: 'plant_and_labour',
+      label: 'Plant + labour',
+      description: 'Use LIFTIQ for workers, equipment, plant assets, crane planning, transport review, scheduling, SmartRank, and audit.'
+    }
+  ];
+  form.appendChild(el('div', { class: 'mode-options' }, ...options.map((option) => {
+    const input = el('input', { type: 'radio', name: 'operating_mode', value: option.value });
+    input.checked = option.value === currentMode;
+    return el('label', { class: 'mode-card' },
+      input,
+      el('span', {},
+        el('strong', {}, option.label),
+        el('span', { class: 'small muted' }, option.description)
+      )
+    );
+  })));
+  form.appendChild(errBox);
+  form.appendChild(success);
+  form.appendChild(el('div', { class: 'button-row' },
+    el('button', { type: 'submit' }, 'Save operating mode')
+  ));
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errBox.textContent = '';
+    success.classList.add('hidden');
+    const fd = new FormData(form);
+    try {
+      const updated = await api('PATCH', '/company/profile', {
+        operating_mode: fd.get('operating_mode')
+      });
+      companyProfileCache = updated;
+      companyCatalogueCache = null;
+      companyAssetsCache = null;
+      if (state.user) {
+        state.user = { ...state.user, company: updated };
+        localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+      }
+      success.textContent = 'Operating mode saved.';
+      success.classList.remove('hidden');
+      toast('Operating mode saved', 'success');
+      router();
+    } catch (err) {
+      errBox.textContent = err.error || 'Could not save operating mode';
+    }
+  });
+  return form;
+}
+
 async function renderOurBusiness(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
-  const catalogue = await loadCompanyCatalogue(true);
+  const [profile, catalogue, assetsPayload] = await Promise.all([
+    loadCompanyProfile(true),
+    loadCompanyCatalogue(true),
+    loadCompanyAssets(true)
+  ]);
   if (isStaleRender(renderCycle)) return;
+  const mode = operatingMode(profile);
+  const visibleCatalogue = filterCatalogueForOperatingMode(catalogue, mode);
 
   const form = el('form', { class: 'panel' });
   const errBox = el('div', { class: 'error' });
@@ -846,15 +1020,20 @@ async function renderOurBusiness(renderCycle) {
     el('div', {},
       el('h2', {}, 'Our Business'),
       el('div', { class: 'small muted' },
-        'Choose the credentials, equipment, transport, civil/access, rail, energy, and VOC requirements your company actually uses.'
+        mode === 'labour_only'
+          ? 'Choose the credentials, VOCs, civil/access, rail, and energy requirements your labour allocation workflow uses.'
+          : 'Choose the credentials, equipment, transport, civil/access, rail, energy, and VOC requirements your company actually uses.'
       )
     ),
-    el('span', { class: 'pill pill-info' }, `${catalogue.enabled_count || 0} enabled`)
+    el('span', { class: 'pill pill-info' }, `${visibleCatalogue.enabled_count || 0} visible enabled`)
   ));
+  view.appendChild(renderOperatingModePanel(profile));
 
   if (!catalogue.configured) {
     form.appendChild(el('div', { class: 'read-only-banner' },
-      'Recommended defaults are shown because this company has not saved a catalogue profile yet. Save selections here to reduce the job form to relevant options.'
+      mode === 'labour_only'
+        ? 'Labour-only defaults are shown because this company has not saved a catalogue profile yet. Plant/equipment defaults are hidden.'
+        : 'Recommended defaults are shown because this company has not saved a catalogue profile yet. Save selections here to reduce the job form to relevant options.'
     ));
   }
 
@@ -863,7 +1042,7 @@ async function renderOurBusiness(renderCycle) {
     placeholder: 'Filter catalogue items...',
     'aria-label': 'Filter catalogue items'
   });
-  const checklist = renderRequirementChecklist(catalogue);
+  const checklist = renderRequirementChecklist(visibleCatalogue);
   search.addEventListener('input', () => {
     const query = search.value.trim().toLowerCase();
     checklist.querySelectorAll('.check-row').forEach((row) => {
@@ -887,10 +1066,13 @@ async function renderOurBusiness(renderCycle) {
     success.classList.add('hidden');
     try {
       const response = await api('POST', '/company/catalogue-selections', {
-        catalogue_item_ids: selectedRequirementIdsFromForm(form)
+        catalogue_item_ids: [
+          ...selectedRequirementIdsFromForm(form),
+          ...hiddenEnabledRequirementIds(catalogue, visibleCatalogue)
+        ]
       });
       companyCatalogueCache = response;
-      success.textContent = `Company setup saved. ${response.enabled_count} item(s) enabled.`;
+      success.textContent = `Company setup saved. ${visibleCatalogue.items.length} visible item(s) reviewed.`;
       success.classList.remove('hidden');
       toast('Company setup saved', 'success');
     } catch (err) {
@@ -899,6 +1081,180 @@ async function renderOurBusiness(renderCycle) {
   });
 
   view.appendChild(form);
+  if (mode === 'plant_and_labour') {
+    view.appendChild(renderAssetRegister(catalogue, assetsPayload));
+  } else {
+    view.appendChild(el('div', { class: 'panel' },
+      el('h3', {}, 'Plant and asset register hidden'),
+      el('p', { class: 'small muted' },
+        'This company is configured as labour-only. Switch to Plant + labour above to manage equipment classes, transport items, and actual plant assets.'
+      )
+    ));
+  }
+}
+
+function renderAssetRegister(catalogue, assetsPayload = {}) {
+  const panel = el('div', { class: 'panel asset-register' });
+  const assets = assetsPayload.assets || [];
+  const assetsByItem = assetsGroupedByCatalogueItem(assets);
+  const enabledAssetItems = assetItemsFromCatalogue(catalogue);
+  const registerItems = new Map();
+  for (const item of enabledAssetItems) registerItems.set(String(item.id), item);
+  for (const asset of assets) {
+    if (!registerItems.has(String(asset.catalogue_item_id))) {
+      registerItems.set(String(asset.catalogue_item_id), {
+        id: asset.catalogue_item_id,
+        label: asset.catalogue_item?.label || asset.display_name,
+        category: asset.catalogue_item?.category || 'equipment',
+        group_label: asset.catalogue_item?.group_label || 'Assets',
+        is_enabled: false
+      });
+    }
+  }
+
+  panel.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h3', {}, 'Asset Register'),
+      el('div', { class: 'small muted' },
+        'Register actual machines by asset number / plant number under enabled equipment and transport classes. This is not fleet maintenance or availability automation.'
+      )
+    ),
+    el('span', { class: 'pill pill-info' }, `${assets.length} active asset(s)`)
+  ));
+
+  if (registerItems.size === 0) {
+    panel.appendChild(el('div', { class: 'empty' },
+      'Enable an equipment or transport item above, then add plant numbers for actual machines.'
+    ));
+    return panel;
+  }
+
+  for (const item of Array.from(registerItems.values()).sort((a, b) => String(a.label).localeCompare(String(b.label)))) {
+    const group = el('details', { class: 'asset-group', open: item.is_enabled ? 'true' : null });
+    const existingAssets = assetsByItem.get(String(item.id)) || [];
+    group.appendChild(el('summary', {},
+      el('strong', {}, item.label),
+      el('span', { class: 'small muted' }, ` ${item.group_label || item.category}`),
+      !item.is_enabled ? el('span', { class: 'pill pill-warn', style: 'margin-left:8px;' }, 'class not enabled') : null
+    ));
+
+    if (!item.is_enabled) {
+      group.appendChild(el('div', { class: 'alerts crane-form-alerts' },
+        "This asset's catalogue class is not currently enabled in Our Business."
+      ));
+    }
+
+    if (existingAssets.length === 0) {
+      group.appendChild(el('div', { class: 'small muted' }, `No specific assets registered for ${item.label}.`));
+    } else {
+      group.appendChild(el('div', { class: 'asset-list' }, ...existingAssets.map((asset) =>
+        el('div', { class: 'asset-row' },
+          el('div', {},
+            el('strong', {}, asset.asset_number),
+            el('div', { class: 'small muted' }, asset.display_name || asset.catalogue_item?.label || item.label)
+          ),
+          el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, asset.asset_status),
+          el('span', { class: 'small muted' }, asset.home_location || '-'),
+          el('button', {
+            type: 'button',
+            class: 'secondary',
+            onclick: async () => {
+              try {
+                await api('POST', `/company/assets/${asset.id}/archive`);
+                companyAssetsCache = null;
+                toast('Asset archived', 'success');
+                router();
+              } catch (err) {
+                toast(err.error || 'Could not archive asset', 'error');
+              }
+            }
+          }, 'Archive')
+        )
+      )));
+    }
+
+    const addForm = el('form', { class: 'asset-add-form' });
+    const errBox = el('div', { class: 'error' });
+    addForm.appendChild(el('div', { class: 'row' },
+      buildInput('asset_number', 'Asset number / plant number', { placeholder: 'MC20-001', required: true }),
+      buildInput('display_name', 'Display name', { placeholder: `${item.label} / MC20-001` }),
+      buildSelect('asset_status', 'Status', ['active', 'inactive', 'unavailable', 'retired'], { value: 'active' }),
+      buildInput('home_location', 'Home location', { placeholder: 'Brisbane' })
+    ));
+    addForm.appendChild(buildTextarea('notes', 'Notes'));
+    addForm.appendChild(errBox);
+    addForm.appendChild(el('div', { class: 'button-row' },
+      el('button', { type: 'submit' }, 'Add asset')
+    ));
+    addForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      errBox.textContent = '';
+      const fd = new FormData(addForm);
+      try {
+        await api('POST', '/company/assets', {
+          catalogue_item_id: item.id,
+          asset_number: fd.get('asset_number'),
+          display_name: fd.get('display_name') || null,
+          asset_status: fd.get('asset_status') || 'active',
+          home_location: fd.get('home_location') || null,
+          notes: fd.get('notes') || null
+        });
+        companyAssetsCache = null;
+        toast('Asset added', 'success');
+        router();
+      } catch (err) {
+        errBox.textContent = err.error || 'Could not add asset';
+      }
+    });
+    group.appendChild(addForm);
+    panel.appendChild(group);
+  }
+
+  return panel;
+}
+
+function renderJobAssetSelector(catalogue = {}, assetsPayload = {}) {
+  const panel = el('div', { class: 'asset-selector-panel' });
+  const assetsByItem = assetsGroupedByCatalogueItem(assetsPayload.assets || []);
+  const itemsById = new Map((catalogue.items || []).map((item) => [String(item.id), item]));
+
+  const refresh = (form) => {
+    panel.innerHTML = '';
+    const selectedIds = selectedRequirementIdsFromForm(form).map((id) => String(id));
+    const selectedAssetItems = selectedIds
+      .map((id) => itemsById.get(id))
+      .filter((item) => item && ['equipment', 'transport'].includes(item.category));
+
+    panel.appendChild(el('h4', {}, 'Optional asset / plant selection'));
+    if (selectedAssetItems.length === 0) {
+      panel.appendChild(el('div', { class: 'small muted' },
+        'Select an equipment or transport requirement to optionally choose a specific asset / plant number.'
+      ));
+      return;
+    }
+
+    for (const item of selectedAssetItems) {
+      const assets = (assetsByItem.get(String(item.id)) || []).filter((asset) => asset.asset_status !== 'retired');
+      if (assets.length === 0) {
+        panel.appendChild(el('div', { class: 'small muted asset-select-row' },
+          `No specific assets registered for ${item.label}. The job will use the requirement only.`
+        ));
+        continue;
+      }
+
+      const select = el('select', { name: 'company_asset_ids' });
+      select.appendChild(el('option', { value: '' }, `Any available ${item.label}`));
+      for (const asset of assets) {
+        select.appendChild(el('option', { value: String(asset.id) },
+          `${asset.asset_number} - ${asset.display_name || item.label} (${asset.asset_status})`
+        ));
+      }
+      panel.appendChild(buildFieldWrapper(`Select asset / plant number for ${item.label}`, select));
+    }
+  };
+
+  panel.refresh = refresh;
+  return panel;
 }
 
 function buildSecurityPanel() {
@@ -1829,8 +2185,12 @@ function renderJobBriefImport(renderCycle) {
 
   async function renderPreview(preview) {
     previewHost.innerHTML = '';
-    const craneModels = await loadCraneModels();
+    const [companyProfile, craneModels] = await Promise.all([
+      loadCompanyProfile(),
+      loadCraneModels()
+    ]);
     if (isStaleRender(renderCycle)) return;
+    const labourOnlyMode = isLabourOnly(companyProfile);
     const previewForm = el('form', { class: 'job-brief-preview-form' });
     const previewError = el('div', { class: 'error' });
     const extracted = preview.extracted || {};
@@ -1941,11 +2301,13 @@ function renderJobBriefImport(renderCycle) {
       endTimeField,
       timezoneField,
       buildSelect('schedule_status', 'Create as', ['draft', 'planned', 'confirmed'], { value: defaultScheduleStatus }),
-      craneField,
-      craneModelField,
-      craneTravelStateField,
-      requiredCapacityField,
-      counterweightField,
+      ...(labourOnlyMode ? [] : [
+        craneField,
+        craneModelField,
+        craneTravelStateField,
+        requiredCapacityField,
+        counterweightField
+      ]),
       rolesField,
       credentialsField,
       tagsField,
@@ -1958,19 +2320,26 @@ function renderJobBriefImport(renderCycle) {
     previewForm.appendChild(jobDescriptionField);
     previewForm.appendChild(riskField);
     previewForm.appendChild(travelField);
-    previewForm.appendChild(travelStateStatus);
+    if (!labourOnlyMode) previewForm.appendChild(travelStateStatus);
     previewForm.appendChild(siteAccessField);
-    previewForm.appendChild(setupNotesField);
+    if (!labourOnlyMode) previewForm.appendChild(setupNotesField);
     previewForm.appendChild(el('input', {
       type: 'hidden',
       name: 'source_confidence',
       value: extracted.source_confidence || confidence.source_confidence || 'low'
     }));
     previewForm.appendChild(sourceField);
+    if (labourOnlyMode) {
+      previewForm.appendChild(el('div', { class: 'alerts job-brief-warnings' },
+        'Labour-only mode is active. Equipment, crane, transport, counterweight, and asset references are treated as review notes or one-off requirements unless the company switches to Plant + labour.'
+      ));
+    }
     const requirementMapping = extracted.structured_requirements || {};
     const selectedRequirements = requirementMapping.selected_catalogue_items || [];
     const suggestedRequirements = requirementMapping.suggested_catalogue_items || [];
     const oneOffRequirements = requirementMapping.one_off_custom_requirements || [];
+    const suggestedAssets = extracted.suggested_assets || [];
+    const unknownAssetNumbers = extracted.unknown_asset_numbers || [];
     const requirementPanel = el('div', { class: 'panel requirement-form-section' });
     requirementPanel.appendChild(el('h3', {}, 'Mapped job requirements'));
     requirementPanel.appendChild(el('div', { class: 'small muted' },
@@ -1993,16 +2362,31 @@ function renderJobBriefImport(renderCycle) {
         el('ul', {}, ...oneOffRequirements.map((item) => el('li', {}, item.label || String(item))))
       ));
     }
+    if (suggestedAssets.length > 0 || unknownAssetNumbers.length > 0) {
+      requirementPanel.appendChild(el('div', { class: 'alerts job-brief-warnings' },
+        el('strong', {}, 'Asset / plant references'),
+        el('ul', {},
+          ...suggestedAssets.map((asset) => el('li', {},
+            `${asset.asset_number} - ${asset.display_name || asset.catalogue_item?.label || 'Asset'}`
+          )),
+          ...unknownAssetNumbers.map((assetNumber) => el('li', {},
+            `${assetNumber} mentioned but not found in company asset register.`
+          ))
+        )
+      ));
+    }
     previewForm.appendChild(requirementPanel);
-    previewForm.appendChild(el('div', { class: 'alerts crane-form-alerts' },
-      el('ul', {},
-        el('li', {}, 'Review required'),
-        el('li', {}, 'Counterweight transport may be required'),
-        el('li', {}, 'Road access review required'),
-        el('li', {}, 'NHVR / state notice or permit check may be required'),
-        el('li', {}, 'Confirm route, vehicle combination, axle masses, dimensions, and permits before dispatch')
-      )
-    ));
+    if (!labourOnlyMode) {
+      previewForm.appendChild(el('div', { class: 'alerts crane-form-alerts' },
+        el('ul', {},
+          el('li', {}, 'Review required'),
+          el('li', {}, 'Counterweight transport may be required'),
+          el('li', {}, 'Road access review required'),
+          el('li', {}, 'NHVR / state notice or permit check may be required'),
+          el('li', {}, 'Confirm route, vehicle combination, axle masses, dimensions, and permits before dispatch')
+        )
+      ));
+    }
     previewForm.appendChild(previewError);
     previewForm.appendChild(el('div', { class: 'button-row' },
       el('button', { type: 'submit' }, 'Create job from brief'),
@@ -2069,6 +2453,7 @@ function renderJobBriefImport(renderCycle) {
           source_note: fd.get('source_note') || null,
           requirement_item_ids: extracted.requirement_item_ids || [],
           requirement_item_keys: extracted.requirement_item_keys || [],
+          company_asset_ids: labourOnlyMode ? [] : (extracted.company_asset_ids || []),
           custom_requirements: extracted.custom_requirements || []
         });
         toast('Job created from brief', 'success');
@@ -2080,7 +2465,9 @@ function renderJobBriefImport(renderCycle) {
           el('div', {}, 'Site'), el('div', {}, createdJob.site_name),
           el('div', {}, 'Schedule'), el('div', {}, formatScheduleRange(createdJob.schedule))
         ));
-        previewHost.appendChild(renderCranePlanningSummary(createdJob.crane_planning, { compact: true }));
+        if (!labourOnlyMode) {
+          previewHost.appendChild(renderCranePlanningSummary(createdJob.crane_planning, { compact: true }));
+        }
         previewHost.appendChild(el('div', { class: 'button-row', style: 'margin-top:12px;' },
           el('a', { href: `#/jobs/${createdJob.id}` }, el('button', { type: 'button' }, 'View created job')),
           el('a', { href: '#/jobs' }, el('button', { type: 'button', class: 'secondary' }, 'Back to Jobs')),
@@ -2161,11 +2548,14 @@ async function renderNewJob(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [craneModels, companyCatalogue] = await Promise.all([
+  const [companyProfile, craneModels, companyCatalogue, companyAssets] = await Promise.all([
+    loadCompanyProfile(),
     loadCraneModels(),
-    loadCompanyCatalogue()
+    loadCompanyCatalogue(),
+    loadCompanyAssets()
   ]);
   if (isStaleRender(renderCycle)) return;
+  const mode = operatingMode(companyProfile);
 
   const detectedTimeZone = detectBrowserTimeZone() || 'Australia/Brisbane';
   const today = isoDateInTimeZone(new Date(), detectedTimeZone);
@@ -2211,21 +2601,35 @@ async function renderNewJob(renderCycle) {
   ));
 
   const requirementsSection = el('div', { class: 'panel requirement-form-section' });
-  const enabledCompanyCatalogue = enabledCatalogueOnly(companyCatalogue);
+  const enabledCompanyCatalogue = filterCatalogueForOperatingMode(enabledCatalogueOnly(companyCatalogue), mode);
   requirementsSection.appendChild(el('h3', {}, 'Job requirements'));
   requirementsSection.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
-    companyCatalogue.configured
-      ? 'Only company-enabled catalogue items are shown. Add one-off requirements for job-specific items.'
-      : 'Recommended defaults are shown. Configure your company equipment and requirements in Our Business to reduce this list.'
+    mode === 'labour_only'
+      ? 'Labour-only mode: credentials, VOCs, civil/access, rail, and energy requirements are shown. Use one-off notes for plant/equipment mentions.'
+      : (companyCatalogue.configured
+        ? 'Only company-enabled catalogue items are shown. Add one-off requirements for job-specific items.'
+        : 'Recommended defaults are shown. Configure your company equipment and requirements in Our Business to reduce this list.')
   ));
   requirementsSection.appendChild(renderRequirementChecklist(enabledCompanyCatalogue));
-  requirementsSection.appendChild(buildInput('custom_requirements', 'Add one-off requirement', {
-    placeholder: '40T Franna, special access ticket, client induction'
+  const assetSelectorPanel = mode === 'plant_and_labour'
+    ? renderJobAssetSelector(enabledCompanyCatalogue, companyAssets)
+    : null;
+  if (assetSelectorPanel) requirementsSection.appendChild(assetSelectorPanel);
+  requirementsSection.appendChild(buildInput('custom_requirements', mode === 'labour_only' ? 'Add one-off requirement or equipment/plant note' : 'Add one-off requirement', {
+    placeholder: mode === 'labour_only'
+      ? 'client induction, shutdown spotter, equipment note for review'
+      : '40T Franna, special access ticket, client induction'
   }));
   requirementsSection.appendChild(el('div', { class: 'small muted' },
     'One-off requirements attach to this job only and require review before allocation.'
   ));
   form.appendChild(requirementsSection);
+  if (assetSelectorPanel) {
+    assetSelectorPanel.refresh(form);
+    requirementsSection.querySelectorAll('input[name="requirement_item_ids"]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => assetSelectorPanel.refresh(form));
+    });
+  }
 
   const craneSection = el('div', { class: 'panel crane-form-section' });
   craneSection.appendChild(el('h3', {}, 'Crane, counterweight and transport'));
@@ -2257,7 +2661,13 @@ async function renderNewJob(renderCycle) {
       el('li', {}, 'Confirm route, vehicle combination, axle masses, dimensions, and permits before dispatch')
     )
   ));
-  form.appendChild(craneSection);
+  if (mode === 'plant_and_labour') {
+    form.appendChild(craneSection);
+  } else {
+    form.appendChild(el('div', { class: 'panel small muted' },
+      'Labour-only mode hides crane model, travel state, counterweight, transport planning, and asset selection by default. Add a one-off equipment/plant note if the brief needs dispatcher review.'
+    ));
+  }
   form.appendChild(el('div', { class: 'panel small muted' },
     `Default timezone from this browser: ${detectedTimeZone}. Planned and confirmed jobs require start, end, and timezone; draft jobs can be saved without a schedule window.`
   ));
@@ -2319,6 +2729,7 @@ async function renderNewJob(renderCycle) {
       site_access_notes: fd.get('site_access_notes') || null,
       setup_notes: fd.get('setup_notes') || null,
       requirement_item_ids: selectedRequirementIdsFromForm(form),
+      company_asset_ids: selectedCompanyAssetIdsFromForm(form),
       custom_requirements: splitCsv(fd.get('custom_requirements')).map((label) => ({
         category: 'custom',
         label
@@ -2382,6 +2793,7 @@ async function renderJobDetail(jobId, renderCycle) {
   addKv('Notes', job.notes || '-');
   view.appendChild(el('div', { class: 'panel' }, kv));
   view.appendChild(renderStructuredRequirementsSummary(job.structured_requirements || []));
+  view.appendChild(renderAssetAssignmentsSummary(job.asset_assignments || [], job.asset_assignment_warnings || []));
   view.appendChild(renderCranePlanningSummary(job.crane_planning));
 
   const allocPanel = el('div', { class: 'panel' });
@@ -2469,6 +2881,18 @@ async function renderSmartRank(jobId, renderCycle) {
       ? el('div', { class: 'alerts crane-planning-alerts' },
           el('strong', {}, 'Requirement review'),
           el('ul', {}, ...result.job.structured_requirement_warnings.map((message) => el('li', {}, message)))
+        )
+      : null,
+    result.job.asset_assignments?.length
+      ? el('div', { class: 'small', style: 'margin-top:8px;' },
+          el('strong', {}, 'Selected assets: '),
+          result.job.asset_assignments.map((assignment) => assignment.asset.asset_number).join(', ')
+        )
+      : null,
+    result.job.asset_assignment_warnings?.length
+      ? el('div', { class: 'alerts crane-planning-alerts' },
+          el('strong', {}, 'Asset review'),
+          el('ul', {}, ...result.job.asset_assignment_warnings.map((message) => el('li', {}, message)))
         )
       : null,
     el('div', { class: 'small', style: 'margin-top:8px;' },
