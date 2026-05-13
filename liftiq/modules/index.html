@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LiftIQ Module Status | Current pilot-backed modules and boundaries</title>
-  <meta name="description" content="See current LiftIQ pilot-backed modules and separated future scope, including worker import, job brief import, scheduling, SmartRank, CredentialGate, FatigueGuard, crane counterweight transport planning, audit events, and pilot metrics." />
+  <meta name="description" content="See current LiftIQ pilot-backed modules and future boundaries, including operating modes, requirement catalogues, asset register, job intake, SmartRank, CredentialGate, FatigueGuard, audit, and metrics." />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://pressuresystems.au/liftiq/modules/" />
   <meta property="og:title" content="LiftIQ Module Status" />
-  <meta property="og:description" content="See current LiftIQ pilot-backed modules and separated future scope, including worker import, job brief import, scheduling, SmartRank, CredentialGate, FatigueGuard, crane counterweight transport planning, audit events, and pilot metrics." />
+  <meta property="og:description" content="See current LiftIQ pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, requirement catalogues, asset register, job intake, SmartRank, audit, and metrics." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pressuresystems.au/liftiq/modules/" />
   <meta property="og:image" content="https://pressuresystems.au/assets/social/LiftIQ_System_OG_1200x630.png" />
@@ -16,7 +16,7 @@
   <meta property="og:site_name" content="LiftIQ by Pressure Systems" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="LiftIQ Module Status" />
-  <meta name="twitter:description" content="See current LiftIQ pilot-backed modules and separated future scope, including worker import, job brief import, scheduling, SmartRank, CredentialGate, FatigueGuard, crane counterweight transport planning, audit events, and pilot metrics." />
+  <meta name="twitter:description" content="See current LiftIQ pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, requirement catalogues, asset register, job intake, SmartRank, audit, and metrics." />
   <meta name="twitter:image" content="https://pressuresystems.au/assets/social/LiftIQ_System_OG_1200x630.png" />
   <meta name="twitter:image:alt" content="LiftIQ module status social card showing current pilot-backed capability and clearly separated future layers." />
   <meta name="theme-color" content="#08111D" />
@@ -47,7 +47,7 @@
       <div class="lq-nav-actions">
         <a class="lq-utility-link" href="https://liftiq-pilot.fly.dev/console/">Pilot portal access</a>
         <a class="lq-button-secondary" href="/liftiq/contact/">Send context first</a>
-        <a class="lq-button" href="https://calendly.com/thepressureacademy/liftiq-discovery">Book a LiftIQ Discovery Call</a>
+        <a class="lq-button" href="https://calendly.com/thepressureacademy/liftiq-discovery">Book a LIFTIQ Discovery Call</a>
       </div>
     </div>
   </nav>
@@ -57,8 +57,8 @@
       <div class="lq-shell lq-page-hero-grid single">
         <div>
           <span class="lq-eyebrow"><span class="lq-eyebrow-dot"></span>Current pilot-backed modules</span>
-          <h1 class="lq-page-title">LiftIQ's module story is strongest when current pilot-backed capability stays separate from future ideas.</h1>
-          <p class="lq-lead">Pressure Systems keeps the module states separated on purpose. The current modules below are backed by the founding-partner pilot workflow. Future or not-yet layers stay explicitly outside the headline until there is real product surface and justified integration depth.</p>
+          <h1 class="lq-page-title">Current capability stays separate from future ideas.</h1>
+          <p class="lq-lead">LiftIQ is pilot-stage software. These modules are backed by the current workflow; deferred ERP, finance, route, permit, OCR, inbox, calendar, and telematics ideas stay out of the headline.</p>
         </div>
       </div>
     </section>
@@ -69,102 +69,66 @@
           <table class="lq-table">
             <thead>
               <tr>
-                <th>Module</th>
+                <th>Module group</th>
                 <th>Status</th>
                 <th>Current truth</th>
-                <th>Commercial boundary</th>
+                <th>Boundary</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td><strong>Worker Import</strong></td>
+                <td><strong>Operating modes</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Workers can be imported from CSV or pasted spreadsheet data, then completed or corrected manually inside the workflow.</td>
-                <td>Public as worker onboarding support. Not a full HR, payroll, or licensing system.</td>
+                <td>Companies can run labour-only or plant + labour workflows.</td>
+                <td>Not generic HR software or a full fleet platform.</td>
               </tr>
               <tr>
-                <td><strong>Job Brief Import</strong></td>
+                <td><strong>Our Business setup</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Job briefs can be imported from pasted text, .txt, and .md, with extracted fields reviewed before job creation.</td>
-                <td>Public as structured job intake. Not OCR, PDF parsing, inbox ingestion, or autonomous job creation.</td>
+                <td>Company-specific requirement catalogues filter credentials, VOCs, civil, rail, energy, equipment, and transport options.</td>
+                <td>One-off requirements stay job-scoped unless promoted later.</td>
               </tr>
               <tr>
-                <td><strong>SmartRank</strong></td>
+                <td><strong>Asset Register</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Explainable worker recommendations show score breakdowns, recommended workers, warnings, hard blocks, and preference contributions.</td>
-                <td>Public as decision support. Not autonomous dispatch or final-decision replacement.</td>
+                <td>Plant + labour companies can track multiple assets under the same equipment class using asset or plant numbers.</td>
+                <td>Not maintenance, telematics, GPS, depreciation, or asset compliance management.</td>
               </tr>
               <tr>
-                <td><strong>CredentialGate</strong></td>
+                <td><strong>Worker and job intake</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Required credentials are checked before allocation and missing mandatory requirements stay visibly hard-blocked.</td>
-                <td>Public as pre-allocation credential checks. Not automated legal or regulatory assurance.</td>
+                <td>Worker import, safe archive, job brief import, scheduled jobs, and timezone-aware windows are live in pilot scope.</td>
+                <td>Not payroll, OCR/PDF parsing, inbox ingestion, or autonomous job creation.</td>
               </tr>
               <tr>
-                <td><strong>FatigueGuard</strong></td>
+                <td><strong>SmartRank + gates</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Fatigue warnings and hard blocks are applied before allocation using recorded fatigue and rest inputs.</td>
-                <td>Public as fatigue visibility and warning logic. Not a WHS guarantee.</td>
+                <td>Explainable SmartRank uses CredentialGate, FatigueGuard, availability, schedule, and preference signals before allocation.</td>
+                <td>Decision support only. The dispatcher remains the decision-maker.</td>
               </tr>
               <tr>
-                <td><strong>Dispatch Calendar / Schedule</strong></td>
+                <td><strong>Crane, counterweight, transport</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Jobs can be scheduled with timezone-aware windows and shown in the dispatch schedule.</td>
-                <td>Public as pilot scheduling. Not external calendar sync.</td>
+                <td>Plant + labour mode supports crane model, travel state, counterweight gap, support transport, and road-access review flags.</td>
+                <td>Not permit approval, route optimisation, road legality, or lift engineering.</td>
               </tr>
               <tr>
-                <td><strong>Schedule Conflict Detection</strong></td>
+                <td><strong>Audit and metrics</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Schedule conflicts are surfaced before allocation so dispatcher review can happen earlier.</td>
-                <td>Public as readiness warning logic. Not an automated dispatch decision.</td>
+                <td>Requirement selection, asset selection, SmartRank, allocations, overrides, worker archive, and counterweight review can write audit events.</td>
+                <td>Not external regulatory reporting or advanced analytics.</td>
               </tr>
               <tr>
-                <td><strong>Task Preferences</strong></td>
+                <td><strong>Multi-company pilot access</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Task-specific worker preference ratings can influence SmartRank visibly.</td>
-                <td>Public as explainable weighting. Hard blocks still override preference signals.</td>
-              </tr>
-              <tr>
-                <td><strong>Adaptive Learned Preferences</strong></td>
-                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Dispatcher-confirmed allocations can contribute learned preference signals over time.</td>
-                <td>Public as adaptive preference support. Not black-box automation.</td>
-              </tr>
-              <tr>
-                <td><strong>Safe Worker Removal</strong></td>
-                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Workers can be archived without destroying historical jobs, allocations, or audit context.</td>
-                <td>Public as data-preserving removal. Not a full HR offboarding workflow.</td>
-              </tr>
-              <tr>
-                <td><strong>Multi-Company Pilot Access</strong></td>
-                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Tenant-isolated pilot workspaces support company-specific login, data separation, access status, and test-period control.</td>
-                <td>Public as tenant-isolated pilot access. Not public self-serve signup or company switching.</td>
-              </tr>
-              <tr>
-                <td><strong>Crane Counterweight + Transport Planning</strong></td>
-                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Exact crane model and travel-state selection can calculate counterweight gaps and flag support transport, road-access, NHVR / state notice, and permit review points.</td>
-                <td>Public as planning support and review prompts. Not permit approval, route optimisation, or lift engineering.</td>
-              </tr>
-              <tr>
-                <td><strong>AuditIQ</strong></td>
-                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Allocations, job brief imports, counterweight transport assessments, and transport requirement creation write audit events inside pilot scope.</td>
-                <td>Public as allocation-level audit trail. Not external regulatory reporting.</td>
-              </tr>
-              <tr>
-                <td><strong>Pilot Metrics</strong></td>
-                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Pilot metrics summarize imports, warnings, allocations, overrides, audit activity, and related workflow activity.</td>
-                <td>Public as pilot proof view. Not advanced analytics or legal reporting.</td>
+                  <td>Tenant-isolated pilot workspaces support company login, data separation, access status, and first-login rotation.</td>
+                <td>No public self-serve signup or company switcher claim.</td>
               </tr>
               <tr>
                 <td><strong>Future / not-yet modules</strong></td>
                 <td><span class="lq-status deferred">Separated</span></td>
-                <td>Full ERP replacement, payroll, invoicing, quote builder, permit automation, route optimisation, GPS / telematics, email inbox ingestion, OCR / PDF parsing, and external calendar sync are not current pilot modules.</td>
-                <td>Keep these out of current capability claims unless a later build actually ships them.</td>
+                <td>ERP replacement, payroll, invoicing, quote builder, permit automation, GPS, telematics, OCR, inbox ingestion, and external calendar sync are outside current scope.</td>
+                <td>Do not promote until real product surface exists.</td>
               </tr>
              </tbody>
            </table>
@@ -178,17 +142,17 @@
           <article class="lq-card">
              <span class="lq-label">Most defensible now</span>
              <h3>Structured review before dispatch</h3>
-             <p>Visible SmartRank scoring, warning states, hard blocks, schedule conflicts, crane requirements, and transport review prompts make the decision reviewable under pressure.</p>
+             <p>Requirements, warnings, hard blocks, schedule conflicts, asset context, and SmartRank reasoning stay visible.</p>
           </article>
           <article class="lq-card">
             <span class="lq-label">Most sensitive now</span>
              <h3>Credential, fatigue, and road-access language</h3>
-             <p>LiftIQ can show pre-allocation checks and review prompts clearly. It cannot claim permit approval, WHS guarantees, lift engineering confirmation, or automatic incident prevention.</p>
+             <p>LiftIQ shows checks and review prompts. It does not approve permits, engineer lifts, or guarantee outcomes.</p>
           </article>
           <article class="lq-card">
              <span class="lq-label">Most important later</span>
              <h3>Future layers stay separated</h3>
-             <p>The module story stays credible by separating current pilot-backed surfaces from later ERP, finance, route, permit, OCR, inbox, calendar, or telematics ideas.</p>
+             <p>ERP, finance, route, permit, OCR, inbox, calendar, and telematics ideas stay outside current claims.</p>
           </article>
         </div>
       </div>
@@ -201,15 +165,15 @@
             <h3>Current pilot-backed capability</h3>
             <ul class="lq-list">
               <li>Live founding-partner pilot console with tenant-isolated pilot access.</li>
-              <li>Worker import, Job Brief Import, scheduled jobs, schedule conflict detection, credentials, fatigue records, SmartRank, and allocation confirmation.</li>
-              <li>Crane model, travel-state, counterweight gap, support transport, and road-access review flags.</li>
-              <li>Allocation-level audit trail, counterweight assessment events, pilot metrics, and manual/imported/learned preference signals.</li>
+              <li>Labour-only and plant + labour operating modes.</li>
+              <li>Our Business setup, filtered job intake, one-off requirements, and asset register / plant numbers.</li>
+              <li>Worker import, Job Brief Import, scheduling, SmartRank, CredentialGate, FatigueGuard, crane/counterweight/transport review, audit, and metrics.</li>
             </ul>
           </article>
           <article class="lq-truth-card truth-not-yet">
             <h3>Future or not promoted now</h3>
             <ul class="lq-list">
-              <li>No payroll, invoicing, quote builder, maintenance, billing, or FCC-replacement claim.</li>
+              <li>No payroll, invoicing, quote builder, maintenance, billing, or Fleet Cost & Care replacement claim.</li>
               <li>No autonomous dispatch, black-box allocation, permit automation, route optimisation, or lift engineering claim.</li>
               <li>No live Xero, MYOB, external calendar, GPS / telematics, email inbox ingestion, OCR, or PDF parsing claim.</li>
               <li>No public self-serve signup or company switcher claim.</li>
@@ -225,11 +189,11 @@
           <div>
             <span class="lq-kicker">Commercial use</span>
             <h2>Use the current pilot-backed layer to qualify fit. Keep the future layer out of the headline.</h2>
-            <p>The strongest commercial movement still starts with a LiftIQ Discovery Call or a context-first founder review, not a long list of future module names.</p>
+            <p>The strongest commercial movement starts with a LiftIQ Discovery Call or context-first review, not a long list of future module names.</p>
           </div>
           <div>
             <div class="lq-actions">
-              <a class="lq-button" href="https://calendly.com/thepressureacademy/liftiq-discovery">Book a LiftIQ Discovery Call</a>
+            <a class="lq-button" href="https://calendly.com/thepressureacademy/liftiq-discovery">Book a LIFTIQ Discovery Call</a>
               <a class="lq-button-secondary" href="/liftiq/contact/">Send context first</a>
             </div>
             <p class="lq-micro lq-portal-note">Already in the pilot? <a class="lq-inline-link" href="https://liftiq-pilot.fly.dev/console/">Open the portal.</a></p>
@@ -244,7 +208,7 @@
         <div class="lq-footer-grid">
           <div class="lq-footer-brand">
             <strong>LiftIQ</strong>
-            <p>LiftIQ is a pilot-stage dispatch intelligence layer for crane and lifting operations, with worker import, job brief import, scheduling, SmartRank, audit events, crane and transport review flags, and tenant-isolated pilot access.</p>
+            <p>LiftIQ is a pilot-stage dispatch intelligence layer for labour and lifting operations, with structured job intake, SmartRank, review flags, asset context where needed, audit events, metrics, and tenant-isolated pilot access.</p>
             <p class="lq-footer-note">Already in the pilot? <a class="lq-inline-link" href="https://liftiq-pilot.fly.dev/console/">Open the portal.</a></p>
           </div>
           <div class="lq-footer-col">
