@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS companies (
                     CHECK (pilot_type IN ('internal', 'testing_partner', 'founding_partner', 'commercial_pilot')),
   pilot_starts_at   TEXT,
   pilot_expires_at  TEXT,
+  operating_mode    TEXT NOT NULL DEFAULT 'plant_and_labour'
+                    CHECK (operating_mode IN ('labour_only', 'plant_and_labour')),
   notes             TEXT,
   created_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -445,6 +447,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'job_status_changed',
                   'transport_requirement_created',
                   'company_catalogue_updated',
+                  'company_operating_mode_updated',
                   'company_asset_created',
                   'company_asset_updated',
                   'company_asset_archived',

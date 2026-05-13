@@ -93,6 +93,11 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Crane, counterweight and transport/);
     assert.match(res.text, /Select travel state/);
     assert.match(res.text, /Our Business/);
+    assert.match(res.text, /Operating mode/);
+    assert.match(res.text, /Labour only/);
+    assert.match(res.text, /Plant \+ labour/);
+    assert.match(res.text, /Labour-only mode/);
+    assert.match(res.text, /Plant and asset register hidden/);
     assert.match(res.text, /Job requirements/);
     assert.match(res.text, /Asset Register/);
     assert.match(res.text, /Asset number \/ plant number/);

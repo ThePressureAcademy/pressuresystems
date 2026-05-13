@@ -144,6 +144,60 @@ describe('Job intake requirement catalogue', () => {
     assert.ok(other.body.items.some((item) => item.normalized_key === 'transport_semi_trailer' && item.is_enabled));
   });
 
+  test('company operating mode defaults to plant and labour and can switch to labour only', async () => {
+    const profile = await request.get('/api/company/profile').set(auth());
+    assert.equal(profile.status, 200);
+    assert.equal(profile.body.operating_mode, 'plant_and_labour');
+
+    const invalid = await request.patch('/api/company/profile').set(auth()).send({
+      operating_mode: 'plant_only'
+    });
+    assert.equal(invalid.status, 400);
+
+    const updated = await request.patch('/api/company/profile').set(auth()).send({
+      operating_mode: 'labour_only'
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.body.operating_mode, 'labour_only');
+
+    const audit = await request.get('/api/audit-events?limit=20').set(auth());
+    assert.equal(audit.status, 200);
+    const modeEvent = audit.body.events.find((event) => event.event_type === 'company_operating_mode_updated');
+    assert.ok(modeEvent);
+    assert.equal(modeEvent.payload.old_mode, 'plant_and_labour');
+    assert.equal(modeEvent.payload.new_mode, 'labour_only');
+
+    const otherProfile = await request.get('/api/company/profile').set(auth(otherToken));
+    assert.equal(otherProfile.status, 200);
+    assert.equal(otherProfile.body.operating_mode, 'plant_and_labour');
+  });
+
+  test('labour-only company gets labour-focused default catalogue while plant and labour keeps equipment defaults', async () => {
+    const before = await request.get('/api/company/catalogue-selections').set(auth());
+    assert.equal(before.status, 200);
+    assert.equal(before.body.operating_mode, 'plant_and_labour');
+    assert.ok(before.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled);
+    assert.ok(before.body.items.find((item) => item.normalized_key === 'transport_low_loader').is_enabled);
+
+    const switched = await request.patch('/api/company/profile').set(auth()).send({
+      operating_mode: 'labour_only'
+    });
+    assert.equal(switched.status, 200);
+
+    const labour = await request.get('/api/company/catalogue-selections').set(auth());
+    assert.equal(labour.status, 200);
+    assert.equal(labour.body.operating_mode, 'labour_only');
+    assert.ok(labour.body.items.find((item) => item.normalized_key === 'credential_hrwl_c6').is_enabled);
+    assert.ok(labour.body.items.find((item) => item.normalized_key === 'civil_telehandler').is_enabled);
+    assert.equal(labour.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled, false);
+    assert.equal(labour.body.items.find((item) => item.normalized_key === 'transport_low_loader').is_enabled, false);
+
+    const other = await request.get('/api/company/catalogue-selections').set(auth(otherToken));
+    assert.equal(other.status, 200);
+    assert.equal(other.body.operating_mode, 'plant_and_labour');
+    assert.ok(other.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled);
+  });
+
   test('job creation stores structured catalogue and one-off requirements', async () => {
     const c6 = itemByKey('credential_hrwl_c6');
     const mobile100 = itemByKey('equipment_mobile_crane_100t');
@@ -355,6 +409,49 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(unknownCreated.count, 0);
   });
 
+  test('labour-only job brief import turns equipment mentions into review-only one-off requirements', async () => {
+    const c6 = itemByKey('credential_hrwl_c6');
+    const mobile100 = itemByKey('equipment_mobile_crane_100t');
+    const lowLoader = itemByKey('transport_low_loader');
+    await request.patch('/api/company/profile').set(auth()).send({
+      operating_mode: 'labour_only'
+    });
+
+    const preview = await request.post('/api/jobs/import-brief/preview').set(auth()).send({
+      source_type: 'pasted_text',
+      content: [
+        'Client: Synthetic Labour Co',
+        'Site: Brisbane QLD',
+        'Job: Supply crane operator and dogman for 100T crane work with Low Loader access.',
+        'Timing:',
+        'Monday 1 June 2026',
+        'Start: 6:00 AM',
+        'Finish: 1:00 PM',
+        'Timezone: Australia/Brisbane',
+        'Requirements:',
+        'C6'
+      ].join('\n')
+    });
+    assert.equal(preview.status, 200);
+    assert.ok(preview.body.warnings.some((warning) => /configured as labour-only/i.test(warning)));
+    assert.ok(preview.body.extracted.requirement_item_ids.includes(c6.id));
+    assert.equal(preview.body.extracted.requirement_item_ids.includes(mobile100.id), false);
+    assert.equal(preview.body.extracted.requirement_item_ids.includes(lowLoader.id), false);
+    assert.ok(preview.body.extracted.custom_requirements.some((item) => item.label === '100T Mobile Crane'));
+    assert.ok(preview.body.extracted.custom_requirements.some((item) => item.label === 'Low Loader'));
+
+    const created = await request.post(`/api/jobs/import-brief/${preview.body.import_id}/create-job`).set(auth()).send({
+      ...preview.body.extracted,
+      schedule_status: 'planned'
+    });
+    assert.equal(created.status, 201);
+    assert.ok(created.body.structured_requirements.some((item) => item.normalized_key === 'credential_hrwl_c6'));
+    assert.ok(created.body.structured_requirements.some((item) => item.is_custom && item.label === '100T Mobile Crane'));
+    assert.ok(created.body.structured_requirements.some((item) => item.is_custom && item.label === 'Low Loader'));
+    assert.equal(created.body.asset_assignments.length, 0);
+    assert.equal(created.body.manual_requirement_review_required, true);
+  });
+
   test('job brief import maps common crane, credential, transport, and access terms to catalogue items', async () => {
     const c6 = itemByKey('credential_hrwl_c6');
     const mobile100 = itemByKey('equipment_mobile_crane_100t');
@@ -463,6 +560,40 @@ describe('Job intake requirement catalogue', () => {
     assert.ok(smartrank.body.job.task_tags.includes('equipment_mobile_crane_100t'));
   });
 
+  test('SmartRank and CredentialGate still work in labour-only mode', async () => {
+    await request.patch('/api/company/profile').set(auth()).send({
+      operating_mode: 'labour_only'
+    });
+
+    const readyWorker = seedWorker(db, companyId, {
+      name: 'Labour Ready Operator',
+      email: 'labour-ready@example.com'
+    });
+    seedCredential(db, readyWorker, companyId, { type: 'high_risk_licence_crane' });
+
+    const blockedWorker = seedWorker(db, companyId, {
+      name: 'Labour Blocked Operator',
+      email: 'labour-blocked@example.com'
+    });
+    seedCredential(db, blockedWorker, companyId, { type: 'white_card' });
+
+    const c6 = itemByKey('credential_hrwl_c6');
+    const created = await request.post('/api/jobs').set(auth()).send(createJobPayload({
+      task_tags: ['dogman', 'shutdown'],
+      crew_roles_required: ['crane_operator'],
+      requirement_item_ids: [c6.id]
+    }));
+    assert.equal(created.status, 201);
+    assert.equal(created.body.asset_assignments.length, 0);
+
+    const smartrank = await request.get(`/api/jobs/${created.body.id}/smartrank`).set(auth());
+    assert.equal(smartrank.status, 200);
+    assert.ok(smartrank.body.ranked.some((entry) => entry.worker.id === readyWorker));
+    const blocked = smartrank.body.blocked.find((entry) => entry.worker.id === blockedWorker);
+    assert.ok(blocked);
+    assert.ok(blocked.blocks.some((block) => block.type === 'credential_missing'));
+  });
+
   test('legacy persisted databases migrate requirement catalogue tables safely', () => {
     const tables = db.prepare(`
       SELECT name
@@ -476,6 +607,7 @@ describe('Job intake requirement catalogue', () => {
     assert.ok(tables.includes('job_custom_requirements'));
     assert.ok(tables.includes('company_assets'));
     assert.ok(tables.includes('job_asset_assignments'));
+    assert.ok(db.prepare(`PRAGMA table_info(companies)`).all().some((column) => column.name === 'operating_mode'));
     assert.ok(itemByKey('transport_low_loader'));
   });
 });

@@ -5,6 +5,11 @@ const { getDb } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { appendAuditEvent } = require('../services/audit');
 const {
+  OPERATING_MODES,
+  normalizeOperatingMode,
+  serializeCompanyAccess
+} = require('../services/company-access');
+const {
   listCompanyCatalogueSelections,
   updateCompanyCatalogueSelections
 } = require('../services/job-requirement-catalogue');
@@ -16,6 +21,50 @@ const {
 } = require('../services/company-assets');
 
 const router = express.Router();
+
+function getCompanyProfile(db, companyId) {
+  return db.prepare(`SELECT * FROM companies WHERE id = ?`).get(companyId);
+}
+
+router.get('/profile', requireAuth, (req, res) => {
+  const db = getDb();
+  const company = getCompanyProfile(db, req.user.company_id);
+  if (!company) return res.status(404).json({ error: 'Company not found' });
+  return res.json(serializeCompanyAccess(company));
+});
+
+router.patch('/profile', requireAuth, requireRole('admin'), (req, res) => {
+  const nextMode = req.body?.operating_mode;
+  if (!OPERATING_MODES.includes(nextMode)) {
+    return res.status(400).json({ error: 'operating_mode must be labour_only or plant_and_labour' });
+  }
+
+  const db = getDb();
+  const company = getCompanyProfile(db, req.user.company_id);
+  if (!company) return res.status(404).json({ error: 'Company not found' });
+  const oldMode = normalizeOperatingMode(company.operating_mode);
+  const normalizedMode = normalizeOperatingMode(nextMode);
+
+  db.prepare(`
+    UPDATE companies
+    SET operating_mode = ?
+    WHERE id = ?
+  `).run(normalizedMode, req.user.company_id);
+
+  if (oldMode !== normalizedMode) {
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'company_operating_mode_updated',
+      userId: req.user.id,
+      payload: {
+        old_mode: oldMode,
+        new_mode: normalizedMode
+      }
+    });
+  }
+
+  return res.json(serializeCompanyAccess(getCompanyProfile(db, req.user.company_id)));
+});
 
 router.get('/catalogue-selections', requireAuth, (req, res) => {
   const db = getDb();

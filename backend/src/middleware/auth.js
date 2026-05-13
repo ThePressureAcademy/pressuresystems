@@ -31,6 +31,7 @@ function loadActiveUser(userId) {
       c.pilot_start_date AS company_pilot_start_date,
       c.pilot_starts_at AS company_pilot_starts_at,
       c.pilot_expires_at AS company_pilot_expires_at,
+      c.operating_mode AS company_operating_mode,
       c.timezone AS company_timezone,
       c.notes AS company_notes
     FROM users u
@@ -65,6 +66,7 @@ function requireAuth(req, res, next) {
       pilot_start_date: user.company_pilot_start_date,
       pilot_starts_at: user.company_pilot_starts_at,
       pilot_expires_at: user.company_pilot_expires_at,
+      operating_mode: user.company_operating_mode,
       timezone: user.company_timezone,
       notes: user.company_notes
     };

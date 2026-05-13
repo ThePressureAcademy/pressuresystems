@@ -431,6 +431,31 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   margin: 8px 0;
 }
 
+.mode-options {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.mode-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.mode-card input {
+  margin-top: 4px;
+}
+
+.mode-card strong,
+.mode-card span {
+  display: block;
+}
+
 .crane-form-alerts,
 .crane-planning-alerts {
   background: rgba(101, 197, 255, 0.08);

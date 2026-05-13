@@ -2,6 +2,7 @@
 
 const ACCESS_STATUSES = ['active', 'suspended', 'expired'];
 const PILOT_TYPES = ['internal', 'testing_partner', 'founding_partner', 'commercial_pilot'];
+const OPERATING_MODES = ['labour_only', 'plant_and_labour'];
 
 function normalizeSlug(value) {
   return String(value || '')
@@ -18,6 +19,10 @@ function normalizeAccessStatus(value) {
 
 function normalizePilotType(value) {
   return PILOT_TYPES.includes(value) ? value : 'internal';
+}
+
+function normalizeOperatingMode(value) {
+  return OPERATING_MODES.includes(value) ? value : 'plant_and_labour';
 }
 
 function parseDate(value) {
@@ -61,6 +66,7 @@ function serializeCompanyAccess(company, now = new Date()) {
     pilot_type: company.pilot_type || 'internal',
     pilot_starts_at: company.pilot_starts_at || company.pilot_start_date || null,
     pilot_expires_at: company.pilot_expires_at || null,
+    operating_mode: normalizeOperatingMode(company.operating_mode),
     timezone: company.timezone || 'Australia/Brisbane',
     days_remaining: daysRemaining(company, now),
     expired: status === 'expired',
@@ -91,12 +97,14 @@ function blockedCompanyResponse(company, now = new Date()) {
 
 module.exports = {
   ACCESS_STATUSES,
+  OPERATING_MODES,
   PILOT_TYPES,
   blockedCompanyResponse,
   daysRemaining,
   effectiveAccessStatus,
   isPilotExpired,
   normalizeAccessStatus,
+  normalizeOperatingMode,
   normalizePilotType,
   normalizeSlug,
   serializeCompanyAccess

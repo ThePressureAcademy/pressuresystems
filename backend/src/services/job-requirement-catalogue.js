@@ -2,6 +2,8 @@
 
 const CATALOGUE_SOURCE = 'research/liftiq-job-intake-catalogue-research.md';
 const CATALOGUE_CONFIDENCE = 'medium';
+const PLANT_REQUIREMENT_CATEGORIES = new Set(['equipment', 'transport']);
+const LABOUR_REQUIREMENT_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
 
 function normalizeKeyPart(value) {
   return String(value || '')
@@ -121,6 +123,20 @@ const RECOMMENDED_DEFAULT_KEYS = new Set([
   'equipment_franna_pick_and_carry',
   'transport_low_loader',
   'transport_semi_trailer'
+]);
+
+const LABOUR_ONLY_DEFAULT_KEYS = new Set([
+  'credential_white_card',
+  'credential_hrwl_c6',
+  'credential_hrwl_dg',
+  'credential_hrwl_rb',
+  'credential_working_at_height_wah',
+  'credential_heavy_vehicle_mc',
+  'rail_riw',
+  'energy_electrical_spotter',
+  'civil_excavator',
+  'civil_front_end_loader',
+  'civil_telehandler'
 ]);
 
 const LEGACY_CREDENTIAL_BY_KEY = {
@@ -261,8 +277,23 @@ function companyHasSelections(db, companyId) {
   return Number(row?.count || 0) > 0;
 }
 
+function getCompanyOperatingMode(db, companyId) {
+  const row = db.prepare(`
+    SELECT operating_mode
+    FROM companies
+    WHERE id = ?
+  `).get(companyId);
+  return row?.operating_mode === 'labour_only' ? 'labour_only' : 'plant_and_labour';
+}
+
+function defaultKeysForOperatingMode(mode) {
+  return mode === 'labour_only' ? LABOUR_ONLY_DEFAULT_KEYS : RECOMMENDED_DEFAULT_KEYS;
+}
+
 function listCompanyCatalogueSelections(db, companyId) {
   const configured = companyHasSelections(db, companyId);
+  const operatingMode = getCompanyOperatingMode(db, companyId);
+  const defaultKeys = defaultKeysForOperatingMode(operatingMode);
   const rows = db.prepare(`
     SELECT
       rci.*,
@@ -279,17 +310,18 @@ function listCompanyCatalogueSelections(db, companyId) {
   const items = rows.map((row) => {
     const enabled = configured
       ? Boolean(row.company_is_enabled)
-      : RECOMMENDED_DEFAULT_KEYS.has(row.normalized_key);
+      : defaultKeys.has(row.normalized_key);
     return {
       ...serializeItem(row, enabled),
       display_order: row.display_order,
       selection_notes: row.selection_notes,
-      recommended_default: RECOMMENDED_DEFAULT_KEYS.has(row.normalized_key)
+      recommended_default: defaultKeys.has(row.normalized_key)
     };
   });
 
   return {
     configured,
+    operating_mode: operatingMode,
     items,
     grouped: groupItems(items),
     enabled_count: items.filter((itemRow) => itemRow.is_enabled).length
@@ -503,11 +535,23 @@ function mapParsedTermsToCatalogue(db, companyId, text) {
 
   const matchedItems = getCatalogueItemsByKeys(db, keys).map((row) => serializeItem(row));
   const enabled = listCompanyEnabledCatalogue(db, companyId).items;
+  const operatingMode = getCompanyOperatingMode(db, companyId);
   const enabledKeys = new Set(enabled.map((row) => row.normalized_key));
   const selected = [];
   const suggested = [];
+  const oneOffCustom = [];
+  let labourOnlyPlantMentioned = false;
 
   for (const matched of matchedItems) {
+    if (operatingMode === 'labour_only' && PLANT_REQUIREMENT_CATEGORIES.has(matched.category)) {
+      labourOnlyPlantMentioned = true;
+      oneOffCustom.push({
+        category: 'custom',
+        label: matched.label,
+        notes: 'Parsed from brief as an equipment or transport mention while company is configured as labour-only.'
+      });
+      continue;
+    }
     if (enabledKeys.has(matched.normalized_key)) {
       selected.push({ ...matched, is_enabled: true });
     } else {
@@ -518,11 +562,14 @@ function mapParsedTermsToCatalogue(db, companyId, text) {
   const warnings = suggested.length > 0
     ? ['Some parsed requirements are not enabled in your company setup. Confirm before creating job.']
     : [];
+  if (labourOnlyPlantMentioned) {
+    warnings.push('This job brief mentions equipment or transport, but this company is configured as labour-only. Confirm whether LIFTIQ should track this for the job.');
+  }
 
   return {
     selected_catalogue_items: selected,
     suggested_catalogue_items: suggested,
-    one_off_custom_requirements: [],
+    one_off_custom_requirements: oneOffCustom,
     selected_catalogue_item_ids: selected.map((row) => row.id),
     selected_catalogue_item_keys: selected.map((row) => row.normalized_key),
     suggested_catalogue_item_keys: suggested.map((row) => row.normalized_key),
@@ -591,9 +638,13 @@ function hasRequirementPayload(input = {}) {
 
 module.exports = {
   CATALOGUE_ITEMS,
+  LABOUR_ONLY_DEFAULT_KEYS,
+  LABOUR_REQUIREMENT_CATEGORIES,
+  PLANT_REQUIREMENT_CATEGORIES,
   RECOMMENDED_DEFAULT_KEYS,
   applyStructuredRequirementsToJob,
   addCustomRequirementToJob,
+  getCompanyOperatingMode,
   hasRequirementPayload,
   listCompanyCatalogueSelections,
   listCompanyEnabledCatalogue,

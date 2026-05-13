@@ -31,6 +31,7 @@ const AUDIT_EVENT_TYPES = [
   'job_status_changed',
   'transport_requirement_created',
   'company_catalogue_updated',
+  'company_operating_mode_updated',
   'company_asset_created',
   'company_asset_updated',
   'company_asset_archived',
@@ -404,9 +405,14 @@ function auditEventsNeedMigration(db) {
     || !row.sql.includes('job_counterweight_transport_assessed')
     || !row.sql.includes('transport_requirement_created')
     || !row.sql.includes('company_catalogue_updated')
+    || !row.sql.includes('company_operating_mode_updated')
+    || !row.sql.includes('company_asset_created')
+    || !row.sql.includes('company_asset_updated')
+    || !row.sql.includes('company_asset_archived')
     || !row.sql.includes('job_requirements_updated')
     || !row.sql.includes('job_custom_requirement_added')
-    || !row.sql.includes('job_requirement_imported_from_brief');
+    || !row.sql.includes('job_requirement_imported_from_brief')
+    || !row.sql.includes('job_asset_selected');
 }
 
 function migrateAuditEvents(db) {
@@ -447,6 +453,7 @@ function runMigrations(db) {
   ensureColumn(db, 'companies', `pilot_starts_at TEXT`, 'pilot_starts_at');
   ensureColumn(db, 'companies', `pilot_expires_at TEXT`, 'pilot_expires_at');
   ensureColumn(db, 'companies', `notes TEXT`, 'notes');
+  ensureColumn(db, 'companies', `operating_mode TEXT NOT NULL DEFAULT 'plant_and_labour'`, 'operating_mode');
   ensureColumn(db, 'users', `must_change_password INTEGER NOT NULL DEFAULT 0`, 'must_change_password');
   ensureColumn(db, 'workers', `email TEXT`, 'email');
   ensureColumn(db, 'workers', `archived_at TEXT`, 'archived_at');
@@ -474,6 +481,7 @@ function runMigrations(db) {
   db.exec(`UPDATE companies SET access_status = 'active' WHERE access_status IS NULL OR trim(access_status) = '';`);
   db.exec(`UPDATE companies SET pilot_type = 'internal' WHERE pilot_type IS NULL OR trim(pilot_type) = '';`);
   db.exec(`UPDATE companies SET display_name = name WHERE display_name IS NULL OR trim(display_name) = '';`);
+  db.exec(`UPDATE companies SET operating_mode = 'plant_and_labour' WHERE operating_mode IS NULL OR trim(operating_mode) = '';`);
   db.exec(`UPDATE jobs SET job_timezone = 'Australia/Brisbane' WHERE job_timezone IS NULL OR trim(job_timezone) = '';`);
   db.exec(`
     UPDATE jobs

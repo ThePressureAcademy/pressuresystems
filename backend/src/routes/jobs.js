@@ -28,6 +28,7 @@ const {
 } = require('../services/crane-transport-planning');
 const {
   addCustomRequirementToJob,
+  getCompanyOperatingMode,
   hasRequirementPayload,
   listJobRequirements,
   mapParsedTermsToCatalogue,
@@ -921,6 +922,8 @@ router.post('/import-brief/preview', requireAuth, requireRole('admin', 'dispatch
       }
     }
   }
+  const companyOperatingMode = getCompanyOperatingMode(db, req.user.company_id);
+  const isLabourOnly = companyOperatingMode === 'labour_only';
   const requirementMapping = mapParsedTermsToCatalogue(db, req.user.company_id, validated.content);
   const assetMapping = mapAssetReferencesFromText(db, req.user.company_id, validated.content);
   parsed.extracted.structured_requirements = requirementMapping;
@@ -928,14 +931,20 @@ router.post('/import-brief/preview', requireAuth, requireRole('admin', 'dispatch
   parsed.extracted.requirement_item_keys = requirementMapping.selected_catalogue_item_keys;
   parsed.extracted.suggested_requirement_item_keys = requirementMapping.suggested_catalogue_item_keys;
   parsed.extracted.custom_requirements = requirementMapping.one_off_custom_requirements;
-  parsed.extracted.suggested_assets = assetMapping.matched_assets;
-  parsed.extracted.company_asset_ids = assetMapping.matched_asset_ids;
+  parsed.extracted.suggested_assets = isLabourOnly ? [] : assetMapping.matched_assets;
+  parsed.extracted.company_asset_ids = isLabourOnly ? [] : assetMapping.matched_asset_ids;
   parsed.extracted.unknown_asset_numbers = assetMapping.unknown_asset_numbers;
   if (requirementMapping.warnings.length > 0) {
     parsed.warnings = Array.from(new Set([...(parsed.warnings || []), ...requirementMapping.warnings]));
   }
   if (assetMapping.warnings.length > 0) {
     parsed.warnings = Array.from(new Set([...(parsed.warnings || []), ...assetMapping.warnings]));
+  }
+  if (isLabourOnly && (assetMapping.matched_assets.length > 0 || assetMapping.unknown_asset_numbers.length > 0)) {
+    parsed.warnings = Array.from(new Set([
+      ...(parsed.warnings || []),
+      'This job brief mentions equipment or transport, but this company is configured as labour-only. Confirm whether LIFTIQ should track this for the job.'
+    ]));
   }
   const importId = randomUUID();
   const now = new Date().toISOString();
