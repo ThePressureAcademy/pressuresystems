@@ -192,6 +192,7 @@ async function api(method, path, body) {
 
 let craneModelsCache = null;
 const craneTravelStateCache = new Map();
+let companyCatalogueCache = null;
 
 async function loadCraneModels() {
   if (craneModelsCache) return craneModelsCache;
@@ -206,6 +207,12 @@ async function loadCraneTravelStates(craneModelId) {
   const states = await api('GET', `/crane-models/${encodeURIComponent(craneModelId)}/travel-states`);
   craneTravelStateCache.set(key, states);
   return states;
+}
+
+async function loadCompanyCatalogue(force = false) {
+  if (companyCatalogueCache && !force) return companyCatalogueCache;
+  companyCatalogueCache = await api('GET', '/company/catalogue-selections');
+  return companyCatalogueCache;
 }
 
 function boolLabel(value) {
@@ -381,6 +388,7 @@ function logout() {
   nextRenderCycle();
   state.token = null;
   state.user = null;
+  companyCatalogueCache = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   showLogin();
@@ -551,6 +559,7 @@ function router() {
 
   const routes = {
     dashboard: () => renderDashboard(renderCycle),
+    'our-business': () => renderOurBusiness(renderCycle),
     schedule: () => renderSchedule(renderCycle),
     workers: () => {
       if (rest[0] === 'import') return renderWorkerImport(renderCycle);
@@ -649,6 +658,115 @@ function renderTagList(tags, emptyLabel = '-') {
   return el('ul', { class: 'tag-list' }, ...(tags || []).map((tag) => el('li', {}, String(tag))));
 }
 
+function flattenCatalogueGroups(grouped = {}) {
+  const groups = [];
+  for (const [category, categoryGroups] of Object.entries(grouped || {})) {
+    for (const [groupLabel, items] of Object.entries(categoryGroups || {})) {
+      groups.push({ category, groupLabel, items });
+    }
+  }
+  return groups;
+}
+
+function groupCatalogueItems(items = []) {
+  const grouped = {};
+  for (const item of items || []) {
+    grouped[item.category] = grouped[item.category] || {};
+    grouped[item.category][item.group_label] = grouped[item.category][item.group_label] || [];
+    grouped[item.category][item.group_label].push(item);
+  }
+  return grouped;
+}
+
+function enabledCatalogueOnly(catalogue = {}) {
+  const items = (catalogue.items || []).filter((item) => item.is_enabled);
+  return {
+    ...catalogue,
+    items,
+    grouped: groupCatalogueItems(items),
+    enabled_count: items.length
+  };
+}
+
+function renderRequirementChecklist(catalogue, options = {}) {
+  const name = options.name || 'requirement_item_ids';
+  const selectedIds = new Set((options.selectedIds || []).map((id) => String(id)));
+  const root = el('div', { class: 'requirement-grid' });
+  const groups = flattenCatalogueGroups(catalogue.grouped || {});
+
+  for (const group of groups) {
+    const card = el('div', { class: 'requirement-group', 'data-category': group.category });
+    const checkboxes = [];
+    card.appendChild(el('div', { class: 'requirement-group-head' },
+      el('div', {},
+        el('strong', {}, group.groupLabel),
+        el('div', { class: 'small muted' }, group.category)
+      ),
+      el('div', { class: 'button-row' },
+        el('button', {
+          type: 'button',
+          class: 'secondary',
+          onclick: () => checkboxes.forEach((box) => { box.checked = true; })
+        }, 'Select group'),
+        el('button', {
+          type: 'button',
+          class: 'secondary',
+          onclick: () => checkboxes.forEach((box) => { box.checked = false; })
+        }, 'Clear')
+      )
+    ));
+
+    for (const item of group.items || []) {
+      const box = el('input', { type: 'checkbox', name, value: String(item.id) });
+      box.checked = selectedIds.size > 0 ? selectedIds.has(String(item.id)) : Boolean(item.is_enabled);
+      checkboxes.push(box);
+      card.appendChild(el('label', { class: 'check-row' },
+        box,
+        el('span', {}, item.label),
+        item.recommended_default ? el('span', { class: 'pill pill-info' }, 'default') : null
+      ));
+    }
+
+    root.appendChild(card);
+  }
+
+  if (groups.length === 0) {
+    root.appendChild(el('div', { class: 'empty' }, 'No requirement catalogue items available.'));
+  }
+
+  return root;
+}
+
+function selectedRequirementIdsFromForm(form) {
+  return Array.from(form.querySelectorAll('input[name="requirement_item_ids"]:checked'))
+    .map((node) => Number(node.value))
+    .filter(Number.isFinite);
+}
+
+function renderStructuredRequirementsSummary(requirements = []) {
+  const panel = el('div', { class: 'panel' });
+  panel.appendChild(el('h3', {}, 'Job requirements'));
+  if (!requirements || requirements.length === 0) {
+    panel.appendChild(el('div', { class: 'empty' }, 'No structured requirements recorded.'));
+    return panel;
+  }
+
+  panel.appendChild(el('div', { class: 'requirement-pill-list' }, ...requirements.map((item) =>
+    el('span', { class: `requirement-pill ${item.is_custom ? 'custom' : ''}` },
+      `${item.label}${item.is_custom ? ' (one-off)' : ''}`
+    )
+  )));
+
+  const customCount = requirements.filter((item) => item.is_custom).length;
+  if (customCount > 0) {
+    panel.appendChild(el('div', { class: 'alerts crane-form-alerts' },
+      'One-off requirements are job-scoped only and require dispatcher review before allocation.'
+    ));
+  }
+
+  return panel;
+}
+
 function renderPreferenceSignals(signals) {
   if (!signals || signals.length === 0) {
     return el('div', { class: 'small muted' }, 'No matching task preference signals');
@@ -712,6 +830,75 @@ async function renderDashboard(renderCycle) {
     ),
     auditEventsTable(audit.events)
   ));
+}
+
+async function renderOurBusiness(renderCycle) {
+  const view = document.getElementById('view');
+  view.innerHTML = '';
+  const catalogue = await loadCompanyCatalogue(true);
+  if (isStaleRender(renderCycle)) return;
+
+  const form = el('form', { class: 'panel' });
+  const errBox = el('div', { class: 'error' });
+  const success = el('div', { class: 'status-note hidden' });
+
+  form.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h2', {}, 'Our Business'),
+      el('div', { class: 'small muted' },
+        'Choose the credentials, equipment, transport, civil/access, rail, energy, and VOC requirements your company actually uses.'
+      )
+    ),
+    el('span', { class: 'pill pill-info' }, `${catalogue.enabled_count || 0} enabled`)
+  ));
+
+  if (!catalogue.configured) {
+    form.appendChild(el('div', { class: 'read-only-banner' },
+      'Recommended defaults are shown because this company has not saved a catalogue profile yet. Save selections here to reduce the job form to relevant options.'
+    ));
+  }
+
+  const search = el('input', {
+    type: 'search',
+    placeholder: 'Filter catalogue items...',
+    'aria-label': 'Filter catalogue items'
+  });
+  const checklist = renderRequirementChecklist(catalogue);
+  search.addEventListener('input', () => {
+    const query = search.value.trim().toLowerCase();
+    checklist.querySelectorAll('.check-row').forEach((row) => {
+      const text = row.textContent.toLowerCase();
+      row.classList.toggle('hidden', query && !text.includes(query));
+    });
+  });
+
+  form.appendChild(buildFieldWrapper('Search/filter', search));
+  form.appendChild(checklist);
+  form.appendChild(errBox);
+  form.appendChild(success);
+  form.appendChild(el('div', { class: 'button-row' },
+    el('button', { type: 'submit' }, 'Save company setup'),
+    el('a', { href: '#/jobs' }, el('button', { type: 'button', class: 'secondary' }, 'Back to Jobs'))
+  ));
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errBox.textContent = '';
+    success.classList.add('hidden');
+    try {
+      const response = await api('POST', '/company/catalogue-selections', {
+        catalogue_item_ids: selectedRequirementIdsFromForm(form)
+      });
+      companyCatalogueCache = response;
+      success.textContent = `Company setup saved. ${response.enabled_count} item(s) enabled.`;
+      success.classList.remove('hidden');
+      toast('Company setup saved', 'success');
+    } catch (err) {
+      errBox.textContent = err.error || 'Could not save company setup';
+    }
+  });
+
+  view.appendChild(form);
 }
 
 function buildSecurityPanel() {
@@ -1780,6 +1967,33 @@ function renderJobBriefImport(renderCycle) {
       value: extracted.source_confidence || confidence.source_confidence || 'low'
     }));
     previewForm.appendChild(sourceField);
+    const requirementMapping = extracted.structured_requirements || {};
+    const selectedRequirements = requirementMapping.selected_catalogue_items || [];
+    const suggestedRequirements = requirementMapping.suggested_catalogue_items || [];
+    const oneOffRequirements = requirementMapping.one_off_custom_requirements || [];
+    const requirementPanel = el('div', { class: 'panel requirement-form-section' });
+    requirementPanel.appendChild(el('h3', {}, 'Mapped job requirements'));
+    requirementPanel.appendChild(el('div', { class: 'small muted' },
+      'Selected catalogue requirements will be attached to the job. Suggested items are not in company setup and need confirmation.'
+    ));
+    requirementPanel.appendChild(el('div', { class: 'requirement-pill-list' },
+      ...(selectedRequirements.length ? selectedRequirements.map((item) =>
+        el('span', { class: 'requirement-pill' }, item.label)
+      ) : [el('span', { class: 'muted' }, 'No enabled catalogue requirements detected.')])
+    ));
+    if (suggestedRequirements.length > 0) {
+      requirementPanel.appendChild(el('div', { class: 'alerts job-brief-warnings' },
+        el('strong', {}, 'Suggested outside company setup'),
+        el('ul', {}, ...suggestedRequirements.map((item) => el('li', {}, item.label)))
+      ));
+    }
+    if (oneOffRequirements.length > 0) {
+      requirementPanel.appendChild(el('div', { class: 'alerts job-brief-warnings' },
+        el('strong', {}, 'One-off custom requirements'),
+        el('ul', {}, ...oneOffRequirements.map((item) => el('li', {}, item.label || String(item))))
+      ));
+    }
+    previewForm.appendChild(requirementPanel);
     previewForm.appendChild(el('div', { class: 'alerts crane-form-alerts' },
       el('ul', {},
         el('li', {}, 'Review required'),
@@ -1852,7 +2066,10 @@ function renderJobBriefImport(renderCycle) {
           site_access_notes: fd.get('site_access_notes') || null,
           setup_notes: fd.get('setup_notes') || null,
           source_confidence: fd.get('source_confidence') || null,
-          source_note: fd.get('source_note') || null
+          source_note: fd.get('source_note') || null,
+          requirement_item_ids: extracted.requirement_item_ids || [],
+          requirement_item_keys: extracted.requirement_item_keys || [],
+          custom_requirements: extracted.custom_requirements || []
         });
         toast('Job created from brief', 'success');
         previewHost.innerHTML = '';
@@ -1944,7 +2161,10 @@ async function renderNewJob(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const craneModels = await loadCraneModels();
+  const [craneModels, companyCatalogue] = await Promise.all([
+    loadCraneModels(),
+    loadCompanyCatalogue()
+  ]);
   if (isStaleRender(renderCycle)) return;
 
   const detectedTimeZone = detectBrowserTimeZone() || 'Australia/Brisbane';
@@ -1989,6 +2209,24 @@ async function renderNewJob(renderCycle) {
   form.appendChild(el('datalist', { id: 'job-timezone-options' },
     ...COMMON_TIMEZONES.map((item) => el('option', { value: item }, item))
   ));
+
+  const requirementsSection = el('div', { class: 'panel requirement-form-section' });
+  const enabledCompanyCatalogue = enabledCatalogueOnly(companyCatalogue);
+  requirementsSection.appendChild(el('h3', {}, 'Job requirements'));
+  requirementsSection.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
+    companyCatalogue.configured
+      ? 'Only company-enabled catalogue items are shown. Add one-off requirements for job-specific items.'
+      : 'Recommended defaults are shown. Configure your company equipment and requirements in Our Business to reduce this list.'
+  ));
+  requirementsSection.appendChild(renderRequirementChecklist(enabledCompanyCatalogue));
+  requirementsSection.appendChild(buildInput('custom_requirements', 'Add one-off requirement', {
+    placeholder: '40T Franna, special access ticket, client induction'
+  }));
+  requirementsSection.appendChild(el('div', { class: 'small muted' },
+    'One-off requirements attach to this job only and require review before allocation.'
+  ));
+  form.appendChild(requirementsSection);
+
   const craneSection = el('div', { class: 'panel crane-form-section' });
   craneSection.appendChild(el('h3', {}, 'Crane, counterweight and transport'));
   craneSection.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
@@ -2079,7 +2317,12 @@ async function renderNewJob(renderCycle) {
       height_m: fd.get('height_m') ? Number(fd.get('height_m')) : null,
       counterweight_required_tonnes: fd.get('counterweight_required_tonnes') ? Number(fd.get('counterweight_required_tonnes')) : null,
       site_access_notes: fd.get('site_access_notes') || null,
-      setup_notes: fd.get('setup_notes') || null
+      setup_notes: fd.get('setup_notes') || null,
+      requirement_item_ids: selectedRequirementIdsFromForm(form),
+      custom_requirements: splitCsv(fd.get('custom_requirements')).map((label) => ({
+        category: 'custom',
+        label
+      }))
     };
     try {
       const job = await api('POST', '/jobs', body);
@@ -2138,6 +2381,7 @@ async function renderJobDetail(jobId, renderCycle) {
   addKv('Source note', job.source_note || '-');
   addKv('Notes', job.notes || '-');
   view.appendChild(el('div', { class: 'panel' }, kv));
+  view.appendChild(renderStructuredRequirementsSummary(job.structured_requirements || []));
   view.appendChild(renderCranePlanningSummary(job.crane_planning));
 
   const allocPanel = el('div', { class: 'panel' });
@@ -2219,6 +2463,12 @@ async function renderSmartRank(jobId, renderCycle) {
       ? el('div', { class: 'alerts crane-planning-alerts' },
           el('strong', {}, 'Job readiness warning'),
           el('ul', {}, ...((result.job.crane_planning.messages || ['Review required']).map((message) => el('li', {}, message))))
+        )
+      : null,
+    result.job.structured_requirement_warnings?.length
+      ? el('div', { class: 'alerts crane-planning-alerts' },
+          el('strong', {}, 'Requirement review'),
+          el('ul', {}, ...result.job.structured_requirement_warnings.map((message) => el('li', {}, message)))
         )
       : null,
     el('div', { class: 'small', style: 'margin-top:8px;' },

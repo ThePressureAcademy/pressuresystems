@@ -328,6 +328,64 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   margin-top: 8px;
 }
 
+.requirement-form-section {
+  margin-top: 8px;
+}
+
+.requirement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.requirement-group {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.requirement-group-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.check-row input {
+  width: auto;
+}
+
+.requirement-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.requirement-pill {
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.requirement-pill.custom {
+  border-color: rgba(255,180,84,0.45);
+  color: var(--warn);
+}
+
 .crane-form-alerts,
 .crane-planning-alerts {
   background: rgba(101, 197, 255, 0.08);

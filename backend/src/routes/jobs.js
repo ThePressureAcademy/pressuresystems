@@ -27,6 +27,13 @@ const {
   buildCraneTransportPlan
 } = require('../services/crane-transport-planning');
 const {
+  addCustomRequirementToJob,
+  hasRequirementPayload,
+  listJobRequirements,
+  mapParsedTermsToCatalogue,
+  persistJobRequirements
+} = require('../services/job-requirement-catalogue');
+const {
   getCompanyTimeZone,
   serializeAllocation,
   serializeJob
@@ -699,6 +706,40 @@ function insertJob(db, user, payload) {
   return serializeJob(db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(jobId), null, db);
 }
 
+function persistJobRequirementPayload(db, user, jobId, input, source = 'catalogue') {
+  if (!hasRequirementPayload(input)) return null;
+
+  const requirements = persistJobRequirements(db, {
+    companyId: user.company_id,
+    jobId,
+    userId: user.id,
+    catalogueItemIds: input.requirement_item_ids || input.catalogue_item_ids || [],
+    catalogueItemKeys: input.requirement_item_keys || [],
+    customRequirements: input.custom_requirements || [],
+    source
+  });
+
+  appendAuditEvent(db, {
+    companyId: user.company_id,
+    eventType: source === 'parsed_from_brief' ? 'job_requirement_imported_from_brief' : 'job_requirements_updated',
+    userId: user.id,
+    jobId,
+    payload: {
+      job_id: jobId,
+      source,
+      requirement_count: requirements.items.length,
+      catalogue_item_ids: requirements.items
+        .filter((item) => item.catalogue_item_id)
+        .map((item) => item.catalogue_item_id),
+      custom_requirement_labels: requirements.items
+        .filter((item) => item.is_custom)
+        .map((item) => item.label)
+    }
+  });
+
+  return requirements;
+}
+
 function normalizeBriefCreatePayload(input) {
   const taskTags = parseJsonArray(input.task_tags).map((tag) => String(tag)).filter(Boolean);
   const startTime = trimText(input.start_time);
@@ -745,7 +786,10 @@ function normalizeBriefCreatePayload(input) {
     counterweight_required_tonnes: input.counterweight_required_tonnes ?? null,
     site_access_notes: trimText(input.site_access_notes),
     setup_notes: trimText(input.setup_notes),
-    source_confidence: trimText(input.source_confidence)
+    source_confidence: trimText(input.source_confidence),
+    requirement_item_ids: Array.isArray(input.requirement_item_ids) ? input.requirement_item_ids : [],
+    requirement_item_keys: Array.isArray(input.requirement_item_keys) ? input.requirement_item_keys : [],
+    custom_requirements: Array.isArray(input.custom_requirements) ? input.custom_requirements : []
   };
 }
 
@@ -798,6 +842,7 @@ router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => 
         travel_notes: payload.travel_notes,
         source_note: payload.source_note
       });
+      persistJobRequirementPayload(db, req.user, job.id, req.body, 'catalogue');
       job = serializeJob(db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(job.id), null, db);
     })();
     return res.status(201).json(job);
@@ -838,6 +883,15 @@ router.post('/import-brief/preview', requireAuth, requireRole('admin', 'dispatch
         ]));
       }
     }
+  }
+  const requirementMapping = mapParsedTermsToCatalogue(db, req.user.company_id, validated.content);
+  parsed.extracted.structured_requirements = requirementMapping;
+  parsed.extracted.requirement_item_ids = requirementMapping.selected_catalogue_item_ids;
+  parsed.extracted.requirement_item_keys = requirementMapping.selected_catalogue_item_keys;
+  parsed.extracted.suggested_requirement_item_keys = requirementMapping.suggested_catalogue_item_keys;
+  parsed.extracted.custom_requirements = requirementMapping.one_off_custom_requirements;
+  if (requirementMapping.warnings.length > 0) {
+    parsed.warnings = Array.from(new Set([...(parsed.warnings || []), ...requirementMapping.warnings]));
   }
   const importId = randomUUID();
   const now = new Date().toISOString();
@@ -927,6 +981,7 @@ router.post('/import-brief/:importId/create-job', requireAuth, requireRole('admi
       ...payload,
       crane_class_required: payload.crane_class_required
     });
+    persistJobRequirementPayload(db, req.user, createdJob.id, req.body, 'parsed_from_brief');
     db.prepare(`
       UPDATE job_imports
       SET created_job_id = ?, status = 'job_created', parsed_payload_json = ?, updated_at = ?
@@ -970,6 +1025,50 @@ router.get('/:id', requireAuth, (req, res) => {
   );
   if (!job) return res.status(404).json({ error: 'Job not found' });
   res.json(job);
+});
+
+router.get('/:id/requirements', requireAuth, (req, res) => {
+  const db = getDb();
+  const job = db.prepare(`SELECT id FROM jobs WHERE id = ? AND company_id = ?`)
+    .get(req.params.id, req.user.company_id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  res.json(listJobRequirements(db, req.user.company_id, req.params.id));
+});
+
+router.post('/:id/custom-requirements', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
+  const db = getDb();
+  const job = db.prepare(`SELECT id FROM jobs WHERE id = ? AND company_id = ?`)
+    .get(req.params.id, req.user.company_id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  try {
+    const created = addCustomRequirementToJob(db, {
+      companyId: req.user.company_id,
+      jobId: req.params.id,
+      userId: req.user.id,
+      category: req.body.category || 'custom',
+      label: req.body.label,
+      notes: req.body.notes || null
+    });
+
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'job_custom_requirement_added',
+      userId: req.user.id,
+      jobId: req.params.id,
+      payload: {
+        job_id: req.params.id,
+        custom_requirement_id: created.custom_requirement_id,
+        category: created.category,
+        label: created.custom_label
+      }
+    });
+
+    res.status(201).json(listJobRequirements(db, req.user.company_id, req.params.id));
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
@@ -1073,6 +1172,7 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
   );
 
   persistJobCraneAssessment(db, req.user, req.params.id, req.body);
+  persistJobRequirementPayload(db, req.user, req.params.id, req.body, 'catalogue');
   const updated = db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(req.params.id);
   if (req.body.status && req.body.status !== existing.status) {
     appendAuditEvent(db, {

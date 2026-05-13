@@ -335,6 +335,62 @@ CREATE TABLE IF NOT EXISTS transport_requirements (
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Audit Event  (APPEND-ONLY — enforced by triggers below)
 -- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS requirement_catalogue_items (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  category          TEXT NOT NULL
+                    CHECK (category IN ('credential', 'equipment', 'transport', 'civil', 'rail', 'energy', 'voc')),
+  group_label       TEXT NOT NULL,
+  code              TEXT NOT NULL,
+  label             TEXT NOT NULL,
+  normalized_key    TEXT NOT NULL UNIQUE,
+  description       TEXT,
+  is_active         INTEGER NOT NULL DEFAULT 1,
+  source            TEXT,
+  source_confidence TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS company_catalogue_selections (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id        TEXT NOT NULL REFERENCES companies(id),
+  catalogue_item_id INTEGER NOT NULL REFERENCES requirement_catalogue_items(id),
+  is_enabled        INTEGER NOT NULL DEFAULT 1,
+  display_order     INTEGER,
+  notes             TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(company_id, catalogue_item_id)
+);
+
+CREATE TABLE IF NOT EXISTS job_custom_requirements (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id         TEXT NOT NULL REFERENCES companies(id),
+  job_id             TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  category           TEXT NOT NULL,
+  label              TEXT NOT NULL,
+  normalized_key     TEXT NOT NULL,
+  notes              TEXT,
+  created_by_user_id TEXT REFERENCES users(id),
+  created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS job_requirement_items (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id            TEXT NOT NULL REFERENCES companies(id),
+  job_id                TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  catalogue_item_id     INTEGER REFERENCES requirement_catalogue_items(id),
+  custom_requirement_id INTEGER REFERENCES job_custom_requirements(id) ON DELETE CASCADE,
+  category              TEXT NOT NULL,
+  source                TEXT NOT NULL
+                        CHECK (source IN ('catalogue', 'custom', 'imported', 'parsed_from_brief')),
+  created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (
+    (catalogue_item_id IS NOT NULL AND custom_requirement_id IS NULL)
+    OR (catalogue_item_id IS NULL AND custom_requirement_id IS NOT NULL)
+  )
+);
+
 CREATE TABLE IF NOT EXISTS audit_events (
   id            TEXT PRIMARY KEY,
   company_id    TEXT NOT NULL REFERENCES companies(id),
@@ -361,6 +417,10 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'job_schedule_changed',
                   'job_status_changed',
                   'transport_requirement_created',
+                  'company_catalogue_updated',
+                  'job_requirements_updated',
+                  'job_custom_requirement_added',
+                  'job_requirement_imported_from_brief',
                   'preference_signal_created',
                   'preference_signal_updated',
                   'learned_preference_applied'
@@ -417,6 +477,20 @@ CREATE INDEX IF NOT EXISTS idx_transport_requirements_job
   ON transport_requirements(job_id, transport_type);
 CREATE INDEX IF NOT EXISTS idx_transport_requirements_crane_requirement
   ON transport_requirements(job_crane_requirement_id);
+CREATE INDEX IF NOT EXISTS idx_requirement_catalogue_category
+  ON requirement_catalogue_items(category, group_label);
+CREATE INDEX IF NOT EXISTS idx_company_catalogue_company
+  ON company_catalogue_selections(company_id, is_enabled);
+CREATE INDEX IF NOT EXISTS idx_job_requirement_items_job
+  ON job_requirement_items(company_id, job_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_job_requirement_items_catalogue_unique
+  ON job_requirement_items(company_id, job_id, catalogue_item_id)
+  WHERE catalogue_item_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_job_requirement_items_custom_unique
+  ON job_requirement_items(company_id, job_id, custom_requirement_id)
+  WHERE custom_requirement_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_job_custom_requirements_job
+  ON job_custom_requirements(company_id, job_id);
 CREATE INDEX IF NOT EXISTS idx_audit_company        ON audit_events(company_id);
 CREATE INDEX IF NOT EXISTS idx_audit_job            ON audit_events(job_id);
 CREATE INDEX IF NOT EXISTS idx_audit_worker         ON audit_events(worker_id);

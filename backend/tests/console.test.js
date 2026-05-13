@@ -46,6 +46,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /href="#\/schedule"/);
     assert.match(res.text, />Schedule</);
     assert.match(res.text, /href="#\/jobs"/);
+    assert.match(res.text, /href="#\/our-business"/);
+    assert.match(res.text, />Our Business</);
   });
 
   test('GET /console/styles.css returns CSS', async () => {
@@ -90,6 +92,9 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /\/jobs\/import-brief\/\$\{preview\.import_id\}\/create-job/);
     assert.match(res.text, /Crane, counterweight and transport/);
     assert.match(res.text, /Select travel state/);
+    assert.match(res.text, /Our Business/);
+    assert.match(res.text, /Job requirements/);
+    assert.match(res.text, /Add one-off requirement/);
     assert.match(res.text, /Review required/);
     assert.match(res.text, /Counterweight transport may be required/);
     assert.match(res.text, /NHVR \/ state notice or permit check may be required/);
@@ -143,6 +148,7 @@ describe('Pilot console — static asset serving', () => {
     // Each render function corresponds to one of the required screens
     for (const fn of [
       'renderDashboard',     // login screen is in DOMContentLoaded login-form handler
+      'renderOurBusiness',   // company requirement catalogue setup
       'renderWorkersList',   // workers list
       'renderWorkerImport',  // CSV / TSV import flow
       'renderJobBriefImport',// job brief import flow

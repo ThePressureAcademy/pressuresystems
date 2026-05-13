@@ -6,6 +6,7 @@ const {
 } = require('./timezone');
 const { buildPlanningMessages } = require('./crane-transport-planning');
 const { normalizeConfidence } = require('./crane-model-catalog');
+const { applyStructuredRequirementsToJob } = require('./job-requirement-catalogue');
 
 function safeJsonParse(value, fallback = []) {
   try {
@@ -150,7 +151,7 @@ function loadJobCranePlanning(db, jobId) {
 
 function serializeJob(row, displayTimeZone = null, db = null) {
   if (!row) return null;
-  return {
+  const serialized = {
     ...row,
     task_tags: safeJsonParse(row.task_tags, []),
     required_credentials: safeJsonParse(row.required_credentials, []),
@@ -166,6 +167,8 @@ function serializeJob(row, displayTimeZone = null, db = null) {
       schedule_status: row.schedule_status
     }, displayTimeZone)
   };
+
+  return db ? applyStructuredRequirementsToJob(db, row.company_id, serialized) : serialized;
 }
 
 function serializeAllocation(row, displayTimeZone = null) {
