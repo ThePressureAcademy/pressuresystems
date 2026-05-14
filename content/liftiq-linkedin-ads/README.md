@@ -1,12 +1,12 @@
-# LIFTIQ LinkedIn Ad Pack
+# DispatchTalon LinkedIn Ad Pack
 
 Internal production pack for LinkedIn ad testing.
 
 ## Verdict
 
-Four export-ready LIFTIQ ad concepts were produced for crane, rigging, labour allocation, plant + labour, and transport-supported lifting audiences.
+Four export-ready DispatchTalon ad concepts were produced for crane, rigging, labour allocation, plant + labour, and transport-supported lifting audiences.
 
-The ads use available LIFTIQ public screenshots/artifacts where possible. Authenticated portal screenshots for Job Brief Import, SmartRank, Our Business, and crane/counterweight review were not present in the repo/worktrees, so those areas use clearly labelled `Pilot workflow preview` panels. These panels are sanitised synthetic/demo representations based on current product capability, not claims of live customer data.
+The ads use available DispatchTalon public screenshots/artifacts where possible. Authenticated portal screenshots for Job Brief Import, SmartRank, Our Business, and crane/counterweight review were not present in the repo/worktrees, so those areas use clearly labelled `Pilot workflow preview` panels. These panels are sanitised synthetic/demo representations based on current product capability, not claims of live customer data.
 
 ## Folder Structure
 
@@ -24,9 +24,9 @@ The ads use available LIFTIQ public screenshots/artifacts where possible. Authen
 
 | Source file | Use |
 |---|---|
-| `source-screenshots/demo-01-public-liftiq-page.png` | Actual public LIFTIQ page screenshot from the demo content worktree. |
-| `source-screenshots/liftiq-home-og.png` | Current LIFTIQ home OG image from repo assets. |
-| `source-screenshots/liftiq-system-og.png` | Current LIFTIQ system OG image from repo assets. |
+| `source-screenshots/demo-01-public-liftiq-page.png` | Actual public DispatchTalon page screenshot from the demo content worktree. |
+| `source-screenshots/liftiq-home-og.png` | Current DispatchTalon home OG image from repo assets. |
+| `source-screenshots/liftiq-system-og.png` | Current DispatchTalon system OG image from repo assets. |
 | `working/ad-board.html` | Local render board for sanitised screenshot-style ad panels. |
 
 ## Ads Created

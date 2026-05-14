@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LIFTIQ LinkedIn Ad Board</title>
+  <title>DispatchTalon LinkedIn Ad Board</title>
   <style>
     :root {
       --graphite: #08111d;
@@ -579,7 +579,7 @@
         code: "AD 01 / JOB INTAKE",
         tag: "Job Brief Import / pilot workflow preview",
         hook: "Rough job notes should not become dispatch rework.",
-        subline: "LIFTIQ helps turn pasted job details into reviewed requirements before allocation.",
+        subline: "DispatchTalon helps turn pasted job details into reviewed requirements before allocation.",
         cta: "Watch the portal walkthrough",
         boundary: "Dispatcher reviews before the job enters allocation.",
         visual: "job"
@@ -589,7 +589,7 @@
         tag: "Explainable recommendations / pilot workflow preview",
         hook: "Why was this worker selected?",
         subline: "SmartRank shows credential, fatigue, schedule, and preference reasoning before allocation.",
-        cta: "See LIFTIQ in action",
+        cta: "See DispatchTalon in action",
         boundary: "The dispatcher remains the decision-maker.",
         visual: "rank"
       },
@@ -607,7 +607,7 @@
         tag: "Crane, counterweight, transport / pilot workflow preview",
         hook: "Counterweight assumptions need a review trail.",
         subline: "Surface crane model, travel state, counterweight gap, support transport, and road-access review flags.",
-        cta: "Book LIFTIQ discovery call",
+        cta: "Book DispatchTalon discovery call",
         boundary: "Review flags only. No permit, road-access, or lift-engineering approval.",
         visual: "crane"
       }
@@ -628,7 +628,10 @@
             <h3 class="panel-title">Review before creating job</h3>
             <div class="chips"><span class="chip">Requirements selected</span><span class="chip">Timezone set</span><span class="chip warn">One-off review note</span></div>
           </div>
-          <div class="page-crop"><img src="../source-screenshots/demo-01-public-liftiq-page.png" alt=""></div>
+          <div class="panel">
+            <h3 class="panel-title">DispatchTalon transition</h3>
+            <p class="note">Same pilot workflow category, updated working product name, no legal-clearance claim.</p>
+          </div>
         `;
       }
       if (type === "rank") {
@@ -660,7 +663,10 @@
             <h3 class="panel-title">Filtered job intake</h3>
             <div class="chips"><span class="chip">Company catalogue</span><span class="chip">One-off requirements</span><span class="chip">Relevant options only</span></div>
           </div>
-          <div class="page-crop"><img src="../source-screenshots/liftiq-home-og.png" alt=""></div>
+          <div class="panel">
+            <h3 class="panel-title">Company-specific setup</h3>
+            <p class="note">The portal stays focused on labour-only or plant + labour operation.</p>
+          </div>
         `;
       }
       return `
@@ -687,7 +693,7 @@
       const format = params.get("format") || "square";
       document.getElementById("app").innerHTML = `
         <main class="canvas ${format}">
-          <div class="brand"><span class="brand-mark">L</span><span>LIFTIQ</span></div>
+          <div class="brand"><span class="brand-mark">DT</span><span>DispatchTalon</span></div>
           <div class="meta">Dispatch intelligence / pilot-stage</div>
           <div class="layout">
             <section class="copy">

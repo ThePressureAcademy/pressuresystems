@@ -1,6 +1,6 @@
-# LIFTIQ Pilot Backend + Console
+# DispatchTalon Pilot Backend + Console
 
-Express + SQLite backend that powers the LIFTIQ Phase 1 pilot, plus the
+Express + SQLite backend that powers the DispatchTalon Phase 1 pilot, plus the
 dispatcher-facing console SPA at `/console/`.
 
 ## Local development

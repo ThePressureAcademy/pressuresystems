@@ -1,4 +1,4 @@
-# LIFTIQ Objection Handling Bank
+# DispatchTalon Objection Handling Bank
 
 Use tactical empathy first. Then ask a question. Then state the boundary. Then show proof.
 
@@ -6,7 +6,7 @@ Use tactical empathy first. Then ask a question. Then state the boundary. Then s
 
 - Empathy: That makes sense. I would not want to show you plant clutter.
 - Question: Where do tickets, VOCs, fatigue, availability, and allocation reasoning live now?
-- Boundary: LIFTIQ has labour-only mode. Plant features can stay hidden.
+- Boundary: DispatchTalon has labour-only mode. Plant features can stay hidden.
 - Proof: Labour-only mode, worker import, SmartRank.
 - Next step: Labour Allocation Pilot or light test.
 
@@ -14,7 +14,7 @@ Use tactical empathy first. Then ask a question. Then state the boundary. Then s
 
 - Empathy: Good. Then the plant register may not matter for you.
 - Question: Do you still need to track site requirements, operator preferences, or one-off job notes?
-- Boundary: LIFTIQ does not need to become a plant system for labour-only teams.
+- Boundary: DispatchTalon does not need to become a plant system for labour-only teams.
 - Proof: Labour-only mode.
 - Next step: Keep the demo people-focused.
 
@@ -22,7 +22,7 @@ Use tactical empathy first. Then ask a question. Then state the boundary. Then s
 
 - Empathy: I believe that.
 - Question: Where is that knowledge recorded when someone else has to make the call?
-- Boundary: LIFTIQ captures preference signals but the dispatcher still decides.
+- Boundary: DispatchTalon captures preference signals but the dispatcher still decides.
 - Proof: Worker detail, task preferences, SmartRank reasoning.
 - Next step: Show the preference trail.
 
@@ -30,7 +30,7 @@ Use tactical empathy first. Then ask a question. Then state the boundary. Then s
 
 - Empathy: That is exactly why class and actual asset should be separate.
 - Question: Do you assign the class first and the plant number later, or both at once?
-- Boundary: LIFTIQ is not full fleet management, but it can reference plant numbers.
+- Boundary: DispatchTalon is not full fleet management, but it can reference plant numbers.
 - Proof: Asset Register.
 - Next step: Plant + labour pilot fit.
 
@@ -54,13 +54,13 @@ Use tactical empathy first. Then ask a question. Then state the boundary. Then s
 
 - Empathy: That may be fine. I am not assuming replacement.
 - Question: Does your current system explain the allocation decision before it is made?
-- Boundary: LIFTIQ can sit as a decision-support layer.
+- Boundary: DispatchTalon can sit as a decision-support layer.
 - Proof: SmartRank and audit.
 - Next step: Compare one job scenario.
 
 ## Can it do payroll?
 
-- Empathy: No. If payroll is the buying reason, LIFTIQ is not the product.
+- Empathy: No. If payroll is the buying reason, DispatchTalon is not the product.
 - Question: Is payroll the problem, or is pre-dispatch allocation clarity the problem?
 - Boundary: No payroll, timesheets, invoicing, or ERP claim.
 - Proof: Guardrails panel.

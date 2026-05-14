@@ -1,8 +1,8 @@
-# LIFTIQ Demo Talk Track
+# DispatchTalon Demo Talk Track
 
 ## Opening
 
-LIFTIQ is not trying to replace dispatch judgement. It structures the decision before dispatch: job notes, workers, credentials, fatigue, schedule pressure, plant context where needed, review flags, and the audit trail.
+DispatchTalon is not trying to replace dispatch judgement. It structures the decision before dispatch: job notes, workers, credentials, fatigue, schedule pressure, plant context where needed, review flags, and the audit trail.
 
 The question is not whether the portal has every future feature. The question is whether it gives dispatch a clearer decision path than memory, spreadsheets, and rushed phone calls.
 
@@ -64,13 +64,13 @@ Flow:
 
 Talk track:
 
-> This is where LIFTIQ separates equipment class from actual plant. A job may require a 20T mobile crane, while the company has MC20-001, MC20-002, MC20-003, and MC20-004. LIFTIQ can carry that context without pretending to be full fleet management.
+> This is where DispatchTalon separates equipment class from actual plant. A job may require a 20T mobile crane, while the company has MC20-001, MC20-002, MC20-003, and MC20-004. DispatchTalon can carry that context without pretending to be full fleet management.
 
 ## Crane / Counterweight / Transport Boundary
 
 Say:
 
-> LIFTIQ can surface crane model, travel state, counterweight gap, support transport, and road-access review flags. It does not approve permits, confirm legal road access, or engineer the lift.
+> DispatchTalon can surface crane model, travel state, counterweight gap, support transport, and road-access review flags. It does not approve permits, confirm legal road access, or engineer the lift.
 
 ## Closing
 

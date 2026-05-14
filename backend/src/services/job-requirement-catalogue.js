@@ -601,7 +601,7 @@ function mapParsedTermsToCatalogue(db, companyId, text) {
     ? ['Some parsed requirements are not enabled in your company setup. Confirm before creating job.']
     : [];
   if (labourOnlyPlantMentioned) {
-    warnings.push('This job brief mentions equipment or transport, but this company is configured as labour-only. Confirm whether LIFTIQ should track this for the job.');
+    warnings.push('This job brief mentions equipment or transport, but this company is configured as labour-only. Confirm whether DispatchTalon should track this for the job.');
   }
 
   return {

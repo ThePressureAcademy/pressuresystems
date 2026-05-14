@@ -6,7 +6,7 @@ It is intentionally narrow in scope:
 
 - Pressure Systems parent-site homepage
 - Pressure Systems audit entry path
-- LiftIQ product route set under `/liftiq/`
+- DispatchTalon product route set under `/liftiq/`
 - privacy, metadata, assets, and static deployment configuration
 
 It is not the wider business workspace. Strategy notes, prospect research, operations documents, and archived material stay outside this repo on purpose.
@@ -21,10 +21,10 @@ The homepage qualifies the right businesses into a Pressure Systems Audit:
 - structural website cleanup
 - governed next-step scoping
 
-LiftIQ sits inside this same site as the first product track:
+DispatchTalon sits inside this same site as the first product track:
 
 - parent brand: Pressure Systems
-- flagship product path: LiftIQ
+- flagship product path: DispatchTalon
 - product stage: governed concept demo and early design-partner conversations
 
 This repo exists to keep that public surface:
@@ -41,9 +41,9 @@ As of the current `main` branch:
 - this is a static site repo with no framework build step
 - GitHub is connected to a Vercel project named `pressuresystems`
 - `main` is the production deployment branch
-- the site includes the Pressure Systems homepage plus LiftIQ child routes
+- the site includes the Pressure Systems homepage plus DispatchTalon child routes
 - the main Pressure Systems audit form submits to the live Formspree endpoint defined in `site-config.js`
-- LiftIQ routes use their own existing contact paths and truthful product-stage language
+- DispatchTalon routes use their own existing contact paths and truthful product-stage language
 
 Important deployment note:
 
@@ -57,9 +57,9 @@ This repo should preserve the following hierarchy:
 
 - Pressure Systems is the parent identity and commercial front door
 - the Pressure Systems Audit is the lead offer on the homepage
-- LiftIQ is the first serious product track under Pressure Systems
-- LiftIQ should be presented as real, promising, and bounded
-- LiftIQ should not be presented as mature enterprise software if that is not yet true
+- DispatchTalon is the first serious product track under Pressure Systems
+- DispatchTalon should be presented as real, promising, and bounded
+- DispatchTalon should not be presented as mature enterprise software if that is not yet true
 
 In practice, that means:
 
@@ -67,7 +67,7 @@ In practice, that means:
 - no fake case studies
 - no invented integrations
 - no production-software theatre
-- no parent-brand confusion between Pressure Systems and LiftIQ
+- no parent-brand confusion between Pressure Systems and DispatchTalon
 
 ## Route map
 
@@ -190,9 +190,9 @@ If the endpoint changes later:
 2. redeploy
 3. verify both success and failure states in browser
 
-### LiftIQ routes
+### DispatchTalon routes
 
-LiftIQ pages already carry their own contact paths and should be treated as product-specific surfaces under the Pressure Systems parent brand.
+DispatchTalon pages already carry their own contact paths and should be treated as product-specific surfaces under the Pressure Systems parent brand.
 
 ## Deployment workflow
 
@@ -252,7 +252,7 @@ This site should not feel:
 - agency fluff
 - over-claimed product marketing
 
-For LiftIQ specifically:
+For DispatchTalon specifically:
 
 - keep the product boundary honest
 - preserve the read-first, governed-demo framing if that remains true
@@ -289,7 +289,7 @@ Useful adjacent references in the parent workspace include:
 - `website/deployment-readiness.md`
 - `website/funnel-architecture.md`
 - `operations/PRESSURE_SYSTEMS_DEPLOYMENT_LOG_v1.md`
-- `operations/LIFTIQ_PRESSURE_SYSTEMS_MIGRATION_LOG_v1.md`
+- `operations/DispatchTalon_PRESSURE_SYSTEMS_MIGRATION_LOG_v1.md`
 
 Treat those as supporting context, not as a substitute for keeping this repo truthful on its own.
 
@@ -299,7 +299,7 @@ This repo is strong when it stays honest about what it is:
 
 - a serious static public site
 - a parent brand surface for Pressure Systems
-- a controlled product surface for LiftIQ
+- a controlled product surface for DispatchTalon
 - a clean GitHub-to-Vercel deployment chain
 
 It is weak when it drifts into:

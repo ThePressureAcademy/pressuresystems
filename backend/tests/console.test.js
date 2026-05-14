@@ -34,7 +34,7 @@ describe('Pilot console — static asset serving', () => {
     const res = await supertest(app).get('/console/');
     assert.equal(res.status, 200);
     assert.match(res.headers['content-type'], /html/);
-    assert.match(res.text, /LIFTIQ Pilot Console/);
+    assert.match(res.text, /DispatchTalon Pilot Console/);
     assert.match(res.text, /id="login-screen"/);
     assert.match(res.text, /id="password-change-screen"/);
     assert.match(res.text, /id="app-shell"/);
@@ -89,7 +89,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Review extracted job details/);
     assert.match(res.text, /Create job from brief/);
     assert.match(res.text, /Cancel import/);
-    assert.match(res.text, /LIFTIQ does not verify job details automatically/i);
+    assert.match(res.text, /DispatchTalon does not verify job details automatically/i);
     assert.match(res.text, /\/jobs\/import-brief\/\$\{preview\.import_id\}\/create-job/);
     assert.match(res.text, /Crane, counterweight and transport/);
     assert.match(res.text, /Select travel state/);
@@ -152,7 +152,7 @@ describe('Pilot console — static asset serving', () => {
     const res = await supertest(app).get('/console/jobs/some-id/smartrank');
     assert.equal(res.status, 200);
     assert.match(res.headers['content-type'], /html/);
-    assert.match(res.text, /LIFTIQ Pilot Console/);
+    assert.match(res.text, /DispatchTalon Pilot Console/);
   });
 
   test('Console references all ten required screens', () => {

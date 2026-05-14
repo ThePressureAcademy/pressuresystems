@@ -62,7 +62,7 @@ function pilotCompanies(now = new Date()) {
       timezone: 'Australia/Brisbane',
       pilot_starts_at: startsAt,
       pilot_expires_at: null,
-      notes: 'Pilot tenant provisioned for separate LIFTIQ access.'
+      notes: 'Pilot tenant provisioned for separate DispatchTalon access.'
     },
     {
       name: 'Smithbridge Group / Universal Cranes',
@@ -73,7 +73,7 @@ function pilotCompanies(now = new Date()) {
       timezone: 'Australia/Brisbane',
       pilot_starts_at: startsAt,
       pilot_expires_at: null,
-      notes: 'Pilot tenant provisioned for separate LIFTIQ access.'
+      notes: 'Pilot tenant provisioned for separate DispatchTalon access.'
     },
     {
       name: 'Getsome Hire',

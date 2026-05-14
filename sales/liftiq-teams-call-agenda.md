@@ -1,4 +1,4 @@
-# LIFTIQ Teams Call Agenda
+# DispatchTalon Teams Call Agenda
 
 ## 30-Minute Discovery Call
 
@@ -36,7 +36,7 @@
 
 ## First Words
 
-> Appreciate the time. I will keep this practical. I am not here to pitch some magic AI dispatch system. LIFTIQ is being built because dispatch in labour and lifting has too many moving parts sitting in people's heads: job notes, crew, credentials, fatigue, schedule conflicts, plant references, counterweight, transport, and the decision trail. I want to understand how you handle that now, then show you where LIFTIQ may or may not fit.
+> Appreciate the time. I will keep this practical. I am not here to pitch some magic AI dispatch system. DispatchTalon is being built because dispatch in labour and lifting has too many moving parts sitting in people's heads: job notes, crew, credentials, fatigue, schedule conflicts, plant references, counterweight, transport, and the decision trail. I want to understand how you handle that now, then show you where DispatchTalon may or may not fit.
 
 ## Last Words
 

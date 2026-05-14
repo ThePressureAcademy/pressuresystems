@@ -1,4 +1,4 @@
-# LIFTIQ LinkedIn Ad Variant Matrix
+# DispatchTalon LinkedIn Ad Variant Matrix
 
 ## Creative Strategy
 
@@ -22,7 +22,7 @@ The creative system is intentionally simple:
 
 | Ad | Image choice | Rationale |
 |---|---|---|
-| Ad 1 | Public LIFTIQ screenshot plus Job Brief Import preview panel | No authenticated Job Brief Import screenshot was available. The panel is labelled as a pilot workflow preview and uses sanitised synthetic job details. |
+| Ad 1 | Public DispatchTalon screenshot plus Job Brief Import preview panel | No authenticated Job Brief Import screenshot was available. The panel is labelled as a pilot workflow preview and uses sanitised synthetic job details. |
 | Ad 2 | SmartRank preview panel | SmartRank needs a close, readable proof visual. Existing authenticated screenshot was unavailable, so the panel shows sanitised synthetic ranking logic. |
 | Ad 3 | Public OG artifact plus Our Business preview panel | Operating mode is a current product truth and is best shown as two explicit mode cards. |
 | Ad 4 | Crane/transport review preview panel | The message is specific enough that a generic public screenshot would be too weak. The panel is labelled as a pilot workflow preview. |
@@ -32,9 +32,9 @@ The creative system is intentionally simple:
 | Ad | Hook A | Hook B | Intro A | Intro B | CTA |
 |---|---|---|---|---|---|
 | Job Intake | Rough job notes should not become dispatch rework. | Turn rough job details into a structured dispatch review. | Rough job notes can become reviewed job requirements before allocation. | Before dispatch, rough job details need structure. | Watch the portal walkthrough / Request pilot access |
-| SmartRank | Why was this worker selected? | Allocation decisions need reasoning, not guesswork. | SmartRank gives visible reasoning before the allocation goes out. | Show the reason before the allocation leaves dispatch. | See LIFTIQ in action / Book a discovery call |
-| Operating Modes | Your dispatch screen should match your operation. | Labour-only or plant + labour. Same intelligence layer. | Labour-only or plant + labour. LIFTIQ keeps the workflow focused. | Allocate people only? Keep the portal focused. | Request pilot access / Learn more |
-| Crane Transport Review | Counterweight assumptions need a review trail. | Crane transport planning needs a review trail. | Flag crane, counterweight, transport, and road-access review before dispatch. | Crane setup and transport notes need visible review. | Book LIFTIQ discovery call / See workflow |
+| SmartRank | Why was this worker selected? | Allocation decisions need reasoning, not guesswork. | SmartRank gives visible reasoning before the allocation goes out. | Show the reason before the allocation leaves dispatch. | See DispatchTalon in action / Book a discovery call |
+| Operating Modes | Your dispatch screen should match your operation. | Labour-only or plant + labour. Same intelligence layer. | Labour-only or plant + labour. DispatchTalon keeps the workflow focused. | Allocate people only? Keep the portal focused. | Request pilot access / Learn more |
+| Crane Transport Review | Counterweight assumptions need a review trail. | Crane transport planning needs a review trail. | Flag crane, counterweight, transport, and road-access review before dispatch. | Crane setup and transport notes need visible review. | Book DispatchTalon discovery call / See workflow |
 
 ## Targeting Notes
 

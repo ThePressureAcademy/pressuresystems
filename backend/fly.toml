@@ -1,4 +1,4 @@
-# Fly.io config for the LIFTIQ pilot console.
+# Fly.io config for the DispatchTalon pilot console.
 #
 # Before first deploy, run `fly launch --no-deploy` and let it choose an app
 # name + region — it will overwrite the `app` and `primary_region` lines below.

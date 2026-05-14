@@ -943,7 +943,7 @@ router.post('/import-brief/preview', requireAuth, requireRole('admin', 'dispatch
   if (isLabourOnly && (assetMapping.matched_assets.length > 0 || assetMapping.unknown_asset_numbers.length > 0)) {
     parsed.warnings = Array.from(new Set([
       ...(parsed.warnings || []),
-      'This job brief mentions equipment or transport, but this company is configured as labour-only. Confirm whether LIFTIQ should track this for the job.'
+      'This job brief mentions equipment or transport, but this company is configured as labour-only. Confirm whether DispatchTalon should track this for the job.'
     ]));
   }
   const importId = randomUUID();

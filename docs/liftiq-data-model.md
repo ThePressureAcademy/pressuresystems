@@ -1,4 +1,4 @@
-# LIFTIQ Phase 1 — Data Model
+# DispatchTalon Phase 1 — Data Model
 **Status:** Phase 1 schema definition | May 2026  
 **Scope:** Entities, fields, relationships, and decision logic fields required for the pilot operational engine  
 **Format:** Conceptual schema — technology-agnostic. Backend implementation determines specific types and constraints.
@@ -22,7 +22,7 @@ Company
 
 ## 1. Company
 
-The crane company using LIFTIQ. One company = one isolated data environment.
+The crane company using DispatchTalon. One company = one isolated data environment.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -41,7 +41,7 @@ The crane company using LIFTIQ. One company = one isolated data environment.
 
 ## 2. User
 
-A person who logs into LIFTIQ on behalf of a Company.
+A person who logs into DispatchTalon on behalf of a Company.
 
 | Field | Type | Notes |
 |-------|------|-------|
