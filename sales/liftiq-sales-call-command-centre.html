@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LIFTIQ Sales Call Command Centre | Internal</title>
+  <style>
+    :root {
+      --ink-980: #050b12;
+      --ink-950: #08111d;
+      --ink-900: #0d1726;
+      --ink-850: #122033;
+      --steel-700: #26394f;
+      --steel-500: #5f7894;
+      --steel-300: #9db0c4;
+      --text: #eaf4ff;
+      --text-soft: #bed0e2;
+      --muted: #879eb8;
+      --line: rgba(157, 176, 196, 0.18);
+      --line-strong: rgba(157, 176, 196, 0.34);
+      --cyan: #35d0ff;
+      --teal: #2dd4bf;
+      --oxide: #b86b42;
+      --amber: #f2b94b;
+      --red: #f08b7a;
+      --green: #83e7c4;
+      --panel: rgba(18, 32, 51, 0.86);
+      --panel-strong: rgba(19, 33, 52, 0.96);
+      --radius-xl: 28px;
+      --radius: 18px;
+      --radius-sm: 12px;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+      --mono: "IBM Plex Mono", "Consolas", "Cascadia Mono", monospace;
+      --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      --display: "Space Grotesk", "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(53, 208, 255, 0.16), transparent 30%),
+        radial-gradient(circle at 88% 0%, rgba(184, 107, 66, 0.18), transparent 28%),
+        linear-gradient(180deg, #07111d 0%, #0b1420 45%, #060b12 100%);
+      line-height: 1.55;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+    ::selection { background: rgba(53, 208, 255, 0.28); }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .rail {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      overflow: auto;
+      padding: 22px;
+      border-right: 1px solid var(--line);
+      background: rgba(5, 11, 18, 0.72);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      border: 1px solid rgba(53, 208, 255, 0.28);
+      background:
+        linear-gradient(180deg, rgba(53, 208, 255, 0.12), rgba(45, 212, 191, 0.06)),
+        #08111d;
+      display: grid;
+      place-items: center;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    .mark svg {
+      width: 30px;
+      height: 30px;
+      stroke: var(--cyan);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .brand strong {
+      display: block;
+      font-family: var(--display);
+      font-size: 1.08rem;
+      letter-spacing: -0.04em;
+    }
+
+    .brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .rail-note {
+      padding: 14px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(242, 185, 75, 0.22);
+      background: rgba(242, 185, 75, 0.06);
+      color: var(--text-soft);
+      font-size: 0.82rem;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+      margin: 18px 0;
+    }
+
+    .nav a {
+      text-decoration: none;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: var(--text-soft);
+      font-size: 0.85rem;
+      border: 1px solid transparent;
+    }
+
+    .nav a:hover,
+    .nav a:focus {
+      color: var(--text);
+      background: rgba(234, 244, 255, 0.05);
+      border-color: var(--line);
+      outline: none;
+    }
+
+    .rail-actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .main {
+      padding: 26px clamp(18px, 3vw, 42px) 48px;
+      max-width: 1460px;
+      width: 100%;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      padding: 0 11px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(234, 244, 255, 0.04);
+      color: var(--text-soft);
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    .pill::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--cyan);
+    }
+
+    .pill.green::before { background: var(--green); }
+    .pill.amber::before { background: var(--amber); }
+    .pill.oxide::before { background: var(--oxide); }
+
+    .timer {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(5, 11, 18, 0.45);
+    }
+
+    .timer output {
+      min-width: 72px;
+      text-align: center;
+      font-family: var(--mono);
+      color: var(--cyan);
+    }
+
+    h1, h2, h3, h4 {
+      font-family: var(--display);
+      letter-spacing: -0.04em;
+      line-height: 1.04;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 980px;
+      font-size: clamp(2.25rem, 5vw, 5.5rem);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(1.55rem, 2.6vw, 2.7rem);
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1.18rem;
+    }
+
+    p { margin: 0; color: var(--text-soft); }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: clamp(24px, 4vw, 44px);
+      background:
+        linear-gradient(135deg, rgba(53, 208, 255, 0.12), transparent 38%),
+        linear-gradient(315deg, rgba(184, 107, 66, 0.16), transparent 34%),
+        rgba(18, 32, 51, 0.84);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .hero-copy {
+      display: grid;
+      align-content: center;
+      gap: 20px;
+    }
+
+    .hero-copy .lead {
+      max-width: 72ch;
+      font-size: 1.05rem;
+      line-height: 1.76;
+    }
+
+    .position-card {
+      padding: 22px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(5, 11, 18, 0.36);
+      display: grid;
+      gap: 14px;
+    }
+
+    .section {
+      margin-top: 26px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: rgba(8, 17, 29, 0.58);
+      box-shadow: 0 16px 60px rgba(0, 0, 0, 0.24);
+      overflow: hidden;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: start;
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .section-head p {
+      max-width: 70ch;
+      font-size: 0.92rem;
+    }
+
+    .section-body {
+      padding: 24px;
+    }
+
+    .eyebrow {
+      color: var(--amber);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(234, 244, 255, 0.04);
+      display: grid;
+      gap: 10px;
+    }
+
+    .card.strong {
+      background: rgba(53, 208, 255, 0.07);
+      border-color: rgba(53, 208, 255, 0.24);
+    }
+
+    .card.warning {
+      background: rgba(242, 185, 75, 0.06);
+      border-color: rgba(242, 185, 75, 0.22);
+    }
+
+    .card.danger {
+      background: rgba(240, 139, 122, 0.06);
+      border-color: rgba(240, 139, 122, 0.24);
+    }
+
+    .small { font-size: 0.84rem; color: var(--muted); }
+    .tight { display: grid; gap: 8px; }
+
+    .button,
+    .ghost,
+    .mini {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      min-height: 42px;
+      padding: 0 16px;
+      color: #08111d;
+      background: linear-gradient(135deg, var(--cyan), var(--teal));
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      gap: 8px;
+    }
+
+    .ghost {
+      color: var(--text);
+      background: rgba(234, 244, 255, 0.04);
+      border-color: var(--line);
+    }
+
+    .mini {
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 0.76rem;
+    }
+
+    .button:hover,
+    .ghost:hover,
+    .mini:hover {
+      transform: translateY(-1px);
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    label,
+    .label {
+      color: var(--text-soft);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(5, 11, 18, 0.58);
+      color: var(--text);
+      padding: 12px 13px;
+      outline: none;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(53, 208, 255, 0.62);
+      box-shadow: 0 0 0 3px rgba(53, 208, 255, 0.12);
+    }
+
+    option { color: #08111d; }
+
+    .mode-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .mode-output {
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(53, 208, 255, 0.24);
+      background: rgba(53, 208, 255, 0.07);
+    }
+
+    .question-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .question {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(234, 244, 255, 0.04);
+      color: var(--text-soft);
+      padding: 12px 13px;
+    }
+
+    .question:hover,
+    .question.is-selected {
+      color: var(--text);
+      border-color: rgba(53, 208, 255, 0.34);
+      background: rgba(53, 208, 255, 0.08);
+    }
+
+    .path {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .path span {
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(234, 244, 255, 0.04);
+      color: var(--text-soft);
+      font-size: 0.8rem;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 780px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      vertical-align: top;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      color: var(--amber);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(5, 11, 18, 0.34);
+    }
+
+    td {
+      color: var(--text-soft);
+      font-size: 0.9rem;
+    }
+
+    .score-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) 180px 48px;
+      gap: 14px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    input[type="range"] {
+      padding: 0;
+      accent-color: var(--cyan);
+    }
+
+    .score-output {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .metric {
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(5, 11, 18, 0.36);
+    }
+
+    .metric strong {
+      display: block;
+      color: var(--cyan);
+      font-family: var(--display);
+      font-size: 1.8rem;
+      letter-spacing: -0.05em;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(234, 244, 255, 0.04);
+      color: var(--text-soft);
+      padding: 9px 12px;
+      font-weight: 700;
+      font-size: 0.84rem;
+    }
+
+    .tab.is-active {
+      color: #08111d;
+      background: linear-gradient(135deg, var(--cyan), var(--teal));
+      border-color: transparent;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.is-active { display: block; }
+
+    .objection-card {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(234, 244, 255, 0.04);
+    }
+
+    .objection-card h3 { color: var(--text); }
+
+    .copy-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 10;
+      display: none;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(45, 212, 191, 0.28);
+      background: rgba(8, 17, 29, 0.94);
+      color: var(--green);
+      box-shadow: var(--shadow);
+    }
+
+    .toast.is-visible { display: block; }
+
+    .guardrail-list {
+      columns: 2;
+      margin: 0;
+      padding-left: 18px;
+      color: var(--text-soft);
+    }
+
+    .guardrail-list li { break-inside: avoid; margin-bottom: 7px; }
+
+    .print-only { display: none; }
+
+    @media (max-width: 1120px) {
+      .shell { grid-template-columns: 1fr; }
+      .rail {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .hero-grid,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .score-output { grid-template-columns: 1fr; }
+      .topbar { align-items: stretch; flex-direction: column; }
+    }
+
+    @media (max-width: 720px) {
+      .main { padding-inline: 14px; }
+      .hero,
+      .section-head,
+      .section-body { padding: 18px; }
+      .nav { grid-template-columns: 1fr; }
+      .score-row { grid-template-columns: 1fr; }
+      .guardrail-list { columns: 1; }
+    }
+
+    @media print {
+      body { background: #fff; color: #111; }
+      .rail,
+      .topbar,
+      .button,
+      .ghost,
+      .mini,
+      .tabs,
+      .toast { display: none !important; }
+      .shell { display: block; }
+      .main { max-width: none; padding: 0; }
+      .hero,
+      .section,
+      .card,
+      .metric,
+      .mode-output {
+        box-shadow: none;
+        background: #fff;
+        color: #111;
+        border-color: #bbb;
+      }
+      p, td, .small, .label { color: #333; }
+      .tab-panel { display: block !important; }
+      .print-only { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path d="M10 5h12"/><path d="M16 5v7"/><path d="M9 12h14l2 5v6a4 4 0 0 1-4 4H11a4 4 0 0 1-4-4v-6l2-5Z"/><path d="M12 18h8"/><path d="M12 23h2"/><path d="M19 23h1"/></svg>
+        </div>
+        <div>
+          <strong>LIFTIQ Command Centre</strong>
+          <span>Internal sales-call operating system</span>
+        </div>
+      </div>
+      <div class="rail-note">
+        Core line: LIFTIQ does not replace dispatch judgement. It structures the decision before dispatch, shows the reasoning, and keeps the audit trail.
+      </div>
+      <nav class="nav" aria-label="Command centre sections">
+        <a href="#dashboard">Dashboard <span>01</span></a>
+        <a href="#profile">Profile <span>02</span></a>
+        <a href="#discovery">Discovery <span>03</span></a>
+        <a href="#paths">Sales paths <span>04</span></a>
+        <a href="#demo">Demo path <span>05</span></a>
+        <a href="#proof">Proof assets <span>06</span></a>
+        <a href="#pricing">Offer ladder <span>07</span></a>
+        <a href="#objections">Objections <span>08</span></a>
+        <a href="#scorecard">Scorecard <span>09</span></a>
+        <a href="#support-scope">Support scope <span>10</span></a>
+        <a href="#followup">Follow-up <span>11</span></a>
+        <a href="#guardrails">Guardrails <span>12</span></a>
+        <a href="#notes">Export <span>13</span></a>
+      </nav>
+      <div class="rail-actions">
+        <button class="ghost" type="button" data-print>Print call pack</button>
+        <button class="ghost" type="button" data-copy-summary>Copy call summary</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="status-strip">
+          <span class="pill green">Internal only</span>
+          <span class="pill amber">Pricing not public</span>
+          <span class="pill oxide">Pilot-stage claims only</span>
+        </div>
+        <div class="timer">
+          <button class="mini ghost" type="button" data-timer-start>Start</button>
+          <button class="mini ghost" type="button" data-timer-reset>Reset</button>
+          <output id="timerOutput">00:00</output>
+        </div>
+      </div>
+
+      <section class="hero" id="dashboard">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <span class="eyebrow">Dispatch intelligence for labour and lifting operations</span>
+            <h1>Run a sharper LIFTIQ sales call without overclaiming the product.</h1>
+            <p class="lead">This command centre guides discovery, demo choice, qualification, pricing path, objection handling, notes, and follow-up for labour-only and plant + labour prospects.</p>
+            <div class="status-strip">
+              <span class="pill green">Decision support</span>
+              <span class="pill">Explainable SmartRank</span>
+              <span class="pill amber">Managed pilot</span>
+            </div>
+          </div>
+          <div class="position-card">
+            <span class="eyebrow">Call mode selector</span>
+            <div class="field">
+              <label for="callMode">Select call type</label>
+              <select id="callMode"></select>
+            </div>
+            <div class="mode-output" id="modeOutput"></div>
+            <button class="ghost" type="button" data-copy-mode>Copy mode notes</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="profile">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Prospect profile</span>
+            <h2>Capture the operating context before showing screens.</h2>
+          </div>
+          <p>Use this to keep the call operator-led. Do not pitch plant features to a labour-only team. Do not offer a heavy implementation to a light-test prospect.</p>
+        </div>
+        <div class="section-body grid-3">
+          <div class="field"><label for="companyName">Company</label><input id="companyName" placeholder="Company name"></div>
+          <div class="field"><label for="contactName">Contact</label><input id="contactName" placeholder="Name and role"></div>
+          <div class="field"><label for="currentSystem">Current system</label><input id="currentSystem" placeholder="Board, spreadsheet, ERP, dispatch software"></div>
+          <div class="field"><label for="operationType">Operation type</label><select id="operationType"><option>Unknown</option><option>Labour-only</option><option>Plant + labour</option><option>Testing fit</option></select></div>
+          <div class="field"><label for="likelyPain">Likely pain</label><input id="likelyPain" placeholder="Rough intake, fatigue, schedule, plant tracking"></div>
+          <div class="field"><label for="nextStep">Desired next step</label><select id="nextStep"><option>Send context</option><option>Book demo</option><option>Test portal</option><option>90-day pilot</option><option>Decision call</option></select></div>
+        </div>
+      </section>
+
+      <section class="section" id="discovery">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Discovery flow</span>
+            <h2>Ask before demonstrating.</h2>
+          </div>
+          <p>Click useful questions during the call. Selected questions are added to the export summary so follow-up stays grounded in what was actually discussed.</p>
+        </div>
+        <div class="section-body">
+          <div class="tabs" role="tablist" aria-label="Discovery groups">
+            <button class="tab is-active" type="button" data-tab="disc-labour">Labour-only</button>
+            <button class="tab" type="button" data-tab="disc-plant">Plant + labour</button>
+            <button class="tab" type="button" data-tab="disc-commercial">Commercial</button>
+            <button class="tab" type="button" data-tab="disc-close">Decision process</button>
+          </div>
+          <div class="tab-panel is-active" id="disc-labour"></div>
+          <div class="tab-panel" id="disc-plant"></div>
+          <div class="tab-panel" id="disc-commercial"></div>
+          <div class="tab-panel" id="disc-close"></div>
+        </div>
+      </section>
+
+      <section class="section" id="paths">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Mode-specific sales paths</span>
+            <h2>Separate labour-only from plant + labour early.</h2>
+          </div>
+          <p>The fastest trust loss is showing irrelevant complexity. Start from the prospect's operating model.</p>
+        </div>
+        <div class="section-body grid-2">
+          <article class="card strong">
+            <h3>Labour-only allocation path</h3>
+            <p>For rigging labour suppliers, dogman/rigger crews, operators supplied as labour, shutdown crews, civil labour allocators, and workforce coordinators without owned plant.</p>
+            <div class="path"><span>Workers</span><span>Credentials / VOCs</span><span>Availability</span><span>Fatigue</span><span>Schedule</span><span>SmartRank</span><span>Audit</span></div>
+          </article>
+          <article class="card warning">
+            <h3>Plant + labour path</h3>
+            <p>For crane companies, plant hire with operators, transport-supported lifting businesses, and teams managing cranes, low loaders, trailers, plant numbers, and people.</p>
+            <div class="path"><span>Our Business</span><span>Asset register</span><span>Plant numbers</span><span>Crane setup</span><span>Transport review</span><span>SmartRank</span><span>Audit</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="demo">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Demo path</span>
+            <h2>Pick the shortest proof path that matches the buyer.</h2>
+          </div>
+          <p>Live portal if clean demo data is ready. Screenshots or the walkthrough recording if the portal is not ready or the call is short.</p>
+        </div>
+        <div class="section-body">
+          <div class="tabs">
+            <button class="tab is-active" type="button" data-tab="demo-labour">Labour-only demo</button>
+            <button class="tab" type="button" data-tab="demo-plant">Plant + labour demo</button>
+            <button class="tab" type="button" data-tab="demo-short">Short demo</button>
+            <button class="tab" type="button" data-tab="demo-fallback">Fallback decision tree</button>
+          </div>
+          <div class="tab-panel is-active" id="demo-labour"></div>
+          <div class="tab-panel" id="demo-plant"></div>
+          <div class="tab-panel" id="demo-short"></div>
+          <div class="tab-panel" id="demo-fallback"></div>
+        </div>
+      </section>
+
+      <section class="section" id="proof">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Proof asset selector</span>
+            <h2>Use the asset that proves the next belief.</h2>
+          </div>
+          <p>Each proof asset has a safe talking point and a phrase to avoid.</p>
+        </div>
+        <div class="section-body grid-3" id="proofGrid"></div>
+      </section>
+
+      <section class="section" id="pricing">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Internal pricing and offer ladder</span>
+            <h2>Sell the support load, not just the login.</h2>
+          </div>
+          <p>These numbers are internal sales guidance. They are not public landing-page copy.</p>
+        </div>
+        <div class="section-body">
+          <div class="card warning">
+            <h3>Support scope script</h3>
+            <p id="supportScript">If you want a login and light test, that is one thing. If you want us helping with setup, imports, configuration, support, and weekly review, that becomes a managed pilot.</p>
+            <div class="copy-group"><button class="mini ghost" type="button" data-copy-target="supportScript">Copy script</button></div>
+          </div>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table>
+              <thead><tr><th>Offer</th><th>Use when</th><th>Internal price guidance</th><th>Support expectation</th></tr></thead>
+              <tbody>
+                <tr><td>Testing Partner</td><td>Light validation or strategic relationship.</td><td>$0 to $1,000 setup, 14 to 30 days.</td><td>Limited support. No custom implementation.</td></tr>
+                <tr><td>Labour Allocation Pilot</td><td>Labour-only allocation company with real but bounded workflow pain.</td><td>$2,500 setup + $1,500/month for 90 days. Total $7,000 AUD.</td><td>Worker import, credentials, schedule, SmartRank, audit, weekly review.</td></tr>
+                <tr><td>Founding Partner Pilot</td><td>Serious early operator with stronger operational complexity.</td><td>$5,000 setup + $2,500/month for 90 days. Total $12,500 AUD.</td><td>Setup, imports, company catalogue, workflow review, weekly review.</td></tr>
+                <tr><td>Founding Partner + Remote Ops Support</td><td>Same as founding partner, with heavier Cody/team support load.</td><td>$5,000 setup + $4,000/month for 90 days. Total $17,000 AUD.</td><td>More screen-share help, data correction, configuration support.</td></tr>
+                <tr><td>Commercial Pilot</td><td>Professional evaluation with stronger implementation expectations.</td><td>$10,000 setup + $5,000/month for 90 days. Total $25,000 AUD.</td><td>Managed implementation, outcome tracking, review cadence.</td></tr>
+                <tr><td>Commercial Pilot + On-Call Support</td><td>High support burden, multi-stakeholder, faster response expectation.</td><td>$10,000 setup + $8,000 to $10,000/month. Total $34,000 to $40,000 AUD.</td><td>Priority help, heavier configuration, support overage risk.</td></tr>
+                <tr><td>Support overage</td><td>Extra support beyond pilot scope.</td><td>$120 to $180/hour.</td><td>Use when support expands beyond agreed scope.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="objections">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Objection handler</span>
+            <h2>Diagnose before answering.</h2>
+          </div>
+          <p>Each card gives a tactical empathy line, a discovery question, a boundary, a proof screen, and the next redirect.</p>
+        </div>
+        <div class="section-body grid-3" id="objectionGrid"></div>
+      </section>
+
+      <section class="section" id="scorecard">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Qualification scorecard</span>
+            <h2>Score commercial fit live.</h2>
+          </div>
+          <p>Use 1 for low/no signal, 5 for high signal. The recommendation updates automatically.</p>
+        </div>
+        <div class="section-body">
+          <div id="scoreRows"></div>
+          <div class="score-output">
+            <div class="metric"><span class="small">Fit score</span><strong id="fitScore">0</strong><p id="fitBand">Not ready</p></div>
+            <div class="metric"><span class="small">Support score</span><strong id="supportScore">0</strong><p id="supportBand">Low support</p></div>
+            <div class="metric"><span class="small">Recommended offer</span><strong id="offerOutput" style="font-size:1.05rem;">Testing Partner</strong><p id="offerReason">Awaiting score.</p></div>
+            <div class="metric"><span class="small">Close path</span><strong id="closePath" style="font-size:1.05rem;">Ask discovery</strong><p>Use the summary before ending the call.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="support-scope">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Support scope calculator</span>
+            <h2>Separate light access from managed implementation.</h2>
+          </div>
+          <p>Use this when price pressure appears. The question is not just software access; it is how much setup, cleanup, support, and review they expect.</p>
+        </div>
+        <div class="section-body">
+          <div id="supportRows"></div>
+          <div class="score-output">
+            <div class="metric"><span class="small">Support scope score</span><strong id="supportScopeScore">0</strong><p id="supportScopeBand">Low support</p></div>
+            <div class="metric"><span class="small">Scope fit</span><strong id="supportScopeOffer" style="font-size:1.05rem;">Testing Partner</strong><p id="supportScopeReason">Use light access when support demand is low.</p></div>
+            <div class="metric"><span class="small">Boundary script</span><strong style="font-size:1.05rem;">Price the load</strong><p>If they expect setup, imports, configuration, weekly review, and priority help, it is a managed pilot.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="followup">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Follow-up generator</span>
+            <h2>Send short, grounded follow-up.</h2>
+          </div>
+          <p>Templates are intentionally plain. No password values, no fake urgency, no public pricing unless the call already discussed it.</p>
+        </div>
+        <div class="section-body grid-2">
+          <div class="tight">
+            <div class="field">
+              <label for="templateSelect">Template</label>
+              <select id="templateSelect"></select>
+            </div>
+            <div class="field"><label for="followSubject">Subject</label><input id="followSubject"></div>
+            <div class="field"><label for="followBody">Body</label><textarea id="followBody" style="min-height:260px;"></textarea></div>
+            <div class="copy-group">
+              <button class="button" type="button" data-generate-followup>Generate from profile</button>
+              <button class="ghost" type="button" data-copy-followup>Copy follow-up</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Portal access wording</h3>
+            <p>For test portal invite emails, include the login email only if approved. State that the temporary password is supplied separately and first login forces password change. Never include a password value in this artifact or the same email thread.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="guardrails">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Do-not-claim guardrails</span>
+            <h2>Stay honest when the prospect pushes.</h2>
+          </div>
+          <p>Boundary language is not weakness. It is how the pilot earns trust.</p>
+        </div>
+        <div class="section-body grid-2">
+          <article class="card danger">
+            <h3>Do not claim</h3>
+            <ul class="guardrail-list">
+              <li>Compliance approval</li>
+              <li>Permit approval</li>
+              <li>Legal road access</li>
+              <li>WHS guarantee</li>
+              <li>Engineered lift confirmation</li>
+              <li>Autonomous dispatch</li>
+              <li>Safe to dispatch</li>
+              <li>Payroll-ready</li>
+              <li>Full ERP replacement</li>
+              <li>Fleet Cost & Care replacement today</li>
+            </ul>
+          </article>
+          <article class="card strong">
+            <h3>Approved framing</h3>
+            <ul class="guardrail-list">
+              <li>Decision support</li>
+              <li>Review required</li>
+              <li>Dispatcher remains decision-maker</li>
+              <li>Before-dispatch clarity</li>
+              <li>Explainable recommendations</li>
+              <li>Credential and fatigue checks</li>
+              <li>Audit trail</li>
+              <li>Pilot-stage</li>
+              <li>Managed pilot</li>
+              <li>Road-access review flags</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="notes">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Call notes and export</span>
+            <h2>End with a concrete next step.</h2>
+          </div>
+          <p>Generate the summary, copy it into your CRM/notes, then write the follow-up while the call is still fresh.</p>
+        </div>
+        <div class="section-body grid-2">
+          <div class="field">
+            <label for="callNotes">Live notes</label>
+            <textarea id="callNotes" placeholder="Pain, current workflow, objections, proof shown, decision process, next action..." style="min-height:280px;"></textarea>
+          </div>
+          <div class="tight">
+            <button class="button" type="button" data-generate-summary>Generate summary</button>
+            <button class="ghost" type="button" data-copy-summary>Copy summary</button>
+            <div class="field">
+              <label for="summaryOutput">Export summary</label>
+              <textarea id="summaryOutput" style="min-height:240px;"></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">Copied.</div>
+
+  <script>
+    const callModes = {
+      "First conversation": {
+        length: "20 to 30 min",
+        objective: "Understand the current allocation workflow and decide whether a demo or diagnostic is warranted.",
+        opener: "I will keep this practical. I am not here to pitch magic AI dispatch. I want to understand how job notes, people, plant, credentials, fatigue, schedule pressure, and the decision trail are handled now.",
+        focus: "Current workflow, pain source, who feels it first, whether the operation is labour-only or plant + labour.",
+        proof: "Public LIFTIQ page, one screenshot, no deep portal tour unless they ask.",
+        offer: "Diagnostic, context-first follow-up, or short demo.",
+        next: "Book a discovery/demo call or rule out cleanly.",
+        danger: "Do not over-demo before discovering the workflow."
+      },
+      "Warm referral": {
+        length: "25 to 35 min",
+        objective: "Convert borrowed trust into a focused workflow conversation.",
+        opener: "Thanks for taking the intro. I will not assume LIFTIQ fits. Let me understand how allocation works now, then I will show the closest proof path.",
+        focus: "Referral context, pain already named, decision process, internal sponsor.",
+        proof: "Portal walkthrough or mode-specific screenshots.",
+        offer: "Testing Partner or managed pilot if pain is already clear.",
+        next: "Agree next screen-share or pilot-fit review.",
+        danger: "Do not coast on the referral. Qualify the pain."
+      },
+      "Labour-only allocation discovery": {
+        length: "30 min",
+        objective: "Show that LIFTIQ can stay focused on people without plant clutter.",
+        opener: "If you mainly allocate labour, I do not want to show you a crane-fleet system. The question is whether worker fit, tickets, fatigue, availability, schedule, and audit trail are painful enough to structure.",
+        focus: "Workers, credentials, VOCs, fatigue, schedule, preferences, audit.",
+        proof: "Labour-only mode, worker import, SmartRank, audit, metrics.",
+        offer: "Labour Allocation Pilot or Testing Partner.",
+        next: "Small worker import and one or two sample jobs.",
+        danger: "Do not imply payroll, timesheets, or HR system replacement."
+      },
+      "Plant + labour discovery": {
+        length: "35 to 45 min",
+        objective: "Find whether people plus plant complexity justifies a managed pilot.",
+        opener: "If you allocate both people and plant, the issue is not only who is good. It is whether the job requirement, asset class, plant number, crew fit, counterweight, transport, and review flags are visible before dispatch.",
+        focus: "Equipment classes, plant numbers, support transport, counterweight, site access, schedule conflict, worker fit.",
+        proof: "Our Business, Asset Register, Job Brief Import, crane/counterweight review, SmartRank, audit.",
+        offer: "Founding Partner Pilot or Commercial Pilot.",
+        next: "Pilot scope conversation with support expectations.",
+        danger: "Do not present this as full fleet management."
+      },
+      "Live Teams demo": {
+        length: "30 to 45 min",
+        objective: "Prove the workflow with clean demo data and avoid feature sprawl.",
+        opener: "I will show the shortest path from rough job note to reviewed allocation. Stop me if the workflow does not match how you operate.",
+        focus: "Job intake, company setup, SmartRank, warnings, audit.",
+        proof: "Live portal first, screenshots if portal/data is not ready.",
+        offer: "Testing Partner or 90-day pilot depending on fit score.",
+        next: "Send recap and confirm pilot path.",
+        danger: "Do not show real tenant data or credentials."
+      },
+      "Test portal onboarding": {
+        length: "20 to 30 min",
+        objective: "Get the user into the portal safely and focus the test.",
+        opener: "The test is not to click every screen. It is to run a small number of realistic scenarios and decide whether LIFTIQ creates clarity.",
+        focus: "Login, password rotation, safe sample data, first worker/job flow.",
+        proof: "Portal only.",
+        offer: "Testing Partner only unless they ask for managed support.",
+        next: "Day 3 check-in and Day 14 decision call.",
+        danger: "Do not include password values in email or notes."
+      },
+      "Founding-partner pilot close": {
+        length: "30 min",
+        objective: "Move from interest to a 90-day paid pilot with bounded scope.",
+        opener: "If this is a real operational problem, the next step is not more theory. It is a 90-day pilot with setup, review cadence, and clear evidence.",
+        focus: "Outcome, support scope, data access, internal champion, weekly review.",
+        proof: "Scorecard, demo evidence, pilot plan.",
+        offer: "Founding Partner Pilot or Founding Partner + Remote Ops Support.",
+        next: "Written pilot proposal.",
+        danger: "Do not discount support-heavy pilots into light tests."
+      },
+      "Commercial pilot close": {
+        length: "45 min",
+        objective: "Frame a professional paid evaluation for higher support and stakeholder load.",
+        opener: "A commercial pilot only makes sense if you want a proper evaluation, not a friendly test.",
+        focus: "Implementation, support, outcome report, stakeholder approval, data readiness.",
+        proof: "Proof assets plus outcome-tracking plan.",
+        offer: "Commercial Pilot or Commercial Pilot + On-Call Support.",
+        next: "Commercial pilot proposal and approval path.",
+        danger: "Do not underprice on-call expectations."
+      },
+      "Trial check-in": {
+        length: "15 to 20 min",
+        objective: "Find evidence, blockers, and whether the test needs support or should stop.",
+        opener: "I want to know what created clarity, what created noise, and whether anything is worth continuing.",
+        focus: "Usage, friction, data setup, missed expectations, next proof.",
+        proof: "Audit and metrics.",
+        offer: "Extend test, move to pilot, or stop cleanly.",
+        next: "Next scenario or decision call.",
+        danger: "Do not let the trial drift without a decision date."
+      },
+      "Trial expiry / decision call": {
+        length: "20 to 30 min",
+        objective: "Convert, pause, or close the loop.",
+        opener: "The point of the trial was evidence. Did it create enough clarity to justify a managed pilot, or should we stop here?",
+        focus: "Evidence, decision criteria, commercial fit, support need.",
+        proof: "Metrics, audit, summary of scenarios.",
+        offer: "Labour Allocation Pilot, Founding Partner, Commercial Pilot, or no fit.",
+        next: "Signed proposal, nurture, or closed lost.",
+        danger: "Do not leave access open-ended."
+      },
+      "Funding / proof conversation": {
+        length: "30 min",
+        objective: "Show credible product progress without overclaiming maturity.",
+        opener: "The strongest proof is not a safety claim. It is that LIFTIQ structures the decision, shows reasoning, and records the audit trail inside a live pilot workflow.",
+        focus: "Product capability, pilot architecture, evidence assets, boundaries.",
+        proof: "Public page, walkthrough, screenshots, demo dataset, command centre.",
+        offer: "Proof pack or pilot evidence conversation.",
+        next: "Send proof asset checklist and current limitations.",
+        danger: "Do not imply customer results or compliance approval."
+      }
+    };
+
+    const discovery = {
+      "disc-labour": [
+        "Do you mainly allocate people, plant, or both?",
+        "How are workers currently matched to jobs?",
+        "How do you track credentials, VOCs, rail tickets, WAH, or site requirements?",
+        "How do you know who is preferred for certain jobs?",
+        "How do you handle availability and fatigue?",
+        "How far ahead are people allocated?",
+        "What causes the most changes after the first allocation?",
+        "Where is the reasoning behind the allocation recorded?"
+      ],
+      "disc-plant": [
+        "Do you allocate by equipment class, specific plant number, or both?",
+        "If you have several cranes of the same size, how do you track which one is assigned?",
+        "How do you capture crane setup, counterweight, support transport, or site-access notes?",
+        "Where do road-access review flags get recorded?",
+        "How do you avoid double-booking workers or plant?",
+        "What happens when the equipment requirement changes late?",
+        "How do you track plant availability if not using a full fleet system?"
+      ],
+      "disc-commercial": [
+        "What system are you using now?",
+        "Where does it work?",
+        "Where does it fall over?",
+        "Who feels the pain first?",
+        "Who would need to approve a pilot?",
+        "What would make a 14-day test useful?",
+        "What would make a 90-day pilot worth paying for?"
+      ],
+      "disc-close": [
+        "If this worked, who would be affected first?",
+        "What would make this a no-brainer to keep using?",
+        "What would make this not worth continuing?",
+        "What support level would you expect during setup?",
+        "What internal data would need to be ready before a pilot?",
+        "How would you judge success after 90 days?"
+      ]
+    };
+
+    const demoPaths = {
+      "demo-labour": ["Dashboard", "Our Business set to Labour only", "Worker import", "Credentials / VOCs", "Job Brief Import", "Scheduled job", "SmartRank", "CredentialGate / FatigueGuard", "Allocation with override reason", "Audit", "Metrics"],
+      "demo-plant": ["Dashboard", "Our Business set to Plant + labour", "Company requirement catalogue", "Asset register", "Multiple assets under one class", "Job Brief Import", "Crane / counterweight / transport review", "Schedule", "SmartRank", "Allocation", "Audit", "Metrics"],
+      "demo-short": ["Public page", "Job Brief Import", "SmartRank", "Audit", "CTA"],
+      "demo-fallback": ["If portal is smooth: live walkthrough", "If data is not ready: screenshots", "If time-poor: 3-minute recording", "If operations-heavy: live portal + audit", "If owner/commercial: public page + pilot path", "If safety/compliance-focused: boundaries + audit + review flags"]
+    };
+
+    const proofAssets = [
+      ["Public LIFTIQ page", "Use for positioning and boundaries.", "LIFTIQ is pilot-stage dispatch intelligence.", "Do not use it as detailed product proof."],
+      ["Portal walkthrough recording", "Use when live portal may fail or time is short.", "This is the clean 3-minute workflow.", "Do not call it a VSL."],
+      ["Demo tenant", "Use only with clean synthetic data.", "This shows the current portal path safely.", "Do not show real tenant data."],
+      ["Worker import screenshot", "Use for labour-only teams.", "Worker lists can be imported instead of re-keyed.", "Do not imply HR/payroll system."],
+      ["Our Business screenshot", "Use when setup relevance matters.", "The portal can be configured around what the company uses.", "Do not imply public self-serve signup."],
+      ["Labour-only mode screenshot", "Use for labour suppliers.", "Plant clutter can be hidden by default.", "Do not make LIFTIQ generic HR software."],
+      ["Plant + labour mode screenshot", "Use for crane/plant operators.", "Plant and people context can sit in the same decision flow.", "Do not call it full fleet management."],
+      ["Asset register screenshot", "Use for plant-number objection.", "Multiple machines can sit under the same equipment class.", "Do not imply maintenance or telematics."],
+      ["Job Brief Import screenshot", "Use for rough-note pain.", "Rough notes become structured suggestions for review.", "Do not imply autonomous job creation."],
+      ["SmartRank screenshot", "Use for recommendation proof.", "Ranking is explainable and reviewable.", "Do not imply the system makes the decision."],
+      ["CredentialGate/FatigueGuard screenshot", "Use for readiness checks.", "Warnings and blocks surface before allocation.", "Do not say safe to dispatch."],
+      ["Crane/counterweight screenshot", "Use for plant + labour prospects.", "Counterweight and transport review flags are visible.", "Do not imply permit approval or legal road access."],
+      ["Audit screenshot", "Use for proof trail.", "The decision trail is recorded.", "Do not imply regulatory guarantee."],
+      ["Metrics screenshot", "Use for pilot evidence.", "Pilot activity can be reviewed.", "Do not imply customer ROI without evidence."]
+    ];
+
+    const objections = [
+      ["We only supply labour.", "That makes sense. I would not want to show you plant clutter.", "Where do tickets, VOCs, fatigue, availability, and allocation reasoning live now?", "LIFTIQ has labour-only mode. Plant features can stay hidden.", "Labour-only mode, worker import, SmartRank.", "Qualify for Labour Allocation Pilot or light test."],
+      ["We do not own plant.", "Good. Then the plant register may not matter for you.", "Do you still need to track site requirements, operator preferences, or one-off job notes?", "LIFTIQ does not need to become a plant system for labour-only teams.", "Labour-only mode.", "Keep the demo people-focused."],
+      ["We already know who is good.", "I believe that. The issue is usually not knowledge, it is whether the reasoning survives pressure.", "Where is that knowledge recorded when someone else has to make the call?", "LIFTIQ captures preference signals but the dispatcher still decides.", "Worker detail, task preferences, SmartRank reasoning.", "Show preference trail."],
+      ["We have multiple cranes the same size.", "That is exactly why class and actual asset should be separate.", "Do you assign the class first and the plant number later, or both at once?", "LIFTIQ is not full fleet management, but it can reference plant numbers.", "Asset Register, multiple assets under one class.", "Plant + labour pilot fit."],
+      ["This sounds like fleet management.", "It would be a problem if we pretended it was full fleet management.", "What do you actually need at dispatch: full maintenance status or clear plant reference?", "No maintenance, telematics, GPS, depreciation, or compliance management in this scope.", "Asset register and job asset context.", "Keep boundary clear."],
+      ["This sounds like more admin.", "That is the right concern. Bad setup would create admin.", "Which part of job intake is already being typed twice?", "The goal is less re-keying and clearer review, not admin for its own sake.", "Job Brief Import, filtered requirements.", "Offer a small workflow test."],
+      ["We already have a system.", "That may be fine. I am not assuming replacement.", "Does your current system explain the allocation decision before it is made?", "LIFTIQ can sit as a decision-support layer, not a replacement.", "SmartRank, audit, requirements.", "Compare one job scenario."],
+      ["Can it do payroll?", "No. If payroll is the buying reason, LIFTIQ is not the product.", "Is payroll the problem, or is pre-dispatch allocation clarity the problem?", "No payroll, timesheets, invoicing, or ERP claim.", "Guardrails panel.", "Disqualify or refocus."],
+      ["Can it replace FCC?", "Not today, and I would not sell it that way.", "What does your current system handle well, and where does pre-dispatch reasoning fall short?", "No Fleet Cost & Care replacement claim.", "Public boundary or modules page.", "Position as overlay/pilot."],
+      ["What if the recommendation is wrong?", "That is why it must be explainable and reviewable.", "How do you currently challenge a bad allocation assumption?", "Dispatcher remains decision-maker. Override reasons are captured.", "SmartRank reasoning and override screen.", "Show audit trail."],
+      ["Is this compliant?", "I would be careful with that word. LIFTIQ does not sell compliance approval.", "What review points do you need surfaced before dispatch?", "Review required. No compliance approval or WHS guarantee.", "CredentialGate, FatigueGuard, audit.", "Use boundary script."],
+      ["Can it approve permits?", "No. It can surface review flags, not approve permits.", "Where do permit or road-access review notes get captured today?", "No permit approval, route approval, or legal road access claim.", "Crane/counterweight review flags.", "Keep as review support only."],
+      ["We are too busy to test it.", "That might be true. The test should be smaller, not bigger.", "What is one job scenario that keeps repeating and would be worth testing?", "A Testing Partner path can stay limited.", "Short demo path.", "Offer one scenario test."],
+      ["How much does it cost?", "It depends on whether you want light access or managed implementation.", "Are you expecting a login only, or setup, imports, configuration, support, and weekly review?", "Pricing is scoped by workflow and support load.", "Offer ladder.", "Quote the matching tier."],
+      ["We want free access.", "A light test can be free or low-cost where strategic. A managed pilot cannot be free.", "What level of support are you expecting from us?", "Free access does not include custom implementation.", "Support scope calculator.", "Separate testing partner from managed pilot."]
+    ];
+
+    const scoreItems = [
+      ["job intake messiness", "fit"],
+      ["manual allocation pain", "fit"],
+      ["credential/VOC complexity", "fit"],
+      ["fatigue/schedule pressure", "fit"],
+      ["labour-only fit", "fit"],
+      ["plant + labour complexity", "fit"],
+      ["asset/plant tracking need", "fit"],
+      ["crane/transport planning need", "fit"],
+      ["audit/proof need", "fit"],
+      ["internal champion strength", "fit"],
+      ["willingness to test", "fit"],
+      ["budget readiness", "fit"],
+      ["support load", "support"]
+    ];
+
+    const supportFactors = [
+      "worker import and cleanup required",
+      "company catalogue setup help required",
+      "asset register setup help required",
+      "job brief/process mapping required",
+      "weekly review and outcome reporting expected",
+      "priority response or on-call expectation"
+    ];
+
+    const templates = {
+      "After first call": {
+        subject: "LIFTIQ next step",
+        body: "Thanks for the time today. The useful thread was not software for its own sake. It was whether LIFTIQ can structure the dispatch decision before the call gets made. Based on what you described, the next useful step is to run one realistic scenario through the workflow and see whether it creates clarity or noise."
+      },
+      "After labour-only discovery": {
+        subject: "LIFTIQ labour allocation path",
+        body: "If you mainly allocate people, LIFTIQ can stay focused on workers, credentials, VOCs, fatigue, schedule, SmartRank, and audit without showing plant features you do not need. The sensible next step is a small worker-list import and one or two job scenarios."
+      },
+      "After plant + labour discovery": {
+        subject: "LIFTIQ plant + labour path",
+        body: "If you allocate people and plant, LIFTIQ can also track equipment classes, actual asset numbers, crane setup, counterweight review, transport flags, and job readiness notes. The next step is to test one realistic plant + labour scenario before discussing a broader pilot."
+      },
+      "After Teams demo": {
+        subject: "LIFTIQ demo recap",
+        body: "The demo covered job intake, company setup, SmartRank, review flags, allocation reasoning, and audit trail. The main question now is whether this is worth testing against your own allocation pressure, not whether every future feature exists today."
+      },
+      "After no-show": {
+        subject: "Missed LIFTIQ call",
+        body: "We missed each other today. If the allocation problem is still worth looking at, send me a better time. If timing has changed, no issue. We can leave it parked."
+      },
+      "After send me info": {
+        subject: "LIFTIQ overview",
+        body: "Short version: LIFTIQ is a pilot-stage dispatch intelligence layer. It does not replace dispatch judgement. It structures job intake, worker fit, credentials, fatigue, schedule pressure, plant context where needed, and audit trail before dispatch."
+      },
+      "After pricing discussion": {
+        subject: "LIFTIQ pricing context",
+        body: "As discussed, there is a difference between light portal access and a managed pilot. A login-only test is one thing. Setup, imports, configuration, support, weekly review, and outcome tracking is a managed implementation and needs to be priced that way."
+      },
+      "After objection": {
+        subject: "LIFTIQ clarification",
+        body: "The key boundary is this: LIFTIQ is decision support, not autonomous dispatch. It surfaces reasoning, warnings, review points, and audit trail. The dispatcher remains the decision-maker."
+      },
+      "Test portal invite": {
+        subject: "LIFTIQ test portal access",
+        body: "Your LIFTIQ test portal access is ready. Use the portal link and approved login email. The temporary password is supplied separately, and first login forces a password change. Do not enter real customer or private employee data unless we have agreed the scope."
+      },
+      "Test portal day 3 nudge": {
+        subject: "LIFTIQ day 3 check-in",
+        body: "Quick check-in. If you have not had time to use the portal yet, start with one worker import or one job brief. The point is not to test every feature. The point is to see whether it creates clearer review before dispatch."
+      },
+      "Test portal day 7 check-in": {
+        subject: "LIFTIQ week-one check-in",
+        body: "By now we should know whether the portal is creating clarity, creating noise, or needs a better test scenario. Send me the blocker if there is one. If it is useful, we should book the decision call before the trial drifts."
+      },
+      "Day 14 decision call": {
+        subject: "LIFTIQ day 14 decision",
+        body: "The test period is at the decision point. The question is simple: did LIFTIQ create enough dispatch clarity to justify a managed pilot, or should we stop here?"
+      },
+      "Founding-partner pilot proposal": {
+        subject: "LIFTIQ founding-partner pilot",
+        body: "The right next step is a 90-day founding-partner pilot. We set up the workflow properly, import the agreed data, run real scenarios, review warnings and overrides, and decide from evidence whether LIFTIQ is worth keeping."
+      },
+      "Commercial pilot proposal": {
+        subject: "LIFTIQ commercial pilot",
+        body: "For a proper evaluation, I would structure this as a 90-day commercial pilot with setup, configuration, support, weekly review, and an outcome report. That is different from a light test portal."
+      },
+      "Not-ready nurture": {
+        subject: "LIFTIQ parked for now",
+        body: "Based on where things are now, it does not sound like the right time for a managed pilot. I will leave this parked. If allocation pressure, audit trail, fatigue visibility, or plant/worker coordination becomes more pressing, we can revisit it."
+      }
+    };
+
+    function qs(id) { return document.getElementById(id); }
+    function showToast(text) {
+      const toast = qs("toast");
+      toast.textContent = text || "Copied.";
+      toast.classList.add("is-visible");
+      setTimeout(() => toast.classList.remove("is-visible"), 1600);
+    }
+    async function copyText(text) {
+      await navigator.clipboard.writeText(text);
+      showToast("Copied.");
+    }
+
+    function renderMode() {
+      const key = qs("callMode").value;
+      const mode = callModes[key];
+      qs("modeOutput").innerHTML = `
+        <div class="tight">
+          <h3>${key}</h3>
+          <p><strong>Objective:</strong> ${mode.objective}</p>
+          <p><strong>Length:</strong> ${mode.length}</p>
+          <p><strong>Opener:</strong> ${mode.opener}</p>
+          <p><strong>Discovery focus:</strong> ${mode.focus}</p>
+          <p><strong>Proof assets:</strong> ${mode.proof}</p>
+          <p><strong>Offer path:</strong> ${mode.offer}</p>
+          <p><strong>Next step:</strong> ${mode.next}</p>
+          <p><strong>Danger point:</strong> ${mode.danger}</p>
+        </div>`;
+      updateSummary();
+    }
+
+    function renderQuestions() {
+      Object.entries(discovery).forEach(([id, questions]) => {
+        qs(id).innerHTML = `<div class="question-list">${questions.map(q => `<button class="question" type="button">${q}</button>`).join("")}</div>`;
+      });
+      document.querySelectorAll(".question").forEach(btn => {
+        btn.addEventListener("click", () => {
+          btn.classList.toggle("is-selected");
+          updateSummary();
+        });
+      });
+    }
+
+    function renderDemoPaths() {
+      Object.entries(demoPaths).forEach(([id, steps]) => {
+        qs(id).innerHTML = `<div class="path">${steps.map(step => `<span>${step}</span>`).join("")}</div>`;
+      });
+    }
+
+    function renderProof() {
+      qs("proofGrid").innerHTML = proofAssets.map(asset => `
+        <article class="card">
+          <h3>${asset[0]}</h3>
+          <p><strong>When to use:</strong> ${asset[1]}</p>
+          <p><strong>What to say:</strong> ${asset[2]}</p>
+          <p><strong>What not to say:</strong> ${asset[3]}</p>
+        </article>`).join("");
+    }
+
+    function renderObjections() {
+      qs("objectionGrid").innerHTML = objections.map((o, index) => `
+        <article class="objection-card">
+          <h3>${o[0]}</h3>
+          <p><strong>Tactical empathy:</strong> ${o[1]}</p>
+          <p><strong>Discovery question:</strong> ${o[2]}</p>
+          <p><strong>Boundary:</strong> ${o[3]}</p>
+          <p><strong>Proof screen:</strong> ${o[4]}</p>
+          <p><strong>Next step:</strong> ${o[5]}</p>
+          <button class="mini ghost" type="button" data-copy-objection="${index}">Copy card</button>
+        </article>`).join("");
+    }
+
+    function renderScorecard() {
+      qs("scoreRows").innerHTML = scoreItems.map((item, index) => `
+        <div class="score-row">
+          <label for="score-${index}">${item[0]}</label>
+          <input id="score-${index}" data-score-type="${item[1]}" type="range" min="1" max="5" value="3">
+          <output for="score-${index}">3</output>
+        </div>`).join("");
+      document.querySelectorAll("#scoreRows input[type='range']").forEach(range => {
+        range.addEventListener("input", () => {
+          range.nextElementSibling.value = range.value;
+          updateScores();
+        });
+      });
+      updateScores();
+    }
+
+    function renderSupportScope() {
+      qs("supportRows").innerHTML = supportFactors.map((label, index) => `
+        <div class="score-row">
+          <label for="support-${index}">${label}</label>
+          <input id="support-${index}" class="support-range" type="range" min="1" max="5" value="2">
+          <output for="support-${index}">2</output>
+        </div>`).join("");
+      document.querySelectorAll(".support-range").forEach(range => {
+        range.addEventListener("input", () => {
+          range.nextElementSibling.value = range.value;
+          updateSupportScope();
+          updateSummary();
+        });
+      });
+      updateSupportScope();
+    }
+
+    function updateScores() {
+      const ranges = [...document.querySelectorAll("#scoreRows input[type='range']")];
+      const rawTotal = ranges.reduce((sum, r) => sum + Number(r.value), 0);
+      const minScore = ranges.length;
+      const maxScore = ranges.length * 5;
+      const total = Math.round(((rawTotal - minScore) / (maxScore - minScore)) * 100);
+      const supportRaw = ranges.filter(r => r.dataset.scoreType === "support").reduce((sum, r) => sum + Number(r.value), 0);
+      const supportLoad = Number(document.querySelector("#score-12").value);
+      qs("fitScore").textContent = total;
+      let fitBand = "Not ready. Keep in nurture.";
+      let offer = "Nurture";
+      let reason = "Current fit is not strong enough for a pilot.";
+      let close = "Park or ask one sharper problem question.";
+      if (total >= 26 && total <= 40) {
+        fitBand = "Testing Partner.";
+        offer = "Testing Partner";
+        reason = "Enough signal for light validation, not enough for managed pilot.";
+        close = "Offer a 14 to 30 day limited test.";
+      } else if (total >= 41 && total <= 55) {
+        fitBand = "Labour Allocation Pilot or limited Founding Partner.";
+        offer = "Labour Allocation Pilot";
+        reason = "Real pain, likely narrower workflow or budget readiness.";
+        close = "Confirm support expectations and one pilot scenario.";
+      } else if (total >= 56 && total <= 70) {
+        fitBand = "Founding Partner Pilot.";
+        offer = "Founding Partner Pilot";
+        reason = "Strong enough for 90-day pilot if sponsor and data are real.";
+        close = "Move to pilot scope and proposal.";
+      } else if (total >= 71) {
+        fitBand = "Commercial Pilot or Managed Pilot.";
+        offer = "Commercial Pilot";
+        reason = "High complexity, high proof need, and likely support load.";
+        close = "Map approval path and managed implementation.";
+      }
+      let supportBand = "Low support";
+      if (supportLoad === 3) supportBand = "Standard support";
+      if (supportLoad === 4) supportBand = "Remote Ops Support";
+      if (supportLoad >= 5) supportBand = "On-call support risk";
+      qs("fitBand").textContent = fitBand;
+      qs("supportScore").textContent = supportRaw;
+      qs("supportBand").textContent = supportBand;
+      qs("offerOutput").textContent = offer;
+      qs("offerReason").textContent = reason;
+      qs("closePath").textContent = close;
+      updateSummary();
+    }
+
+    function updateSupportScope() {
+      const ranges = [...document.querySelectorAll(".support-range")];
+      const total = ranges.reduce((sum, r) => sum + Number(r.value), 0);
+      let band = "Low support";
+      let offer = "Testing Partner";
+      let reason = "Light access or a narrow workflow test should be enough.";
+      if (total >= 13 && total <= 18) {
+        band = "Standard support";
+        offer = "Labour Allocation Pilot or Founding Partner";
+        reason = "Setup, imports, configuration, and review cadence need pricing.";
+      } else if (total >= 19 && total <= 24) {
+        band = "Remote Ops Support";
+        offer = "Founding Partner + Remote Ops Support";
+        reason = "Support demand is part of the product outcome, not a free add-on.";
+      } else if (total >= 25) {
+        band = "On-call support risk";
+        offer = "Commercial Pilot + On-Call Support";
+        reason = "High-touch support must be scoped before proposal.";
+      }
+      qs("supportScopeScore").textContent = total;
+      qs("supportScopeBand").textContent = band;
+      qs("supportScopeOffer").textContent = offer;
+      qs("supportScopeReason").textContent = reason;
+    }
+
+    function generateFollowup() {
+      const key = qs("templateSelect").value;
+      const template = templates[key];
+      const company = qs("companyName").value || "your team";
+      const contact = qs("contactName").value || "";
+      qs("followSubject").value = template.subject;
+      qs("followBody").value = `Hi ${contact ? contact.split(" ")[0] : ""},\n\n${template.body.replaceAll("your", company === "your team" ? "your" : company + "'s")}\n\nNext step I have noted: ${qs("nextStep").value}.\n\nRegards,\nCody`;
+    }
+
+    function selectedQuestions() {
+      return [...document.querySelectorAll(".question.is-selected")].map(q => `- ${q.textContent.trim()}`).join("\n") || "- None selected";
+    }
+
+    function updateSummary() {
+      if (!qs("summaryOutput")) return;
+      const summary = [
+        "LIFTIQ CALL SUMMARY",
+        `Company: ${qs("companyName")?.value || "Not captured"}`,
+        `Contact: ${qs("contactName")?.value || "Not captured"}`,
+        `Operation type: ${qs("operationType")?.value || "Unknown"}`,
+        `Current system: ${qs("currentSystem")?.value || "Not captured"}`,
+        `Likely pain: ${qs("likelyPain")?.value || "Not captured"}`,
+        `Call mode: ${qs("callMode")?.value || "Not selected"}`,
+        `Fit score: ${qs("fitScore")?.textContent || "0"} - ${qs("fitBand")?.textContent || "Not scored"}`,
+        `Support score: ${qs("supportScore")?.textContent || "0"} - ${qs("supportBand")?.textContent || "Not scored"}`,
+        `Support scope: ${qs("supportScopeScore")?.textContent || "0"} - ${qs("supportScopeBand")?.textContent || "Not scored"}`,
+        `Recommended offer: ${qs("offerOutput")?.textContent || "Not scored"}`,
+        `Support scope offer: ${qs("supportScopeOffer")?.textContent || "Not scored"}`,
+        `Desired next step: ${qs("nextStep")?.value || "Not captured"}`,
+        "",
+        "Selected discovery questions:",
+        selectedQuestions(),
+        "",
+        "Live notes:",
+        qs("callNotes")?.value || "No notes captured",
+        "",
+        "Boundary reminder: LIFTIQ is decision support. Dispatcher remains the decision-maker. No compliance approval, permit approval, legal road access, engineered lift confirmation, autonomous dispatch, payroll-ready, full ERP, or Fleet Cost & Care replacement claim."
+      ].join("\n");
+      qs("summaryOutput").value = summary;
+    }
+
+    function initTabs() {
+      document.querySelectorAll(".tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+          const id = tab.dataset.tab;
+          const group = tab.closest(".section-body");
+          group.querySelectorAll(".tab").forEach(t => t.classList.remove("is-active"));
+          group.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("is-active"));
+          tab.classList.add("is-active");
+          qs(id).classList.add("is-active");
+        });
+      });
+    }
+
+    let timerHandle = null;
+    let seconds = 0;
+    function tick() {
+      seconds += 1;
+      const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
+      const ss = String(seconds % 60).padStart(2, "0");
+      qs("timerOutput").textContent = `${mm}:${ss}`;
+    }
+
+    function init() {
+      qs("callMode").innerHTML = Object.keys(callModes).map(k => `<option>${k}</option>`).join("");
+      qs("callMode").addEventListener("change", renderMode);
+      qs("templateSelect").innerHTML = Object.keys(templates).map(k => `<option>${k}</option>`).join("");
+      qs("templateSelect").addEventListener("change", generateFollowup);
+      renderMode();
+      renderQuestions();
+      renderDemoPaths();
+      renderProof();
+      renderObjections();
+      renderScorecard();
+      renderSupportScope();
+      generateFollowup();
+      initTabs();
+
+      ["companyName", "contactName", "currentSystem", "operationType", "likelyPain", "nextStep", "callNotes"].forEach(id => {
+        qs(id).addEventListener("input", updateSummary);
+        qs(id).addEventListener("change", updateSummary);
+      });
+
+      document.querySelector("[data-timer-start]").addEventListener("click", e => {
+        if (timerHandle) {
+          clearInterval(timerHandle);
+          timerHandle = null;
+          e.currentTarget.textContent = "Start";
+        } else {
+          timerHandle = setInterval(tick, 1000);
+          e.currentTarget.textContent = "Pause";
+        }
+      });
+      document.querySelector("[data-timer-reset]").addEventListener("click", () => {
+        clearInterval(timerHandle);
+        timerHandle = null;
+        seconds = 0;
+        qs("timerOutput").textContent = "00:00";
+        document.querySelector("[data-timer-start]").textContent = "Start";
+      });
+      document.querySelector("[data-print]").addEventListener("click", () => window.print());
+      document.querySelectorAll("[data-copy-summary]").forEach(btn => btn.addEventListener("click", () => { updateSummary(); copyText(qs("summaryOutput").value); }));
+      document.querySelector("[data-copy-mode]").addEventListener("click", () => copyText(qs("modeOutput").innerText));
+      document.querySelector("[data-copy-followup]").addEventListener("click", () => copyText(`Subject: ${qs("followSubject").value}\n\n${qs("followBody").value}`));
+      document.querySelector("[data-generate-followup]").addEventListener("click", generateFollowup);
+      document.querySelector("[data-generate-summary]").addEventListener("click", updateSummary);
+      document.querySelectorAll("[data-copy-target]").forEach(btn => btn.addEventListener("click", () => copyText(qs(btn.dataset.copyTarget).textContent)));
+      document.addEventListener("click", e => {
+        const idx = e.target.getAttribute("data-copy-objection");
+        if (idx !== null) {
+          const o = objections[Number(idx)];
+          copyText(`Objection: ${o[0]}\nTactical empathy: ${o[1]}\nDiscovery question: ${o[2]}\nBoundary: ${o[3]}\nProof screen: ${o[4]}\nNext step: ${o[5]}`);
+        }
+      });
+      updateSummary();
+    }
+
+    init();
+  </script>
+</body>
+</html>
