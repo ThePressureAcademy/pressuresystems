@@ -24,6 +24,7 @@ const AUDIT_EVENT_TYPES = [
   'worker_import_completed',
   'worker_removed',
   'worker_updated',
+  'worker_roles_updated',
   'worker_credentials_updated',
   'worker_preferences_updated',
   'job_created',
@@ -36,10 +37,16 @@ const AUDIT_EVENT_TYPES = [
   'transport_requirement_created',
   'company_catalogue_updated',
   'company_operating_mode_updated',
+  'company_default_timezone_updated',
   'company_asset_created',
   'company_asset_updated',
   'company_asset_archived',
   'job_requirements_updated',
+  'job_required_roles_updated',
+  'job_credentials_updated',
+  'job_equipment_requirements_updated',
+  'job_site_conditions_updated',
+  'job_additional_requirements_updated',
   'job_custom_requirement_added',
   'job_requirement_imported_from_brief',
   'job_asset_selected',
@@ -64,6 +71,28 @@ CREATE TABLE audit_events (
   allocation_id TEXT REFERENCES allocations(id),
   payload       TEXT NOT NULL DEFAULT '{}',
   timestamp     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
+const CREDENTIALS_CREATE_SQL = `
+CREATE TABLE credentials (
+  id             TEXT PRIMARY KEY,
+  worker_id      TEXT NOT NULL REFERENCES workers(id),
+  company_id     TEXT NOT NULL REFERENCES companies(id),
+  type           TEXT NOT NULL,
+  identifier     TEXT,
+  issuing_body   TEXT,
+  issue_date     TEXT,
+  expiry_date    TEXT,
+  verified       INTEGER NOT NULL DEFAULT 0,
+  attachment_url TEXT,
+  status         TEXT NOT NULL DEFAULT 'valid'
+                 CHECK (status IN (
+                   'valid', 'expiring_soon', 'expired', 'pending_verification'
+                 )),
+  notes          TEXT,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `;
 
@@ -312,6 +341,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_workers_company_email
   WHERE email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_workers_company_archived
   ON workers(company_id, archived_at);
+CREATE INDEX IF NOT EXISTS idx_credentials_worker
+  ON credentials(worker_id);
+CREATE INDEX IF NOT EXISTS idx_credentials_company
+  ON credentials(company_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_company_schedule_start
   ON jobs(company_id, scheduled_start_at_utc);
 CREATE INDEX IF NOT EXISTS idx_jobs_company_schedule_status
@@ -408,6 +441,7 @@ function auditEventsNeedMigration(db) {
     || !row.sql.includes('preference_signal_created')
     || !row.sql.includes('worker_removed')
     || !row.sql.includes('worker_updated')
+    || !row.sql.includes('worker_roles_updated')
     || !row.sql.includes('worker_credentials_updated')
     || !row.sql.includes('worker_preferences_updated')
     || !row.sql.includes('job_updated')
@@ -418,10 +452,16 @@ function auditEventsNeedMigration(db) {
     || !row.sql.includes('transport_requirement_created')
     || !row.sql.includes('company_catalogue_updated')
     || !row.sql.includes('company_operating_mode_updated')
+    || !row.sql.includes('company_default_timezone_updated')
     || !row.sql.includes('company_asset_created')
     || !row.sql.includes('company_asset_updated')
     || !row.sql.includes('company_asset_archived')
     || !row.sql.includes('job_requirements_updated')
+    || !row.sql.includes('job_required_roles_updated')
+    || !row.sql.includes('job_credentials_updated')
+    || !row.sql.includes('job_equipment_requirements_updated')
+    || !row.sql.includes('job_site_conditions_updated')
+    || !row.sql.includes('job_additional_requirements_updated')
     || !row.sql.includes('job_custom_requirement_added')
     || !row.sql.includes('job_requirement_imported_from_brief')
     || !row.sql.includes('job_asset_selected')
@@ -458,6 +498,38 @@ function migrateAuditEvents(db) {
   })();
 }
 
+function credentialsNeedMigration(db) {
+  const row = db.prepare(`
+    SELECT sql
+    FROM sqlite_master
+    WHERE type = 'table' AND name = 'credentials'
+  `).get();
+  return Boolean(row?.sql && row.sql.includes('CHECK (type IN'));
+}
+
+function migrateCredentials(db) {
+  if (!credentialsNeedMigration(db)) return;
+  db.transaction(() => {
+    db.exec(`
+      ALTER TABLE credentials RENAME TO credentials_legacy;
+    `);
+    db.exec(CREDENTIALS_CREATE_SQL);
+    db.prepare(`
+      INSERT INTO credentials (
+        id, worker_id, company_id, type, identifier, issuing_body,
+        issue_date, expiry_date, verified, attachment_url, status, notes,
+        created_at, updated_at
+      )
+      SELECT
+        id, worker_id, company_id, type, identifier, issuing_body,
+        issue_date, expiry_date, verified, attachment_url, status, notes,
+        created_at, updated_at
+      FROM credentials_legacy
+    `).run();
+    db.exec(`DROP TABLE credentials_legacy;`);
+  })();
+}
+
 function runMigrations(db) {
   ensureColumn(db, 'companies', `timezone TEXT NOT NULL DEFAULT 'Australia/Brisbane'`, 'timezone');
   ensureColumn(db, 'companies', `slug TEXT`, 'slug');
@@ -473,7 +545,9 @@ function runMigrations(db) {
   ensureColumn(db, 'workers', `archived_at TEXT`, 'archived_at');
   ensureColumn(db, 'workers', `archived_by_user_id TEXT`, 'archived_by_user_id');
   ensureColumn(db, 'workers', `archive_reason TEXT`, 'archive_reason');
+  ensureColumn(db, 'workers', `roles TEXT NOT NULL DEFAULT '[]'`, 'roles');
   ensureColumn(db, 'jobs', `task_tags TEXT NOT NULL DEFAULT '[]'`, 'task_tags');
+  ensureColumn(db, 'jobs', `crane_classes_required TEXT NOT NULL DEFAULT '[]'`, 'crane_classes_required');
   ensureColumn(db, 'jobs', `scheduled_start_at_utc TEXT`, 'scheduled_start_at_utc');
   ensureColumn(db, 'jobs', `scheduled_end_at_utc TEXT`, 'scheduled_end_at_utc');
   ensureColumn(db, 'jobs', `job_timezone TEXT NOT NULL DEFAULT 'Australia/Brisbane'`, 'job_timezone');
@@ -499,6 +573,8 @@ function runMigrations(db) {
   db.exec(`UPDATE companies SET pilot_type = 'internal' WHERE pilot_type IS NULL OR trim(pilot_type) = '';`);
   db.exec(`UPDATE companies SET display_name = name WHERE display_name IS NULL OR trim(display_name) = '';`);
   db.exec(`UPDATE companies SET operating_mode = 'plant_and_labour' WHERE operating_mode IS NULL OR trim(operating_mode) = '';`);
+  db.exec(`UPDATE workers SET roles = '["' || role || '"]' WHERE roles IS NULL OR trim(roles) = '' OR roles = '[]';`);
+  db.exec(`UPDATE jobs SET crane_classes_required = '["' || replace(crane_class_required, '"', '') || '"]' WHERE crane_class_required IS NOT NULL AND trim(crane_class_required) != '' AND (crane_classes_required IS NULL OR trim(crane_classes_required) = '' OR crane_classes_required = '[]');`);
   db.exec(`UPDATE jobs SET job_timezone = 'Australia/Brisbane' WHERE job_timezone IS NULL OR trim(job_timezone) = '';`);
   db.exec(`
     UPDATE jobs
@@ -516,6 +592,7 @@ function runMigrations(db) {
   db.exec(TRANSPORT_REQUIREMENTS_SQL);
   db.exec(REQUIREMENT_CATALOGUE_SQL);
   ensureColumn(db, 'job_imports', `warnings_json TEXT NOT NULL DEFAULT '[]'`, 'warnings_json');
+  migrateCredentials(db);
   migrateAuditEvents(db);
   db.exec(POST_MIGRATION_INDEX_SQL);
   seedCraneModelCatalog(db);

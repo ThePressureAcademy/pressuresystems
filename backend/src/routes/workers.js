@@ -9,17 +9,22 @@ const { analyzeWorkerImport } = require('../services/worker-import');
 const { normalizeTaskTag } = require('../services/preferences');
 const { resolveScheduleRange } = require('../services/timezone');
 const { getCompanyTimeZone, serializeAllocation } = require('../services/schedule');
+const {
+  CREDENTIAL_TYPE_KEYS,
+  credentialDisplayLabel,
+  legacyPrimaryRoleForRoles,
+  normalizeCredentialType,
+  normalizeWorkerRole,
+  normalizeWorkerRoles,
+  workerRoleLabel
+} = require('../services/intake-catalogues');
 
 const router = express.Router();
 
 const VALID_ROLES = ['crane_operator', 'dogman', 'rigger', 'traffic_controller', 'supervisor', 'allocator'];
 const VALID_EMP_TYPES = ['permanent', 'casual', 'contractor', 'labour_hire'];
 const VALID_STATUSES = ['available', 'allocated', 'unavailable', 'on_leave', 'inactive'];
-const VALID_CRED_TYPES = [
-  'high_risk_licence_crane', 'high_risk_licence_dogging', 'high_risk_licence_rigging',
-  'white_card', 'msic_card', 'site_induction', 'client_induction',
-  'medical_clearance', 'drivers_licence', 'other'
-];
+const VALID_CRED_TYPES = CREDENTIAL_TYPE_KEYS;
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
@@ -27,7 +32,13 @@ function isValidEmail(email) {
 
 function parseWorker(worker) {
   if (worker) {
-    worker.crane_classes = JSON.parse(worker.crane_classes || '[]');
+    worker.crane_classes = parseCraneClasses(worker.crane_classes);
+    const roles = normalizeWorkerRoles(worker.roles);
+    worker.roles = roles.length > 0
+      ? roles
+      : normalizeWorkerRoles(worker.role);
+    worker.role_label = workerRoleLabel(worker.role);
+    worker.role_labels = worker.roles.map(workerRoleLabel);
     worker.is_archived = Boolean(worker.archived_at);
   }
   return worker;
@@ -81,6 +92,14 @@ function computeCredStatus(type, expiryDate, today = new Date()) {
   warnDate.setDate(warnDate.getDate() + 30);
   if (expiryDate <= warnDate.toISOString().slice(0, 10)) return 'expiring_soon';
   return 'valid';
+}
+
+function serializeCredential(credential) {
+  if (!credential) return null;
+  return {
+    ...credential,
+    type_label: credentialDisplayLabel(credential.type)
+  };
 }
 
 function ensureUniqueWorkerEmail(db, companyId, email, excludedWorkerId = null) {
@@ -139,15 +158,16 @@ function createImportedRecords(db, user, row, importMode) {
 
   db.prepare(`
     INSERT INTO workers (
-      id, company_id, name, email, role, employment_type, crane_classes,
+      id, company_id, name, email, role, roles, employment_type, crane_classes,
       usual_depot, contact_number, status, availability_note, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     workerId,
     user.company_id,
     row.worker.name,
     row.worker.email,
     row.worker.role,
+    JSON.stringify(normalizeWorkerRoles(row.worker.roles || row.worker.role)),
     row.worker.employment_type,
     JSON.stringify(row.worker.crane_classes || []),
     row.worker.usual_depot || null,
@@ -241,13 +261,16 @@ router.get('/', requireAuth, (req, res) => {
     sql += ` AND status = ?`;
     params.push(status);
   }
-  if (role) {
-    sql += ` AND role = ?`;
-    params.push(role);
-  }
-
   sql += ` ORDER BY name`;
-  const workers = db.prepare(sql).all(...params).map(parseWorker);
+  let workers = db.prepare(sql).all(...params).map(parseWorker);
+  if (role) {
+    const roleFilter = normalizeWorkerRole(role);
+    if (!roleFilter) return res.status(400).json({ error: 'role filter is not recognised' });
+    workers = workers.filter((worker) =>
+      (worker.roles || []).includes(roleFilter)
+      || worker.role === legacyPrimaryRoleForRoles([roleFilter])
+    );
+  }
   res.json(workers);
 });
 
@@ -257,6 +280,7 @@ router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => 
     name,
     email,
     role,
+    roles,
     employment_type,
     crane_classes,
     usual_depot,
@@ -266,11 +290,16 @@ router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => 
     notes
   } = req.body;
 
-  if (!name || !role || !employment_type) {
-    return res.status(400).json({ error: 'name, role, and employment_type are required' });
+  const normalizedRoles = normalizeWorkerRoles(roles !== undefined ? roles : role);
+  const legacyRole = role && VALID_ROLES.includes(role)
+    ? role
+    : legacyPrimaryRoleForRoles(normalizedRoles, role);
+
+  if (!name || normalizedRoles.length === 0 || !employment_type) {
+    return res.status(400).json({ error: 'name, at least one worker role, and employment_type are required' });
   }
-  if (!VALID_ROLES.includes(role)) {
-    return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
+  if (!VALID_ROLES.includes(legacyRole)) {
+    return res.status(400).json({ error: 'worker role could not be mapped to a supported dispatch role' });
   }
   if (!VALID_EMP_TYPES.includes(employment_type)) {
     return res.status(400).json({ error: `employment_type must be one of: ${VALID_EMP_TYPES.join(', ')}` });
@@ -293,15 +322,16 @@ router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => 
 
   db.prepare(`
     INSERT INTO workers (
-      id, company_id, name, email, role, employment_type, crane_classes,
+      id, company_id, name, email, role, roles, employment_type, crane_classes,
       usual_depot, contact_number, status, availability_note, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     req.user.company_id,
     name,
     normalizedEmail,
-    role,
+    legacyRole,
+    JSON.stringify(normalizedRoles),
     employment_type,
     JSON.stringify(crane_classes || []),
     usual_depot || null,
@@ -513,12 +543,19 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
     queueUpdate('email', nextEmail, existing.email || null);
   }
 
-  if (hasOwn(req.body, 'role')) {
-    const nextRole = normalizeRequiredText(req.body.role);
+  if (hasOwn(req.body, 'role') || hasOwn(req.body, 'roles')) {
+    const nextRoles = normalizeWorkerRoles(hasOwn(req.body, 'roles') ? req.body.roles : req.body.role);
+    if (nextRoles.length === 0) {
+      return res.status(400).json({ error: 'at least one worker role is required' });
+    }
+    const nextRole = hasOwn(req.body, 'role') && VALID_ROLES.includes(req.body.role)
+      ? req.body.role
+      : legacyPrimaryRoleForRoles(nextRoles, existing.role);
     if (!VALID_ROLES.includes(nextRole)) {
-      return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
+      return res.status(400).json({ error: 'worker role could not be mapped to a supported dispatch role' });
     }
     queueUpdate('role', nextRole);
+    queueUpdate('roles', JSON.stringify(nextRoles), JSON.stringify(normalizeWorkerRoles(existing.roles || existing.role)));
   }
 
   if (hasOwn(req.body, 'employment_type')) {
@@ -578,6 +615,19 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
         updated_at: now
       }
     });
+
+    if (changedFields.includes('roles')) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'worker_roles_updated',
+        userId: req.user.id,
+        workerId: req.params.id,
+        payload: {
+          roles: normalizeWorkerRoles(req.body.roles || req.body.role),
+          updated_at: now
+        }
+      });
+    }
 
     return parseWorker(ensureWorker(db, req.params.id, req.user.company_id));
   })();
@@ -822,7 +872,7 @@ router.get('/:id/credentials', requireAuth, (req, res) => {
     ORDER BY type, expiry_date DESC
   `).all(req.params.id);
 
-  res.json(credentials);
+  res.json(credentials.map(serializeCredential));
 });
 
 // POST /api/workers/:id/credentials
@@ -834,11 +884,12 @@ router.post('/:id/credentials', requireAuth, requireRole('admin', 'dispatcher'),
   const { type, identifier, issuing_body, issue_date, expiry_date, verified, notes } = req.body;
 
   if (!type) return res.status(400).json({ error: 'type is required' });
-  if (!VALID_CRED_TYPES.includes(type)) {
-    return res.status(400).json({ error: `type must be one of: ${VALID_CRED_TYPES.join(', ')}` });
+  const normalizedType = normalizeCredentialType(type);
+  if (!normalizedType || !VALID_CRED_TYPES.includes(normalizedType)) {
+    return res.status(400).json({ error: 'credential type is not recognised' });
   }
 
-  const status = computeCredStatus(type, expiry_date);
+  const status = computeCredStatus(normalizedType, expiry_date);
   const id = randomUUID();
 
   db.prepare(`
@@ -850,7 +901,7 @@ router.post('/:id/credentials', requireAuth, requireRole('admin', 'dispatcher'),
     id,
     req.params.id,
     req.user.company_id,
-    type,
+    normalizedType,
     identifier || null,
     issuing_body || null,
     issue_date || null,
@@ -868,12 +919,13 @@ router.post('/:id/credentials', requireAuth, requireRole('admin', 'dispatcher'),
     payload: {
       action: 'credential_created',
       credential_id: id,
-      type,
+      type: normalizedType,
+      label: credentialDisplayLabel(normalizedType),
       status
     }
   });
 
-  res.status(201).json(db.prepare(`SELECT * FROM credentials WHERE id = ?`).get(id));
+  res.status(201).json(serializeCredential(db.prepare(`SELECT * FROM credentials WHERE id = ?`).get(id)));
 });
 
 // PATCH /api/workers/:id/credentials/:credId
@@ -889,18 +941,25 @@ router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'disp
 
   if (!credential) return res.status(404).json({ error: 'Credential not found' });
 
+  const nextType = hasOwn(req.body, 'type')
+    ? normalizeCredentialType(req.body.type)
+    : credential.type;
+  if (!nextType || !VALID_CRED_TYPES.includes(nextType)) {
+    return res.status(400).json({ error: 'credential type is not recognised' });
+  }
   const nextIdentifier = hasOwn(req.body, 'identifier') ? normalizeNullableText(req.body.identifier) : credential.identifier;
   const nextIssuingBody = hasOwn(req.body, 'issuing_body') ? normalizeNullableText(req.body.issuing_body) : credential.issuing_body;
   const nextIssueDate = hasOwn(req.body, 'issue_date') ? normalizeNullableText(req.body.issue_date) : credential.issue_date;
   const nextExpiryDate = hasOwn(req.body, 'expiry_date') ? normalizeNullableText(req.body.expiry_date) : credential.expiry_date;
   const nextVerified = hasOwn(req.body, 'verified') ? (req.body.verified ? 1 : 0) : credential.verified;
   const nextNotes = hasOwn(req.body, 'notes') ? normalizeNullableText(req.body.notes) : credential.notes;
-  const nextStatus = computeCredStatus(credential.type, nextExpiryDate);
+  const nextStatus = computeCredStatus(nextType, nextExpiryDate);
   const now = new Date().toISOString();
 
   db.prepare(`
     UPDATE credentials
-    SET identifier = ?,
+    SET type = ?,
+        identifier = ?,
         issuing_body = ?,
         issue_date = ?,
         expiry_date = ?,
@@ -910,6 +969,7 @@ router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'disp
         updated_at = ?
     WHERE id = ?
   `).run(
+    nextType,
     nextIdentifier,
     nextIssuingBody,
     nextIssueDate,
@@ -929,13 +989,15 @@ router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'disp
     payload: {
       action: 'credential_updated',
       credential_id: req.params.credId,
-      changed_fields: ['identifier', 'issuing_body', 'issue_date', 'expiry_date', 'verified', 'notes']
+      type: nextType,
+      label: credentialDisplayLabel(nextType),
+      changed_fields: ['type', 'identifier', 'issuing_body', 'issue_date', 'expiry_date', 'verified', 'notes']
         .filter((field) => hasOwn(req.body, field)),
       status: nextStatus
     }
   });
 
-  res.json(db.prepare(`SELECT * FROM credentials WHERE id = ?`).get(req.params.credId));
+  res.json(serializeCredential(db.prepare(`SELECT * FROM credentials WHERE id = ?`).get(req.params.credId)));
 });
 
 // GET /api/workers/:id/fatigue-records

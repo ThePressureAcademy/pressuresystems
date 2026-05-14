@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS workers (
                       'crane_operator', 'dogman', 'rigger',
                       'traffic_controller', 'supervisor', 'allocator'
                     )),
+  roles             TEXT NOT NULL DEFAULT '[]',  -- JSON string[] from intake role catalogue
   employment_type   TEXT NOT NULL
                     CHECK (employment_type IN (
                       'permanent', 'casual', 'contractor', 'labour_hire'
@@ -86,13 +87,7 @@ CREATE TABLE IF NOT EXISTS credentials (
   id           TEXT PRIMARY KEY,
   worker_id    TEXT NOT NULL REFERENCES workers(id),
   company_id   TEXT NOT NULL REFERENCES companies(id),
-  type         TEXT NOT NULL
-               CHECK (type IN (
-                 'high_risk_licence_crane', 'high_risk_licence_dogging',
-                 'high_risk_licence_rigging', 'white_card', 'msic_card',
-                 'site_induction', 'client_induction', 'medical_clearance',
-                 'drivers_licence', 'other'
-               )),
+  type         TEXT NOT NULL,
   identifier   TEXT,
   issuing_body TEXT,
   issue_date   TEXT,
@@ -145,6 +140,7 @@ CREATE TABLE IF NOT EXISTS jobs (
                            CHECK (shift_type IN ('day', 'night', 'split')),
   estimated_duration_hours REAL,
   crane_class_required     TEXT,
+  crane_classes_required   TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
   job_description          TEXT,
   task_tags                TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
   crew_roles_required      TEXT NOT NULL DEFAULT '[]',    -- JSON
@@ -443,6 +439,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'worker_import_completed',
                   'worker_removed',
                   'worker_updated',
+                  'worker_roles_updated',
                   'worker_credentials_updated',
                   'worker_preferences_updated',
                   'job_created',
@@ -455,10 +452,16 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'transport_requirement_created',
                   'company_catalogue_updated',
                   'company_operating_mode_updated',
+                  'company_default_timezone_updated',
                   'company_asset_created',
                   'company_asset_updated',
                   'company_asset_archived',
                   'job_requirements_updated',
+                  'job_required_roles_updated',
+                  'job_credentials_updated',
+                  'job_equipment_requirements_updated',
+                  'job_site_conditions_updated',
+                  'job_additional_requirements_updated',
                   'job_custom_requirement_added',
                   'job_requirement_imported_from_brief',
                   'job_asset_selected',

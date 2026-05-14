@@ -242,7 +242,7 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(created.body.manual_requirement_review_required, true);
     assert.equal(created.body.transport_requirement_review_required, true);
     assert.ok(created.body.task_tags.includes('equipment_mobile_crane_100t'));
-    assert.ok(created.body.required_credentials.includes('high_risk_licence_crane'));
+    assert.ok(created.body.required_credentials.includes('hrwl_c6'));
 
     const requirements = await request.get(`/api/jobs/${created.body.id}/requirements`).set(auth());
     assert.equal(requirements.status, 200);

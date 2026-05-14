@@ -1,6 +1,11 @@
 'use strict';
 
 const { normalizeTaskTag } = require('./preferences');
+const {
+  legacyPrimaryRoleForRoles,
+  normalizeCredentialType,
+  normalizeWorkerRoles
+} = require('./intake-catalogues');
 
 const ROLE_MAP = {
   crane_operator: 'crane_operator',
@@ -11,7 +16,13 @@ const ROLE_MAP = {
   supervisor: 'supervisor',
   allocator: 'allocator',
   traffic_controller: 'traffic_controller',
-  'traffic controller': 'traffic_controller'
+  'traffic controller': 'traffic_controller',
+  'truck driver': 'truck_driver',
+  truck_driver: 'truck_driver',
+  electrician: 'electrician',
+  labourer: 'labourer',
+  welder: 'welder',
+  weilder: 'welder'
 };
 
 const EMPLOYMENT_MAP = {
@@ -36,13 +47,13 @@ const STATUS_MAP = {
 };
 
 const CREDENTIAL_MAP = {
-  hrwl_c2: 'high_risk_licence_crane',
-  hrwl_c6: 'high_risk_licence_crane',
-  hrwl_cn: 'high_risk_licence_crane',
-  hrwl_dg: 'high_risk_licence_dogging',
-  hrwl_ra: 'high_risk_licence_rigging',
-  hrwl_rb: 'high_risk_licence_rigging',
-  hrwl_ri: 'high_risk_licence_rigging',
+  hrwl_c2: 'hrwl_c2',
+  hrwl_c6: 'hrwl_c6',
+  hrwl_cn: 'hrwl_cn',
+  hrwl_dg: 'hrwl_dg',
+  hrwl_ra: 'hrwl_ra',
+  hrwl_rb: 'hrwl_rb',
+  hrwl_ri: 'hrwl_ri',
   white_card: 'white_card',
   msic: 'msic_card',
   msic_card: 'msic_card',
@@ -150,7 +161,7 @@ function parseCredentialRows(typesValue, expiryValue, warnings) {
 
   const credentials = [];
   credentialTypes.forEach((typeValue, index) => {
-    const mappedType = CREDENTIAL_MAP[toKey(typeValue)];
+    const mappedType = normalizeCredentialType(CREDENTIAL_MAP[toKey(typeValue)] || typeValue);
     if (!mappedType) {
       warnings.push(`Unsupported credential type "${typeValue}" was skipped`);
       return;
@@ -223,22 +234,23 @@ function normalizeRow(record) {
   const firstName = String(row.first_name || '').trim();
   const lastName = String(row.last_name || '').trim();
   const email = String(row.email || '').trim().toLowerCase();
-  const role = ROLE_MAP[toKey(row.role)];
+  const roles = normalizeWorkerRoles(splitPipe(row.role).map((roleValue) => ROLE_MAP[toKey(roleValue)] || roleValue));
+  const role = legacyPrimaryRoleForRoles(roles, ROLE_MAP[toKey(row.role)]);
   const employmentType = EMPLOYMENT_MAP[toKey(row.employment_type)];
   const availabilityStatus = row.availability_status
     ? STATUS_MAP[toKey(row.availability_status)]
     : 'available';
 
-  if (!firstName) errors.push('first_name is required');
-  if (!lastName) errors.push('last_name is required');
-  if (!email) errors.push('email is required');
+  if (!firstName) errors.push('First name is required');
+  if (!lastName) errors.push('Last name is required');
+  if (!email) errors.push('Email is required');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.push('email must be a valid email address');
+    errors.push('Email must be a valid email address');
   }
-  if (!role) errors.push('role could not be mapped to a supported backend role');
-  if (!employmentType) errors.push('employment_type could not be mapped to a supported backend employment type');
+  if (roles.length === 0 || !role) errors.push('role could not be mapped to a supported worker role');
+  if (!employmentType) errors.push('Employment type could not be mapped to a supported backend employment type');
   if (row.availability_status && !availabilityStatus) {
-    warnings.push(`availability_status "${row.availability_status}" was not recognised, defaulted to available`);
+    warnings.push(`Availability status "${row.availability_status}" was not recognised, defaulted to available`);
   }
 
   const credentials = parseCredentialRows(row.credential_types, row.credential_expiry_dates, warnings);
@@ -251,6 +263,7 @@ function normalizeRow(record) {
       name: `${firstName} ${lastName}`.trim(),
       email,
       role,
+      roles,
       employment_type: employmentType,
       crane_classes: splitPipe(row.crane_classes),
       usual_depot: String(row.base_location || '').trim() || null,
