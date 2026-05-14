@@ -34,6 +34,7 @@ function seedCompanyAndUser(db, overrides = {}) {
   const userPassword = overrides.password || 'testpass';
   const userRole = overrides.role || 'admin';
   const userStatus = overrides.status || 'active';
+  const isInternalAdmin = overrides.isInternalAdmin ? 1 : 0;
   const mustChangePassword = overrides.mustChangePassword ? 1 : 0;
 
   db.prepare(`
@@ -57,8 +58,8 @@ function seedCompanyAndUser(db, overrides = {}) {
   );
 
   db.prepare(`
-    INSERT INTO users (id, company_id, name, email, password_hash, role, status, must_change_password)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, company_id, name, email, password_hash, role, status, is_internal_admin, must_change_password)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     companyId,
@@ -67,6 +68,7 @@ function seedCompanyAndUser(db, overrides = {}) {
     bcrypt.hashSync(userPassword, 1),
     userRole,
     userStatus,
+    isInternalAdmin,
     mustChangePassword
   );
 

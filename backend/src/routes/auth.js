@@ -4,6 +4,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
+const { appendAuditEvent } = require('../services/audit');
 const {
   blockedCompanyResponse,
   effectiveAccessStatus,
@@ -32,6 +33,7 @@ function serializeUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    is_internal_admin: Boolean(user.is_internal_admin),
     company_id: user.company_id,
     company: serializeCompanyAccess(company),
     must_change_password: Boolean(user.must_change_password)
@@ -87,6 +89,14 @@ router.post('/login', (req, res) => {
   `).get(email.toLowerCase().trim());
 
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    if (user) {
+      appendAuditEvent(db, {
+        companyId: user.company_id,
+        eventType: 'user_login_failed',
+        userId: user.id,
+        payload: { reason: 'invalid_credentials' }
+      });
+    }
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   const company = {
@@ -109,6 +119,12 @@ router.post('/login', (req, res) => {
   }
 
   db.prepare(`UPDATE users SET last_login_at = datetime('now') WHERE id = ?`).run(user.id);
+  appendAuditEvent(db, {
+    companyId: user.company_id,
+    eventType: 'user_login_succeeded',
+    userId: user.id,
+    payload: { must_change_password: Boolean(user.must_change_password) }
+  });
 
   const token = signToken({
     id:         user.id,
@@ -133,6 +149,7 @@ router.get('/me', requireAuth, (req, res) => {
       u.name,
       u.email,
       u.role,
+      u.is_internal_admin,
       u.company_id,
       u.status,
       u.must_change_password,
@@ -186,6 +203,12 @@ router.post('/change-password', requireAuth, (req, res) => {
     SET password_hash = ?, must_change_password = 0
     WHERE id = ?
   `).run(hash, req.user.id);
+  appendAuditEvent(db, {
+    companyId: req.user.company_id,
+    eventType: 'password_changed',
+    userId: req.user.id,
+    payload: { forced_rotation_cleared: Boolean(user.must_change_password) }
+  });
 
   res.json({ success: true, message: 'Password updated. Please sign in again.' });
 });

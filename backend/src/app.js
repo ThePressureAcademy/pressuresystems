@@ -23,6 +23,7 @@ app.use('/api/crane-models', require('./routes/crane-models'));
 app.use('/api/schedule',     require('./routes/schedule'));
 app.use('/api/audit-events', require('./routes/audit-events'));
 app.use('/api/metrics',      require('./routes/metrics'));
+app.use('/api/internal',     require('./routes/internal'));
 
 // 404 for unknown API paths
 app.use('/api', (req, res) => {

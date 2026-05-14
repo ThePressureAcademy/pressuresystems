@@ -172,7 +172,17 @@ router.get('/setup-state', requireAuth, (req, res) => {
 router.get('/reset-preview', requireAuth, requireRole('admin'), (req, res) => {
   const db = getDb();
   try {
-    return res.json(getCompanyResetPreview(db, req.user.company_id, req.query.scope));
+    const preview = getCompanyResetPreview(db, req.user.company_id, req.query.scope);
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'company_reset_previewed',
+      userId: req.user.id,
+      payload: {
+        scope: preview.scope,
+        counts: preview.counts
+      }
+    });
+    return res.json(preview);
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }

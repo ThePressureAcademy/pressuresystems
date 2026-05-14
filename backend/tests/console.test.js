@@ -69,6 +69,11 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderSmartRank/);
     assert.match(res.text, /renderAllocate/);
     assert.match(res.text, /renderAudit/);
+    assert.match(res.text, /renderInternalPilotMonitor/);
+    assert.match(res.text, /Internal Pilot Monitor/);
+    assert.match(res.text, /\/internal\/pilot-activity/);
+    assert.match(res.text, /does not expose operational payloads or customer job content/);
+    assert.match(res.text, /worker names, emails, phone numbers, job descriptions, client names, site addresses/i);
     assert.match(res.text, /formatCompanyLabel/);
     assert.match(res.text, /Company:/);
     assert.match(res.text, /test portal/);
@@ -198,6 +203,7 @@ describe('Pilot console — static asset serving', () => {
       'renderAllocate',      // allocation confirmation
       'renderAudit',         // audit log
       'renderMetrics',       // pilot metrics
+      'renderInternalPilotMonitor', // internal privacy-safe pilot activity monitor
       'buildCredentialForm', // credential entry
       'buildFatigueForm',    // fatigue entry
       'buildSecurityPanel',  // account security panel + optional password rotation
@@ -210,6 +216,7 @@ describe('Pilot console — static asset serving', () => {
       'isStaleRender',       // async render guard
       'auditEventReason',    // audit summary
       'auditEventSignals',   // warning/block summary
+      'syncInternalNav',     // internal-only monitor navigation
     ]) {
       assert.match(appJs, new RegExp(`function ${fn}`),
         `Console must define ${fn}`);

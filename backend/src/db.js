@@ -10,6 +10,11 @@ const { seedRequirementCatalogue } = require('./services/job-requirement-catalog
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 const AUDIT_EVENT_TYPES = [
   'smartrank_generated',
+  'user_login_succeeded',
+  'user_login_failed',
+  'password_changed',
+  'protected_route_blocked_password_change',
+  'internal_pilot_monitor_viewed',
   'credential_block_applied',
   'fatigue_block_applied',
   'fatigue_warning_triggered',
@@ -22,6 +27,8 @@ const AUDIT_EVENT_TYPES = [
   'credential_expiry_alert',
   'worker_imported',
   'worker_import_completed',
+  'worker_created',
+  'worker_archived',
   'worker_removed',
   'worker_updated',
   'worker_roles_updated',
@@ -29,6 +36,7 @@ const AUDIT_EVENT_TYPES = [
   'worker_preferences_updated',
   'job_created',
   'job_updated',
+  'job_imported_from_brief',
   'job_brief_import_previewed',
   'job_created_from_brief',
   'job_counterweight_transport_assessed',
@@ -41,6 +49,7 @@ const AUDIT_EVENT_TYPES = [
   'company_asset_created',
   'company_asset_updated',
   'company_asset_archived',
+  'company_reset_previewed',
   'job_requirements_updated',
   'job_required_roles_updated',
   'job_credentials_updated',
@@ -50,9 +59,13 @@ const AUDIT_EVENT_TYPES = [
   'job_custom_requirement_added',
   'job_requirement_imported_from_brief',
   'job_asset_selected',
+  'job_asset_changed',
   'preference_signal_created',
   'preference_signal_updated',
   'learned_preference_applied',
+  'override_reason_recorded',
+  'credentialgate_block_created',
+  'fatigueguard_warning_created',
   'company_reset_started',
   'company_reset_completed'
 ];
@@ -436,37 +449,7 @@ function auditEventsNeedMigration(db) {
     WHERE type = 'table' AND name = 'audit_events'
   `).get();
   if (!row || !row.sql) return true;
-  return !row.sql.includes('learned_preference_applied')
-    || !row.sql.includes('worker_imported')
-    || !row.sql.includes('preference_signal_created')
-    || !row.sql.includes('worker_removed')
-    || !row.sql.includes('worker_updated')
-    || !row.sql.includes('worker_roles_updated')
-    || !row.sql.includes('worker_credentials_updated')
-    || !row.sql.includes('worker_preferences_updated')
-    || !row.sql.includes('job_updated')
-    || !row.sql.includes('job_schedule_changed')
-    || !row.sql.includes('job_brief_import_previewed')
-    || !row.sql.includes('job_created_from_brief')
-    || !row.sql.includes('job_counterweight_transport_assessed')
-    || !row.sql.includes('transport_requirement_created')
-    || !row.sql.includes('company_catalogue_updated')
-    || !row.sql.includes('company_operating_mode_updated')
-    || !row.sql.includes('company_default_timezone_updated')
-    || !row.sql.includes('company_asset_created')
-    || !row.sql.includes('company_asset_updated')
-    || !row.sql.includes('company_asset_archived')
-    || !row.sql.includes('job_requirements_updated')
-    || !row.sql.includes('job_required_roles_updated')
-    || !row.sql.includes('job_credentials_updated')
-    || !row.sql.includes('job_equipment_requirements_updated')
-    || !row.sql.includes('job_site_conditions_updated')
-    || !row.sql.includes('job_additional_requirements_updated')
-    || !row.sql.includes('job_custom_requirement_added')
-    || !row.sql.includes('job_requirement_imported_from_brief')
-    || !row.sql.includes('job_asset_selected')
-    || !row.sql.includes('company_reset_started')
-    || !row.sql.includes('company_reset_completed');
+  return AUDIT_EVENT_TYPES.some((type) => !row.sql.includes(`'${type}'`));
 }
 
 function migrateAuditEvents(db) {
@@ -541,6 +524,7 @@ function runMigrations(db) {
   ensureColumn(db, 'companies', `notes TEXT`, 'notes');
   ensureColumn(db, 'companies', `operating_mode TEXT NOT NULL DEFAULT 'plant_and_labour'`, 'operating_mode');
   ensureColumn(db, 'users', `must_change_password INTEGER NOT NULL DEFAULT 0`, 'must_change_password');
+  ensureColumn(db, 'users', `is_internal_admin INTEGER NOT NULL DEFAULT 0`, 'is_internal_admin');
   ensureColumn(db, 'workers', `email TEXT`, 'email');
   ensureColumn(db, 'workers', `archived_at TEXT`, 'archived_at');
   ensureColumn(db, 'workers', `archived_by_user_id TEXT`, 'archived_by_user_id');
