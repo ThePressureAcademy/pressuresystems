@@ -101,6 +101,10 @@ The exported PNGs preserve the locked board appearance on a dark charcoal backgr
 
 `dispatchtalon-header-lockup-transparent.png` and `dispatchtalon-header-mark-transparent.png` are raster-derived from the locked board for dark-surface runtime use where a baked dark rectangle would reduce trust. The public floating header should prefer the typographic DispatchTalon treatment; use the transparent mark as a subtle watermark or compact orientation device only. These files are not a substitute for final designer-vector SVG masters.
 
+## Landing Page Watermarks
+
+The `/liftiq/` landing page may use the logo-only transparent mark as a controlled visual rhythm across the page. Keep the system capped at four section-scoped placements, use low opacity, keep each instance behind content, and hide secondary placements on mobile. Do not use the full text lockup, boxed exports, or repeated wallpaper-style backgrounds as watermarks.
+
 ## Transition Note
 
 DispatchTalon was previously developed under the LIFTIQ working name. LIFTIQ technical identifiers may remain temporarily for route, deployment, environment-variable, filename, and historical traceability stability.
