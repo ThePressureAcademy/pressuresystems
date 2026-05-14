@@ -511,11 +511,28 @@ h3 {
     radial-gradient(circle at top right, rgba(199, 99, 50, 0.12), transparent 36%);
 }
 
-.offer-brand-lockup {
-  width: min(360px, 100%);
-  height: auto;
+.offer-brand-wordmark {
+  display: inline-grid;
+  gap: 4px;
   margin-bottom: 18px;
-  border-radius: 12px;
+  padding-left: 16px;
+  border-left: 3px solid var(--accent);
+}
+
+.offer-brand-name {
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+}
+
+.offer-brand-parent {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .offer-list,

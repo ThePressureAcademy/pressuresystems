@@ -133,6 +133,7 @@ button {
   align-items: center;
   gap: 14px;
   min-width: 0;
+  text-decoration: none;
 }
 
 .lq-brand-mark {
@@ -141,10 +142,29 @@ button {
   flex: 0 0 auto;
 }
 
-.lq-brand-lockup {
-  width: min(230px, 52vw);
-  height: auto;
-  flex: 0 0 auto;
+.lq-brand-type {
+  display: grid;
+  gap: 1px;
+  padding: 5px 0 5px 14px;
+  border-left: 2px solid var(--lq-cyan);
+}
+
+.lq-brand-title {
+  color: var(--lq-text-strong);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.1rem, 1.7vw, 1.34rem);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.96;
+}
+
+.lq-brand-subtitle {
+  color: var(--lq-text-muted);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
 }
 
 .lq-brand-copy {
@@ -249,12 +269,25 @@ button {
   font-size: 0.92rem;
   font-weight: 600;
   letter-spacing: -0.02em;
+  line-height: 1.12;
+  text-align: center;
   transition:
     transform 0.2s var(--lq-ease),
     background 0.2s ease,
     border-color 0.2s ease,
     color 0.2s ease,
     box-shadow 0.2s ease;
+}
+
+.lq-button-context {
+  min-width: 166px;
+  padding-inline: 22px;
+  white-space: nowrap;
+}
+
+.lq-nav-actions .lq-button-context {
+  min-width: 154px;
+  padding-inline: 18px;
 }
 
 .lq-button {
@@ -318,9 +351,67 @@ button {
   align-items: center;
 }
 
+.lq-hero-grid > *,
+.lq-page-hero-grid > * {
+  min-width: 0;
+}
+
 .lq-page-hero-grid.single {
   grid-template-columns: minmax(0, 1fr);
   max-width: 860px;
+}
+
+.lq-hero-copy {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  padding: clamp(10px, 2vw, 18px) 0;
+}
+
+.lq-hero-copy::before {
+  content: "";
+  position: absolute;
+  top: clamp(12px, 3vw, 36px);
+  right: clamp(-88px, -6vw, -42px);
+  z-index: 0;
+  width: clamp(220px, 28vw, 410px);
+  aspect-ratio: 1;
+  background: url("/assets/logos/dispatchtalon/dispatchtalon-header-mark-transparent.png") center / contain no-repeat;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+.lq-hero-copy > * {
+  position: relative;
+  z-index: 1;
+}
+
+.lq-hero-brand {
+  display: grid;
+  gap: 3px;
+  width: max-content;
+  max-width: 100%;
+  margin-bottom: 24px;
+  padding-left: 16px;
+  border-left: 2px solid var(--lq-cyan);
+}
+
+.lq-hero-brand-title {
+  color: var(--lq-text-strong);
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.44rem, 2vw, 2.05rem);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.lq-hero-brand-subtitle {
+  color: var(--lq-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
 }
 
 .lq-eyebrow {
@@ -337,13 +428,6 @@ button {
   font-size: 0.7rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.lq-hero-lockup {
-  width: min(440px, 100%);
-  height: auto;
-  margin: 0 0 22px;
-  border-radius: 14px;
 }
 
 .lq-eyebrow-dot {
@@ -1285,6 +1369,10 @@ button {
 }
 
 @media (max-width: 1080px) {
+  .lq-utility-link {
+    display: none;
+  }
+
   .lq-hero-grid,
   .lq-page-hero-grid,
   .lq-cta-panel {
@@ -1323,8 +1411,9 @@ button {
     align-items: stretch;
     gap: 0;
     padding: 12px var(--lq-pad) 18px;
-    background: rgba(8, 17, 29, 0.97);
+    background: #0e1216;
     border-bottom: 1px solid rgba(143, 176, 207, 0.1);
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
   }
 
   .lq-nav-links.is-open {
@@ -1358,8 +1447,34 @@ button {
     padding-top: 76px;
   }
 
+  .lq-brand-type {
+    padding-left: 12px;
+  }
+
+  .lq-brand-title {
+    font-size: 1.12rem;
+  }
+
+  .lq-brand-subtitle {
+    font-size: 0.58rem;
+  }
+
+  .lq-hero-copy::before {
+    top: 36px;
+    right: -120px;
+    width: 260px;
+    opacity: 0.055;
+  }
+
+  .lq-hero-brand {
+    margin-bottom: 20px;
+  }
+
   .lq-title {
-    font-size: clamp(2.2rem, 11vw, 3.2rem);
+    max-width: 100%;
+    font-size: clamp(2rem, 9.35vw, 2.7rem);
+    line-height: 1.01;
+    overflow-wrap: break-word;
   }
 
   .lq-page-title {
@@ -1386,6 +1501,12 @@ button {
   .lq-button-secondary,
   .lq-button-ghost {
     width: 100%;
+    min-width: 0;
+    min-height: 50px;
+  }
+
+  .lq-button-context {
+    white-space: normal;
   }
 
   .lq-field-row,

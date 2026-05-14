@@ -260,6 +260,38 @@
       "do_not_use_notes": "Use as square avatar source."
     },
     {
+      "file": "dispatchtalon-header-lockup-transparent.png",
+      "usage": "transparent website and portal header lockup",
+      "recommended_for": [
+        "dark-surface fallback lockup",
+        "portal login fallback",
+        "controlled internal UI surfaces"
+      ],
+      "background": "transparent",
+      "dimensions": {
+        "width": 779,
+        "height": 240
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Raster-derived from the locked board for dark graphite header surfaces only. Not a true vector master."
+    },
+    {
+      "file": "dispatchtalon-header-mark-transparent.png",
+      "usage": "transparent compact header mark",
+      "recommended_for": [
+        "portal login mark",
+        "portal topbar mark",
+        "subtle dark-surface watermark"
+      ],
+      "background": "transparent",
+      "dimensions": {
+        "width": 394,
+        "height": 394
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Raster-derived from the locked board for dark graphite UI surfaces only. Not a true vector master."
+    },
+    {
       "file": "dispatchtalon-website-header-lockup.png",
       "usage": "website header lockup",
       "recommended_for": [
@@ -271,7 +303,7 @@
         "height": 270
       },
       "colour_variant": "charcoal/cream/steel/rust",
-      "do_not_use_notes": "Use in DispatchTalon page headers."
+      "do_not_use_notes": "Do not use in translucent/floating headers because this export has a baked dark background."
     }
   ]
 }

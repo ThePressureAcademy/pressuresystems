@@ -16,6 +16,8 @@ Primary assets:
 - `assets/logos/dispatchtalon/dispatchtalon-primary-mark.png`
 - `assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png`
 - `assets/logos/dispatchtalon/dispatchtalon-website-header-lockup.png`
+- `assets/logos/dispatchtalon/dispatchtalon-header-lockup-transparent.png`
+- `assets/logos/dispatchtalon/dispatchtalon-header-mark-transparent.png`
 - `assets/logos/dispatchtalon/dispatchtalon-portal-login-lockup.png`
 - `assets/logos/dispatchtalon/dispatchtalon-linkedin-ad-corner-mark.png`
 
@@ -55,8 +57,8 @@ The secondary blue variant is retained only as a legacy bridge. Do not make blue
 ## Usage Rules
 
 - Use the primary lockup for website hero sections, sales docs, proposal covers, and broad product identification.
-- Use the website header lockup in DispatchTalon website navigation.
-- Use the portal login lockup on the portal login screen.
+- Use a clean typographic treatment in DispatchTalon website navigation when a logo image would create a boxed or pasted effect.
+- Use transparent mark assets as subtle dark-surface watermarks or compact portal marks where they remain native to the UI.
 - Use the app icon for favicon, browser icon, app icon, and social avatar crop.
 - Use the monochrome light mark on dark backgrounds when colour reproduction is unavailable.
 - Use the monochrome dark mark only where contrast is sufficient on a light background.
@@ -94,6 +96,10 @@ The current approved source is a raster board. This pass exports locked-board PN
 ## Background Status
 
 The exported PNGs preserve the locked board appearance on a dark charcoal background. Transparent-background assets should be produced later from true vector artwork or designer-approved separated source files to avoid rough edge extraction.
+
+## Header Runtime Assets
+
+`dispatchtalon-header-lockup-transparent.png` and `dispatchtalon-header-mark-transparent.png` are raster-derived from the locked board for dark-surface runtime use where a baked dark rectangle would reduce trust. The public floating header should prefer the typographic DispatchTalon treatment; use the transparent mark as a subtle watermark or compact orientation device only. These files are not a substitute for final designer-vector SVG masters.
 
 ## Transition Note
 
