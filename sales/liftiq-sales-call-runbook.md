@@ -1,18 +1,18 @@
-# LIFTIQ Sales Call Runbook
+# DispatchTalon Sales Call Runbook
 
 Internal sales enablement only. Do not publish this file as public site copy.
 
 ## Core Positioning
 
-LIFTIQ is a pilot-stage dispatch intelligence layer for labour and lifting operations.
+DispatchTalon is a pilot-stage dispatch intelligence layer for labour and lifting operations.
 
 Core line:
 
-> LIFTIQ does not replace dispatch judgement. It structures the decision before dispatch, shows the reasoning, and keeps the audit trail.
+> DispatchTalon does not replace dispatch judgement. It structures the decision before dispatch, shows the reasoning, and keeps the audit trail.
 
 Expanded line:
 
-> LIFTIQ helps labour, crane, rigging, plant, transport, and lifting teams structure allocation decisions before dispatch.
+> DispatchTalon helps labour, crane, rigging, plant, transport, and lifting teams structure allocation decisions before dispatch.
 
 ## Call Control
 

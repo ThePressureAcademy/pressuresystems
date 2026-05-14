@@ -1,4 +1,4 @@
-# LIFTIQ LinkedIn Ads Final Review
+# DispatchTalon LinkedIn Ads Final Review
 
 ## What Was Generated
 
@@ -40,8 +40,8 @@ All generated PNG exports are under 5 MB.
 
 ## Screenshots / Artifacts Used
 
-- Existing public LIFTIQ page screenshot from the demo content worktree.
-- Existing LIFTIQ public OG assets from repo.
+- Existing public DispatchTalon page screenshot from the demo content worktree.
+- Existing DispatchTalon public OG assets from repo.
 - Sanitised synthetic/demo pilot preview panels rendered from `working/ad-board.html`.
 
 ## Recommended Launch Order

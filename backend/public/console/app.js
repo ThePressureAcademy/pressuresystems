@@ -978,12 +978,12 @@ function renderOperatingModePanel(profile = {}) {
     {
       value: 'labour_only',
       label: 'Labour only',
-      description: 'Use LIFTIQ for people, credentials, VOCs, scheduling, SmartRank, and audit. Hide plant and crane planning by default.'
+      description: 'Use DispatchTalon for people, credentials, VOCs, scheduling, SmartRank, and audit. Hide plant and crane planning by default.'
     },
     {
       value: 'plant_and_labour',
       label: 'Plant + labour',
-      description: 'Use LIFTIQ for workers, equipment, plant assets, crane planning, transport review, scheduling, SmartRank, and audit.'
+      description: 'Use DispatchTalon for workers, equipment, plant assets, crane planning, transport review, scheduling, SmartRank, and audit.'
     }
   ];
   form.appendChild(el('div', { class: 'mode-options' }, ...options.map((option) => {
@@ -2183,7 +2183,7 @@ function renderJobBriefImport(renderCycle) {
 
   sourceForm.appendChild(el('h3', {}, 'Paste or upload job details'));
   sourceForm.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
-    'Review before creating. LIFTIQ does not verify job details automatically.'
+    'Review before creating. DispatchTalon does not verify job details automatically.'
   ));
   sourceForm.appendChild(buildTextareaField('Job brief text', textArea));
   sourceForm.appendChild(buildFileField('Upload .txt or .md', fileInput));
@@ -2266,7 +2266,7 @@ function renderJobBriefImport(renderCycle) {
 
     previewHost.appendChild(el('h3', {}, 'Review extracted job details'));
     previewHost.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
-      'Review before creating. LIFTIQ does not verify job details automatically.'
+      'Review before creating. DispatchTalon does not verify job details automatically.'
     ));
 
     if ((preview.warnings || []).length > 0) {
@@ -2699,7 +2699,7 @@ async function renderNewJob(renderCycle) {
   const craneSection = el('div', { class: 'panel crane-form-section' });
   craneSection.appendChild(el('h3', {}, 'Crane, counterweight and transport'));
   craneSection.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
-    'Operational planning support only. Review required language is intentional. LIFTIQ does not approve permits, compliance, or lift engineering.'
+    'Operational planning support only. Review required language is intentional. DispatchTalon does not approve permits, compliance, or lift engineering.'
   ));
   craneSection.appendChild(el('div', { class: 'row' },
     buildFieldWrapper('Crane model', craneModelSelect),

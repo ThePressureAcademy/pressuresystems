@@ -1,4 +1,4 @@
-# LIFTIQ Founding Partner Pilot — Offer and Qualification Framework
+# DispatchTalon Founding Partner Pilot — Offer and Qualification Framework
 **Status:** Active go-to-market document | May 2026  
 **Owner:** Pressure Systems founder  
 **Use:** Qualification conversations, inbound lead assessment, pilot structuring
@@ -7,14 +7,14 @@
 
 ## The Founding Partner Offer
 
-**LIFTIQ Founding Partner Pilot — 60 to 90 days**
+**DispatchTalon Founding Partner Pilot — 60 to 90 days**
 
 This is a structured pilot, not a free trial. It requires active participation from the partner and produces documented outcomes that both parties benefit from.
 
 ### What the Partner Gets
 
-- Full LIFTIQ Phase 1 setup: company, workers, credentials, fatigue records, job types configured to their operation
-- Weekly 30-minute review call with the LIFTIQ founder
+- Full DispatchTalon Phase 1 setup: company, workers, credentials, fatigue records, job types configured to their operation
+- Weekly 30-minute review call with the DispatchTalon founder
 - Direct founder support channel (not a helpdesk)
 - Structured before/after outcome measurement (dispatch time, credential catches, fatigue interventions, swap speed)
 - Influence over Phase 1 feature priorities based on their operational feedback
@@ -25,7 +25,7 @@ This is a structured pilot, not a free trial. It requires active participation f
 
 - Agreement to participate in weekly feedback calls
 - Agreement to enter real operational data (workers, credentials, fatigue records, jobs) during the pilot period
-- Agreement to allow anonymised outcome data to be used in LIFTIQ case study materials (specific numbers, no company name unless they consent)
+- Agreement to allow anonymised outcome data to be used in DispatchTalon case study materials (specific numbers, no company name unless they consent)
 - Baseline data capture at pilot start (see metrics below)
 - Honest post-pilot assessment
 
@@ -85,7 +85,7 @@ Use this checklist before committing to a pilot conversation.
 |-----------|-------------------|
 | Already using FCC deeply | Wrong Phase 1 target; complement pitch is Phase 2 |
 | Wants payroll or invoicing before fatigue/crew fit | Not the dispatch intelligence buyer |
-| Wants LIFTIQ to replace their entire system immediately | Cannot deliver this in Phase 1; sets wrong expectations |
+| Wants DispatchTalon to replace their entire system immediately | Cannot deliver this in Phase 1; sets wrong expectations |
 | Demands custom feature ownership | Structurally incompatible with product development model |
 | Procurement layer with multiple sign-offs | Too slow; pilot window closes |
 | Refuses to share outcome data | Not useful as a design partner; decline politely |
@@ -160,7 +160,7 @@ Before go-live, ask the dispatcher:
 - Document baseline metrics
 
 ### Weeks 2–4 — Active Dispatch
-- All new jobs entered in LIFTIQ before crew is confirmed
+- All new jobs entered in DispatchTalon before crew is confirmed
 - Dispatcher uses SmartRank for every job where multiple options exist
 - All allocations logged, including overrides and reasons
 - Any credential blocks or fatigue warnings flagged and discussed in weekly call
@@ -185,7 +185,7 @@ Before go-live, ask the dispatcher:
 | Dispatch time | No increase from baseline | >20% reduction |
 | Credential blocks triggered | At least one caught per month | Credential issue prevented that would have caused a problem |
 | Fatigue warnings triggered | At least one warning per week | At least one allocation changed due to fatigue risk |
-| SmartRank adoption | >70% of allocations made via LIFTIQ | >90% with dispatcher initiating without prompting |
+| SmartRank adoption | >70% of allocations made via DispatchTalon | >90% with dispatcher initiating without prompting |
 | Override events | At least some overrides documented with reasons | Overrides decrease as dispatcher gains confidence in rankings |
 | Swap resolution time | Comparable to baseline | Measurable reduction |
 | Dispatcher confidence score | Reported as same or higher | Reported as clearly higher |
@@ -218,7 +218,7 @@ Before go-live, ask the dispatcher:
 
 At pilot end, the conversation is not a sales pitch. It is a review:
 
-1. "Here is what LIFTIQ logged during your pilot." (Show the dashboard)
+1. "Here is what DispatchTalon logged during your pilot." (Show the dashboard)
 2. "Here is how it compares to your baseline." (Show the numbers)
 3. "Here is what would be different in Phase 2." (Compliance, credential management, mobile)
 4. "Here is what founding partner pricing looks like if you proceed."

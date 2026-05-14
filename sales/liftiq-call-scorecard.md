@@ -1,4 +1,4 @@
-# LIFTIQ Call Scorecard
+# DispatchTalon Call Scorecard
 
 Score each category from 1 to 5.
 

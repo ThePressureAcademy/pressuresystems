@@ -1,4 +1,4 @@
-# LIFTIQ LinkedIn Ads Claims and Privacy Checklist
+# DispatchTalon LinkedIn Ads Claims and Privacy Checklist
 
 ## Privacy Checklist
 
@@ -11,7 +11,7 @@
 - [x] No real customer job notes visible.
 - [x] No real company operational data visible.
 - [x] Synthetic/demo preview panels are labelled as `Pilot workflow preview`.
-- [x] Public screenshot source is a public LIFTIQ page screenshot.
+- [x] Public screenshot source is a public DispatchTalon page screenshot.
 
 ## Do Not Claim in Ads
 
@@ -56,7 +56,7 @@ These phrases must not appear as positive ad claims:
 - [x] CTA strip is visible.
 - [x] Each creative has one main message.
 - [x] Screenshot/proof panel is not overloaded with small text.
-- [x] LIFTIQ brand appears consistently.
+- [x] DispatchTalon brand appears consistently.
 - [x] Palette matches graphite, steel, muted rust, and cockpit-style UI.
 - [x] No generic stock art used.
 - [x] No fake endorsement, logo, testimonial, or customer result used.

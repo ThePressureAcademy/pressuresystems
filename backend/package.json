@@ -1,7 +1,7 @@
 {
   "name": "liftiq-backend",
   "version": "0.1.0",
-  "description": "LIFTIQ Phase 1 backend — fatigue-aware crane dispatch decision intelligence",
+  "description": "DispatchTalon Phase 1 backend - fatigue-aware crane dispatch decision intelligence",
   "main": "src/server.js",
   "engines": {
     "node": ">=18"
