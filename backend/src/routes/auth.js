@@ -45,9 +45,6 @@ function validatePasswordStrength(currentPassword, nextPassword) {
   if (nextPassword === currentPassword) {
     return 'New password must be different from the current password.';
   }
-  if (nextPassword === 'changeme123') {
-    return 'The temporary bootstrap password cannot be reused.';
-  }
   if (!/[A-Z]/.test(nextPassword)) {
     return 'Include at least one uppercase letter.';
   }

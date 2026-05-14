@@ -409,6 +409,13 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   margin: 12px 0;
 }
 
+.asset-empty {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  margin: 12px 0;
+}
+
 .asset-row {
   display: grid;
   grid-template-columns: minmax(170px, 1fr) auto auto auto;
@@ -421,6 +428,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 
 .asset-add-form {
+  margin-top: 12px;
+}
+
+.asset-add-row {
   margin-top: 12px;
 }
 
@@ -601,6 +612,10 @@ ul.tag-list li {
 
 .security-panel {
   border-left: 4px solid var(--warn);
+}
+
+.security-panel-compact {
+  border-left-color: var(--info);
 }
 
 .danger-panel {

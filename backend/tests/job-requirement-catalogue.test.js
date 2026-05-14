@@ -114,9 +114,19 @@ describe('Job intake requirement catalogue', () => {
     assert.ok(keys.includes('equipment_mobile_crane_100t'));
     assert.ok(keys.includes('equipment_crawler_crane_1650t'));
     assert.ok(keys.includes('equipment_articulated_crane_40t'));
-    assert.ok(keys.includes('equipment_franna_pick_and_carry'));
+    assert.equal(keys.includes('equipment_franna_pick_and_carry'), false);
     assert.ok(keys.includes('transport_low_loader'));
     assert.ok(keys.includes('transport_semi_trailer'));
+    const articulated40 = res.body.items.find((item) => item.normalized_key === 'equipment_articulated_crane_40t');
+    assert.equal(articulated40.group_label, 'Articulated / Pick-and-Carry');
+    assert.equal(articulated40.label, '40T Articulated / Pick-and-Carry Crane');
+
+    const legacyFranna = db.prepare(`
+      SELECT is_active
+      FROM requirement_catalogue_items
+      WHERE normalized_key = 'equipment_franna_pick_and_carry'
+    `).get();
+    assert.equal(Boolean(legacyFranna?.is_active), false);
   });
 
   test('company setup enables selected items and stays tenant scoped', async () => {
@@ -248,6 +258,10 @@ describe('Job intake requirement catalogue', () => {
     const articulated25 = itemByKey('equipment_articulated_crane_25t');
     const lowLoader = itemByKey('transport_low_loader');
 
+    const initialList = await request.get('/api/company/assets').set(auth());
+    assert.equal(initialList.status, 200);
+    assert.equal(initialList.body.assets.length, 0);
+
     for (const number of ['MC20-001', 'MC20-002', 'MC20-003', 'MC20-004']) {
       const created = await createAsset(mobile20, number);
       assert.equal(created.status, 201);
@@ -267,6 +281,53 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(list.body.grouped.equipment_mobile_crane_20t_city.assets.length, 4);
     assert.equal(list.body.grouped.equipment_articulated_crane_25t.assets.length, 2);
     assert.equal(list.body.grouped.transport_low_loader.assets.length, 1);
+  });
+
+  test('job brief import maps Franna capacity language to articulated pick-and-carry without standalone class duplication', async () => {
+    const articulated40 = itemByKey('equipment_articulated_crane_40t');
+    await request.post('/api/company/catalogue-selections').set(auth()).send({
+      catalogue_item_ids: [articulated40.id]
+    });
+
+    const preview = await request.post('/api/jobs/import-brief/preview').set(auth()).send({
+      source_type: 'pasted_text',
+      content: [
+        'Client: Synthetic Lift Co',
+        'Site: Pinkenba QLD',
+        'Job: 40T Franna required for restricted access.',
+        'Timing:',
+        'Monday 1 June 2026',
+        'Start: 6:00 AM',
+        'Finish: 1:00 PM',
+        'Timezone: Australia/Brisbane'
+      ].join('\n')
+    });
+
+    assert.equal(preview.status, 200);
+    const selected = preview.body.extracted.structured_requirements.selected_catalogue_item_keys;
+    assert.ok(selected.includes('equipment_articulated_crane_40t'));
+    assert.equal(selected.includes('equipment_franna_pick_and_carry'), false);
+    assert.equal(preview.body.extracted.custom_requirements.some((item) => /Franna/i.test(item.label)), false);
+
+    const genericPreview = await request.post('/api/jobs/import-brief/preview').set(auth()).send({
+      source_type: 'pasted_text',
+      content: [
+        'Client: Synthetic Lift Co',
+        'Site: Pinkenba QLD',
+        'Job: Franna or pick-and-carry crane may be needed, exact size TBC.',
+        'Timing:',
+        'Monday 1 June 2026',
+        'Start: 6:00 AM',
+        'Finish: 1:00 PM',
+        'Timezone: Australia/Brisbane'
+      ].join('\n')
+    });
+
+    assert.equal(genericPreview.status, 200);
+    assert.ok(genericPreview.body.extracted.custom_requirements.some((item) =>
+      item.label === 'Articulated / Pick-and-Carry Crane'
+    ));
+    assert.equal(genericPreview.body.extracted.requirement_item_ids.includes(articulated40.id), false);
   });
 
   test('asset validation rejects duplicates and non-asset catalogue items while keeping tenant scope', async () => {

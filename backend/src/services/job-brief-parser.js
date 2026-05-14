@@ -44,7 +44,7 @@ const SECTION_LABELS = [
 ];
 
 const CRANE_CLASS_MATCHERS = [
-  { pattern: /\bfranna\b/i, value: 'Franna' },
+  { pattern: /\bfranna\b|\bpick[\s-]*and[\s-]*carry\b/i, value: 'Articulated / Pick-and-Carry' },
   { pattern: /\bcity crane\b/i, value: 'City Crane' },
   { pattern: /\btower crane\b/i, value: 'Tower Crane' },
   { pattern: /\bmobile crane\b/i, value: 'Mobile Crane' },

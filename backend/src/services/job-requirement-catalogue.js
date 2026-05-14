@@ -4,6 +4,7 @@ const CATALOGUE_SOURCE = 'research/liftiq-job-intake-catalogue-research.md';
 const CATALOGUE_CONFIDENCE = 'medium';
 const PLANT_REQUIREMENT_CATEGORIES = new Set(['equipment', 'transport']);
 const LABOUR_REQUIREMENT_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
+const INACTIVE_CATALOGUE_KEYS = new Set(['equipment_franna_pick_and_carry']);
 
 function normalizeKeyPart(value) {
   return String(value || '')
@@ -70,13 +71,15 @@ const CRAWLER_CRANES = [
   `equipment_crawler_crane_${normalizeKeyPart(code)}`
 ));
 
-const ARTICULATED_CRANES = [
+const ARTICULATED_CRANE_CAPACITIES = [
   '12T', '15T', '20T', '22T', '25T', '27T', '28T', '30T', '40T'
-].map((code) => item(
+];
+
+const ARTICULATED_CRANES = ARTICULATED_CRANE_CAPACITIES.map((code) => item(
   'equipment',
-  'Articulated Crane',
+  'Articulated / Pick-and-Carry',
   code,
-  `${code} Articulated Crane`,
+  `${code} Articulated / Pick-and-Carry Crane`,
   `equipment_articulated_crane_${normalizeKeyPart(code)}`
 ));
 
@@ -98,7 +101,6 @@ const CATALOGUE_ITEMS = [
   ...MOBILE_CRANES,
   ...CRAWLER_CRANES,
   ...ARTICULATED_CRANES,
-  item('equipment', 'Crane Type', 'FRANNA_PICK_AND_CARRY', 'Franna / Pick-and-carry Crane', 'equipment_franna_pick_and_carry', 'Common Australian pick-and-carry crane category.', 'high'),
   item('equipment', 'Crane Type', 'MINI_SPIDER_CRANE', 'Mini / Spider Crane', 'equipment_mini_spider_crane', 'Compact spider/mini crane category for restricted access work.', 'high'),
   item('equipment', 'Crane Type', 'ROUGH_TERRAIN_CRANE', 'Rough Terrain Crane', 'equipment_rough_terrain_crane', 'Public fleet category seen on Australian crane hire pages.', 'high'),
   item('equipment', 'Crane Type', 'TRUCK_MOUNTED_SLEWING_CRANE', 'Truck-Mounted Slewing Crane', 'equipment_truck_mounted_slewing_crane', 'Truck-mounted crane category seen on Australian fleet pages.', 'high'),
@@ -120,7 +122,6 @@ const RECOMMENDED_DEFAULT_KEYS = new Set([
   'credential_heavy_vehicle_mc',
   'equipment_mobile_crane_50t',
   'equipment_mobile_crane_100t',
-  'equipment_franna_pick_and_carry',
   'transport_low_loader',
   'transport_semi_trailer'
 ]);
@@ -163,6 +164,14 @@ const LEGACY_CREDENTIAL_BY_KEY = {
   voc_si: 'high_risk_licence_rigging'
 };
 
+const FRANNA_CAPACITY_MAPPERS = ARTICULATED_CRANE_CAPACITIES.map((code) => {
+  const tonnes = code.replace(/[^0-9]/g, '');
+  return {
+    pattern: new RegExp(`\\b${tonnes}\\s*t(?:onne)?\\s+(?:franna|pick[\\s-]*and[\\s-]*carry)\\b`, 'i'),
+    key: `equipment_articulated_crane_${normalizeKeyPart(code)}`
+  };
+});
+
 const TERM_MAPPERS = [
   { pattern: /\bwhite\s+card\b/i, key: 'credential_white_card' },
   { pattern: /\b(?:hrwl[-\s]*)?c6\b/i, key: 'credential_hrwl_c6' },
@@ -175,13 +184,21 @@ const TERM_MAPPERS = [
   { pattern: /\bsemi[\s-]*trailer\b/i, key: 'transport_semi_trailer' },
   { pattern: /\b100\s*t(?:onne)?\s+(?:mobile\s+)?crane\b/i, key: 'equipment_mobile_crane_100t' },
   { pattern: /\b50\s*t(?:onne)?\s+(?:mobile\s+)?crane\b/i, key: 'equipment_mobile_crane_50t' },
-  { pattern: /\b40\s*t(?:onne)?\s+franna\b/i, key: 'equipment_articulated_crane_40t' },
-  { pattern: /\bfranna\b|\bpick[\s-]*and[\s-]*carry\b/i, key: 'equipment_franna_pick_and_carry' },
+  ...FRANNA_CAPACITY_MAPPERS,
   { pattern: /\btelehandler\b/i, key: 'civil_telehandler' },
   { pattern: /\bexcavator\b/i, key: 'civil_excavator' },
   { pattern: /\benergex\s+spotter\b|\belectrical\s+spotter\b/i, key: 'energy_electrical_spotter' },
   { pattern: /\bspider\s+crane\b|\bmini\s+crane\b/i, key: 'equipment_mini_spider_crane' },
   { pattern: /\btravel\s+tower\b|\bewp\b/i, key: 'equipment_travel_tower_ewp' }
+];
+
+const CUSTOM_TERM_MAPPERS = [
+  {
+    pattern: /\bfranna\b|\bpick[\s-]*and[\s-]*carry\b/i,
+    category: 'equipment',
+    label: 'Articulated / Pick-and-Carry Crane',
+    notes: 'Parsed from Franna or pick-and-carry terminology without a matched capacity. Confirm exact equipment requirement before allocation.'
+  }
 ];
 
 function bool(value) {
@@ -255,6 +272,14 @@ function seedRequirementCatalogue(db) {
       now,
       now
     );
+  }
+
+  if (INACTIVE_CATALOGUE_KEYS.size > 0) {
+    db.prepare(`
+      UPDATE requirement_catalogue_items
+      SET is_active = 0, updated_at = ?
+      WHERE normalized_key IN (${Array.from(INACTIVE_CATALOGUE_KEYS).map(() => '?').join(',')})
+    `).run(now, ...Array.from(INACTIVE_CATALOGUE_KEYS));
   }
 }
 
@@ -532,6 +557,7 @@ function mapParsedTermsToCatalogue(db, companyId, text) {
   for (const mapper of TERM_MAPPERS) {
     if (mapper.pattern.test(body)) keys.push(mapper.key);
   }
+  const matchedKeySet = new Set(keys);
 
   const matchedItems = getCatalogueItemsByKeys(db, keys).map((row) => serializeItem(row));
   const enabled = listCompanyEnabledCatalogue(db, companyId).items;
@@ -557,6 +583,18 @@ function mapParsedTermsToCatalogue(db, companyId, text) {
     } else {
       suggested.push({ ...matched, is_enabled: false });
     }
+  }
+
+  for (const mapper of CUSTOM_TERM_MAPPERS) {
+    if (!mapper.pattern.test(body)) continue;
+    const mappedToArticulatedCapacity = Array.from(matchedKeySet)
+      .some((key) => key.startsWith('equipment_articulated_crane_'));
+    if (mappedToArticulatedCapacity) continue;
+    oneOffCustom.push({
+      category: mapper.category,
+      label: mapper.label,
+      notes: mapper.notes
+    });
   }
 
   const warnings = suggested.length > 0
