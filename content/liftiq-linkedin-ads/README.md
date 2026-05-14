@@ -2,9 +2,11 @@
 
 Internal production pack for LinkedIn ad testing.
 
+Brand mark source: `../../assets/logos/dispatchtalon/source/dispatchtalon-locked-brand-board.png`.
+
 ## Verdict
 
-Four export-ready DispatchTalon ad concepts were produced for crane, rigging, labour allocation, plant + labour, and transport-supported lifting audiences.
+Four export-ready DispatchTalon ad concepts were produced for crane, rigging, labour allocation, plant + labour, and transport-supported lifting audiences. The current exports use the locked DispatchTalon ad corner mark from `../../assets/logos/dispatchtalon/dispatchtalon-linkedin-ad-corner-mark.png`.
 
 The ads use available DispatchTalon public screenshots/artifacts where possible. Authenticated portal screenshots for Job Brief Import, SmartRank, Our Business, and crane/counterweight review were not present in the repo/worktrees, so those areas use clearly labelled `Pilot workflow preview` panels. These panels are sanitised synthetic/demo representations based on current product capability, not claims of live customer data.
 
@@ -27,6 +29,7 @@ The ads use available DispatchTalon public screenshots/artifacts where possible.
 | `source-screenshots/demo-01-public-liftiq-page.png` | Actual public DispatchTalon page screenshot from the demo content worktree. |
 | `source-screenshots/liftiq-home-og.png` | Current DispatchTalon home OG image from repo assets. |
 | `source-screenshots/liftiq-system-og.png` | Current DispatchTalon system OG image from repo assets. |
+| `../../assets/logos/dispatchtalon/dispatchtalon-linkedin-ad-corner-mark.png` | Locked DispatchTalon corner mark used in regenerated ad exports. |
 | `working/ad-board.html` | Local render board for sanitised screenshot-style ad panels. |
 
 ## Ads Created
@@ -81,4 +84,4 @@ Do not send cold traffic directly to the pilot portal. Use the portal only for i
 - The HTML board is local-only and has no external dependencies.
 - The ads do not contain credentials, real tenant data, real worker names, passwords, JWTs, Fly secrets, or tenant admin emails.
 - The ads avoid approval, legal, engineering, payroll, and autonomous-dispatch claims.
-- The visual style uses graphite, steel, muted rust, cyan, and operational UI framing.
+- The visual style uses charcoal, cream, steel grey, muted rust, and operational UI framing.

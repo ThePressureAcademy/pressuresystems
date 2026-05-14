@@ -1,5 +1,7 @@
 # DispatchTalon Proof Asset Checklist
 
+![DispatchTalon by Pressure Systems](../assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png)
+
 Use proof assets to answer a specific belief gap. Do not show everything by default.
 
 | Asset | When to use | What to say | What not to say |

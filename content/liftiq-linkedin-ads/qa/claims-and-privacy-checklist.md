@@ -57,6 +57,8 @@ These phrases must not appear as positive ad claims:
 - [x] Each creative has one main message.
 - [x] Screenshot/proof panel is not overloaded with small text.
 - [x] DispatchTalon brand appears consistently.
+- [x] Locked DispatchTalon ad corner mark is used.
+- [x] No old LIFTIQ mark or rejected claw-only mark appears.
 - [x] Palette matches graphite, steel, muted rust, and cockpit-style UI.
 - [x] No generic stock art used.
 - [x] No fake endorsement, logo, testimonial, or customer result used.

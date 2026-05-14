@@ -8,8 +8,9 @@ Date: 2026-05-14
 | `liftiq/*.html` | Visible public product pages and metadata | Replace now | DispatchTalon | Medium, route remains old | Updated |
 | `assets/social/LiftIQ_*_OG_1200x630.png` | Public social-card image contents | Replace now, retain filename | DispatchTalon card artwork | Medium, filename debt | Updated |
 | `assets/social/DispatchTalon_*_OG_1200x630.png` | New public social-card asset paths | Create now | DispatchTalon card artwork | Low | Added |
-| `assets/logos/LiftIQ_*.svg` | Mark filenames, no visible text | Keep temporarily | Existing abstract mark | Low | Retained |
-| `assets/logos/DispatchTalon_*.svg` | New brand asset paths used by public pages | Create now | DispatchTalon asset aliases | Low | Added |
+| `assets/logos/LiftIQ_*.svg` | Mark filenames, no visible text | Keep temporarily | Historical/compatibility artefact, not current locked mark | Low | Retained |
+| `assets/logos/DispatchTalon_*.svg` | Prior migration aliases | Keep temporarily | Superseded by locked board exports under `assets/logos/dispatchtalon/` | Low | Retained/superseded |
+| `assets/logos/dispatchtalon/*` | Locked brand board exports | Use now | DispatchTalon locked mark system | Low | Added |
 | `assets/css/liftiq.css` | CSS filename/classes | Keep temporarily | Rename later only with route/CSS plan | Medium | Retained |
 | `assets/js/liftiq.js` | JS filename/form helper | Keep temporarily | Rename later only with static asset plan | Medium | Retained |
 | `backend/public/console/index.html` | Visible portal title/login/topbar | Replace now | DispatchTalon | Low | Updated |

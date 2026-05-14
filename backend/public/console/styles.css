@@ -1,15 +1,15 @@
 :root {
-  --bg: #0f1115;
-  --panel: #161a22;
-  --panel-2: #1c212c;
-  --border: #2a313e;
-  --text: #e6e9ef;
-  --muted: #8a93a6;
-  --accent: #4f8cff;
+  --bg: #0e1216;
+  --panel: #161a20;
+  --panel-2: #1d2329;
+  --border: #333942;
+  --text: #f2f0e6;
+  --muted: #9d9f9c;
+  --accent: #e2712a;
   --ok: #3fc380;
   --warn: #ffb454;
   --bad: #ff5f6d;
-  --info: #65c5ff;
+  --info: #a7aaa8;
 }
 
 * { box-sizing: border-box; }
@@ -121,6 +121,12 @@ label > span {
   font-size: 28px;
   letter-spacing: 1px;
 }
+.login-brand-lockup {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  margin-bottom: 6px;
+}
 .login-card .subtitle {
   margin: 0 0 20px 0;
   color: var(--muted);
@@ -154,8 +160,16 @@ label > span {
   gap: 24px;
 }
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 700;
   letter-spacing: 1px;
+}
+.topbar-brand-lockup {
+  width: 172px;
+  height: auto;
+  flex: 0 0 auto;
 }
 .brand .badge {
   background: var(--accent);

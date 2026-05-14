@@ -1,5 +1,7 @@
 # DispatchTalon Objection Handling Bank
 
+![DispatchTalon by Pressure Systems](../assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png)
+
 Use tactical empathy first. Then ask a question. Then state the boundary. Then show proof.
 
 ## We only supply labour.

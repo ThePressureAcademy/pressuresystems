@@ -1,5 +1,7 @@
 # DispatchTalon Follow-Up Templates
 
+![DispatchTalon by Pressure Systems](../assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png)
+
 Do not include passwords in these templates. For portal access, say the temporary password is supplied separately and first login forces password change.
 
 ## 1. After First Call

@@ -511,6 +511,13 @@ h3 {
     radial-gradient(circle at top right, rgba(199, 99, 50, 0.12), transparent 36%);
 }
 
+.offer-brand-lockup {
+  width: min(360px, 100%);
+  height: auto;
+  margin-bottom: 18px;
+  border-radius: 12px;
+}
+
 .offer-list,
 .fit-card ul {
   margin-top: 14px;

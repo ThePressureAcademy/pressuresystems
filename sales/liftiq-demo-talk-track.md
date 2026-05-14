@@ -1,5 +1,7 @@
 # DispatchTalon Demo Talk Track
 
+![DispatchTalon by Pressure Systems](../assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png)
+
 ## Opening
 
 DispatchTalon is not trying to replace dispatch judgement. It structures the decision before dispatch: job notes, workers, credentials, fatigue, schedule pressure, plant context where needed, review flags, and the audit trail.

@@ -6,17 +6,15 @@
   <title>DispatchTalon LinkedIn Ad Board</title>
   <style>
     :root {
-      --graphite: #08111d;
-      --graphite-2: #0d1726;
-      --steel: #536b84;
-      --steel-soft: #a7b5c5;
-      --text: #edf6ff;
-      --muted: #9fb0c2;
-      --line: rgba(167, 181, 197, 0.22);
-      --rust: #bd7148;
-      --rust-2: #ec9b62;
-      --cyan: #32d1ff;
-      --teal: #42d6bf;
+      --graphite: #0E1216;
+      --graphite-2: #151a20;
+      --steel: #6B7077;
+      --steel-soft: #c2c4c2;
+      --text: #F2F0E6;
+      --muted: #a7aaa8;
+      --line: rgba(107, 112, 119, 0.28);
+      --rust: #E2712A;
+      --rust-2: #f08a43;
       --amber: #f2bd58;
       --shadow: rgba(0, 0, 0, 0.42);
     }
@@ -40,9 +38,9 @@
       padding: 64px;
       isolation: isolate;
       background:
-        radial-gradient(circle at 8% 8%, rgba(50, 209, 255, 0.20), transparent 26%),
-        radial-gradient(circle at 92% 12%, rgba(189, 113, 72, 0.22), transparent 28%),
-        linear-gradient(135deg, #050b12 0%, #0b1522 48%, #08101b 100%);
+        radial-gradient(circle at 8% 8%, rgba(107, 112, 119, 0.18), transparent 26%),
+        radial-gradient(circle at 92% 12%, rgba(226, 113, 42, 0.22), transparent 28%),
+        linear-gradient(135deg, #070a0d 0%, #111820 48%, #0E1216 100%);
     }
 
     .canvas::before {
@@ -50,8 +48,8 @@
       position: absolute;
       inset: 0;
       background-image:
-        linear-gradient(rgba(167, 181, 197, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(167, 181, 197, 0.045) 1px, transparent 1px);
+        linear-gradient(rgba(242, 240, 230, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(242, 240, 230, 0.035) 1px, transparent 1px);
       background-size: 36px 36px;
       mask-image: linear-gradient(90deg, transparent, black 14%, black 86%, transparent);
       z-index: -1;
@@ -63,24 +61,13 @@
       left: 44px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      letter-spacing: 0.16em;
-      font-size: 18px;
-      font-weight: 800;
-      color: #fff;
+      width: 260px;
+      height: auto;
     }
 
-    .brand-mark {
-      width: 35px;
-      height: 35px;
-      border: 1px solid rgba(50, 209, 255, 0.55);
-      border-radius: 10px;
-      display: grid;
-      place-items: center;
-      box-shadow: 0 0 24px rgba(50, 209, 255, 0.22);
-      color: var(--cyan);
-      font-size: 21px;
-      line-height: 1;
+    .brand img {
+      width: 100%;
+      height: auto;
     }
 
     .meta {
@@ -185,8 +172,8 @@
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(140deg, rgba(50, 209, 255, 0.10), transparent 34%),
-        linear-gradient(320deg, rgba(189, 113, 72, 0.16), transparent 36%);
+        linear-gradient(140deg, rgba(107, 112, 119, 0.12), transparent 34%),
+        linear-gradient(320deg, rgba(226, 113, 42, 0.16), transparent 36%);
       pointer-events: none;
     }
 
@@ -197,7 +184,7 @@
       gap: 8px;
       padding: 0 18px;
       border-bottom: 1px solid var(--line);
-      background: rgba(5, 11, 18, 0.52);
+      background: rgba(14, 18, 22, 0.58);
       color: var(--muted);
       font-family: "Consolas", "Cascadia Mono", monospace;
       font-size: 12px;
@@ -210,7 +197,7 @@
       height: 9px;
       border-radius: 50%;
       background: var(--rust);
-      box-shadow: 16px 0 0 rgba(242, 189, 88, 0.8), 32px 0 0 rgba(66, 214, 191, 0.8);
+      box-shadow: 16px 0 0 rgba(242, 189, 88, 0.8), 32px 0 0 rgba(107, 112, 119, 0.8);
       margin-right: 38px;
     }
 
@@ -220,7 +207,7 @@
     }
 
     .mini-label {
-      color: var(--cyan);
+      color: var(--rust-2);
       font-family: "Consolas", "Cascadia Mono", monospace;
       font-size: 12px;
       text-transform: uppercase;
@@ -229,7 +216,7 @@
     }
 
     .panel {
-      border: 1px solid rgba(167, 181, 197, 0.2);
+      border: 1px solid rgba(107, 112, 119, 0.28);
       border-radius: 22px;
       padding: 20px;
       background: rgba(5, 11, 18, 0.62);
@@ -412,7 +399,7 @@
     .landscape .brand {
       top: 24px;
       left: 34px;
-      font-size: 15px;
+      width: 218px;
     }
 
     .landscape .meta {
@@ -693,7 +680,7 @@
       const format = params.get("format") || "square";
       document.getElementById("app").innerHTML = `
         <main class="canvas ${format}">
-          <div class="brand"><span class="brand-mark">DT</span><span>DispatchTalon</span></div>
+          <div class="brand"><img src="../../../assets/logos/dispatchtalon/dispatchtalon-linkedin-ad-corner-mark.png" alt="DispatchTalon by Pressure Systems"></div>
           <div class="meta">Dispatch intelligence / pilot-stage</div>
           <div class="layout">
             <section class="copy">
