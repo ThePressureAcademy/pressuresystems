@@ -142,8 +142,15 @@ button {
 }
 
 .lq-brand-lockup {
-  width: min(230px, 52vw);
+  display: block;
+  width: clamp(190px, 19vw, 242px);
   height: auto;
+  max-height: 74px;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   flex: 0 0 auto;
 }
 
@@ -1356,6 +1363,11 @@ button {
 @media (max-width: 640px) {
   body.liftiq-body {
     padding-top: 76px;
+  }
+
+  .lq-brand-lockup {
+    width: min(198px, 58vw);
+    max-height: 62px;
   }
 
   .lq-title {

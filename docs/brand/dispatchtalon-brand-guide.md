@@ -16,6 +16,8 @@ Primary assets:
 - `assets/logos/dispatchtalon/dispatchtalon-primary-mark.png`
 - `assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png`
 - `assets/logos/dispatchtalon/dispatchtalon-website-header-lockup.png`
+- `assets/logos/dispatchtalon/dispatchtalon-header-lockup-transparent.png`
+- `assets/logos/dispatchtalon/dispatchtalon-header-mark-transparent.png`
 - `assets/logos/dispatchtalon/dispatchtalon-portal-login-lockup.png`
 - `assets/logos/dispatchtalon/dispatchtalon-linkedin-ad-corner-mark.png`
 
@@ -55,8 +57,8 @@ The secondary blue variant is retained only as a legacy bridge. Do not make blue
 ## Usage Rules
 
 - Use the primary lockup for website hero sections, sales docs, proposal covers, and broad product identification.
-- Use the website header lockup in DispatchTalon website navigation.
-- Use the portal login lockup on the portal login screen.
+- Use the transparent header lockup in DispatchTalon website navigation and compact portal header contexts.
+- Use the portal login lockup or transparent header lockup on the portal login screen depending on background treatment.
 - Use the app icon for favicon, browser icon, app icon, and social avatar crop.
 - Use the monochrome light mark on dark backgrounds when colour reproduction is unavailable.
 - Use the monochrome dark mark only where contrast is sufficient on a light background.
@@ -94,6 +96,10 @@ The current approved source is a raster board. This pass exports locked-board PN
 ## Background Status
 
 The exported PNGs preserve the locked board appearance on a dark charcoal background. Transparent-background assets should be produced later from true vector artwork or designer-approved separated source files to avoid rough edge extraction.
+
+## Header Runtime Assets
+
+`dispatchtalon-header-lockup-transparent.png` and `dispatchtalon-header-mark-transparent.png` are raster-derived from the locked board for header and portal-access use where a baked dark rectangle would reduce trust. They should be used only on dark graphite/charcoal UI surfaces. They are not a substitute for final designer-vector SVG masters.
 
 ## Transition Note
 

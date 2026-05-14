@@ -122,10 +122,16 @@ label > span {
   letter-spacing: 1px;
 }
 .login-brand-lockup {
+  display: block;
   width: 100%;
   max-width: 300px;
   height: auto;
   margin-bottom: 6px;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 .login-card .subtitle {
   margin: 0 0 20px 0;
@@ -167,8 +173,15 @@ label > span {
   letter-spacing: 1px;
 }
 .topbar-brand-lockup {
-  width: 172px;
+  display: block;
+  width: 176px;
   height: auto;
+  max-height: 56px;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   flex: 0 0 auto;
 }
 .brand .badge {
@@ -725,6 +738,11 @@ ul.tag-list li {
   .topbar {
     flex-wrap: wrap;
     align-items: flex-start;
+  }
+
+  .topbar-brand-lockup {
+    width: 164px;
+    max-height: 52px;
   }
 
   nav#nav {
