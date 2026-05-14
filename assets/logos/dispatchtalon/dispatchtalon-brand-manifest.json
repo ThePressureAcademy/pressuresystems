@@ -263,9 +263,9 @@
       "file": "dispatchtalon-header-lockup-transparent.png",
       "usage": "transparent website and portal header lockup",
       "recommended_for": [
-        "public website floating navigation",
-        "portal login screen",
-        "portal topbar"
+        "dark-surface fallback lockup",
+        "portal login fallback",
+        "controlled internal UI surfaces"
       ],
       "background": "transparent",
       "dimensions": {
@@ -279,8 +279,9 @@
       "file": "dispatchtalon-header-mark-transparent.png",
       "usage": "transparent compact header mark",
       "recommended_for": [
-        "compact portal brand mark",
-        "small dark UI surfaces"
+        "portal login mark",
+        "portal topbar mark",
+        "subtle dark-surface watermark"
       ],
       "background": "transparent",
       "dimensions": {

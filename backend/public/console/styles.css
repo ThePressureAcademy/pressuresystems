@@ -107,31 +107,74 @@ label > span {
   display: flex;
   align-items: center;
   justify-content: center;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(226, 113, 42, 0.09), transparent 26%),
+    radial-gradient(circle at 72% 18%, rgba(107, 112, 119, 0.11), transparent 30%),
+    var(--bg);
 }
 .login-card {
-  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(22, 26, 32, 0.96), rgba(18, 22, 28, 0.94));
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 30px;
-  width: 360px;
+  border-radius: 16px;
+  padding: 32px;
+  width: 390px;
   max-width: 90vw;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.28);
+}
+.login-card::before {
+  content: "";
+  position: absolute;
+  top: -72px;
+  right: -84px;
+  width: 230px;
+  aspect-ratio: 1;
+  background: url("./assets/dispatchtalon-header-mark-transparent.png") center / contain no-repeat;
+  opacity: 0.07;
+  pointer-events: none;
+}
+.login-card > * {
+  position: relative;
+  z-index: 1;
 }
 .login-card h1 {
   margin: 0;
   font-size: 28px;
   letter-spacing: 1px;
 }
-.login-brand-lockup {
-  display: block;
-  width: 100%;
-  max-width: 300px;
-  height: auto;
-  margin-bottom: 6px;
-  object-fit: contain;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.login-brand-mark {
+  width: 66px;
+  height: 66px;
+  flex: 0 0 auto;
+  background: url("./assets/dispatchtalon-header-mark-transparent.png") center / contain no-repeat;
+}
+.login-brand-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--accent);
+}
+.login-brand-copy strong {
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+}
+.login-brand-copy span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.15;
 }
 .login-card .subtitle {
   margin: 0 0 20px 0;
@@ -170,19 +213,33 @@ label > span {
   align-items: center;
   gap: 10px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0;
 }
-.topbar-brand-lockup {
-  display: block;
-  width: 176px;
-  height: auto;
-  max-height: 56px;
-  object-fit: contain;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+.topbar-brand-mark {
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
+  background: url("./assets/dispatchtalon-header-mark-transparent.png") center / contain no-repeat;
+}
+.topbar-brand-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--accent);
+}
+.topbar-brand-copy strong {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+.topbar-brand-copy span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
 }
 .brand .badge {
   background: var(--accent);
@@ -740,9 +797,13 @@ ul.tag-list li {
     align-items: flex-start;
   }
 
-  .topbar-brand-lockup {
-    width: 164px;
-    max-height: 52px;
+  .topbar-brand-mark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .topbar-brand-copy strong {
+    font-size: 16px;
   }
 
   nav#nav {

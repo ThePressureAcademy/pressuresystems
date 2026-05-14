@@ -2,7 +2,7 @@
 
 ## Verdict
 
-The public DispatchTalon floating header and portal access surfaces now use raster-derived transparent runtime assets from the locked DispatchTalon board instead of baked-background logo tiles.
+The public DispatchTalon floating header, `/liftiq/` hero, root product card, and portal access surfaces no longer use baked-background logo tiles. The public header now uses clean typography, and the transparent mark is reserved for subtle dark-surface watermark and portal-orientation use.
 
 ## Issue Fixed
 
@@ -17,9 +17,11 @@ The previous website and portal header assets preserved the locked board's dark 
 
 ## Integration
 
-- Public DispatchTalon `/liftiq/` route family now uses `dispatchtalon-header-lockup-transparent.png` in the floating navigation.
-- Portal login and topbar now use the portal-local transparent lockup copy.
-- Header image CSS now explicitly removes image backgrounds, borders, radius, and shadows.
+- Public DispatchTalon `/liftiq/` route family now uses a typographic floating-nav brand treatment instead of a logo image.
+- The `/liftiq/` hero now uses an integrated text brand lockup and a low-opacity transparent mark watermark instead of a boxed logo banner.
+- Portal login and topbar now use mark-plus-type structure instead of a full image banner.
+- The root Pressure Systems product card now uses a typographic DispatchTalon treatment instead of a dark lockup tile.
+- Header and portal CSS explicitly prevents logo imagery from rendering as a card.
 
 ## Not Changed
 
