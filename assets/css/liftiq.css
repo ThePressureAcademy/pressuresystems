@@ -1,20 +1,20 @@
 :root {
-  --lq-ink-950: #08111d;
-  --lq-ink-900: #0d1726;
-  --lq-ink-850: #122033;
-  --lq-ink-800: #18293f;
+  --lq-ink-950: #0e1216;
+  --lq-ink-900: #151a20;
+  --lq-ink-850: #1d2329;
+  --lq-ink-800: #252b32;
   --lq-surface: rgba(19, 33, 52, 0.82);
   --lq-surface-strong: #132134;
   --lq-surface-soft: rgba(234, 244, 255, 0.05);
-  --lq-line: rgba(143, 176, 207, 0.18);
-  --lq-line-strong: rgba(143, 176, 207, 0.3);
-  --lq-text: #eaf4ff;
-  --lq-text-strong: #ffffff;
-  --lq-text-soft: #c0d0e2;
-  --lq-text-muted: #8da5bf;
-  --lq-cyan: #35d0ff;
-  --lq-cyan-deep: #1aa7d5;
-  --lq-teal: #2dd4bf;
+  --lq-line: rgba(107, 112, 119, 0.24);
+  --lq-line-strong: rgba(107, 112, 119, 0.42);
+  --lq-text: #f2f0e6;
+  --lq-text-strong: #fffaf0;
+  --lq-text-soft: #cbc9c0;
+  --lq-text-muted: #9d9f9c;
+  --lq-cyan: #e2712a;
+  --lq-cyan-deep: #b85d27;
+  --lq-teal: #6b7077;
   --lq-amber: #f2b94b;
   --lq-amber-soft: #ffdf95;
   --lq-red: #f08b7a;
@@ -46,9 +46,9 @@ body.liftiq-body {
   padding-top: var(--lq-nav-h);
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   background:
-    radial-gradient(circle at 16% 14%, rgba(53, 208, 255, 0.14), transparent 28%),
-    radial-gradient(circle at 84% 0%, rgba(45, 212, 191, 0.12), transparent 26%),
-    linear-gradient(180deg, #08111d 0%, #0c1625 38%, #09101a 100%);
+    radial-gradient(circle at 16% 14%, rgba(226, 113, 42, 0.14), transparent 28%),
+    radial-gradient(circle at 84% 0%, rgba(107, 112, 119, 0.14), transparent 26%),
+    linear-gradient(180deg, #0e1216 0%, #151a20 38%, #0e1216 100%);
   color: var(--lq-text);
   line-height: 1.58;
   -webkit-font-smoothing: antialiased;
@@ -138,6 +138,12 @@ button {
 .lq-brand-mark {
   width: 42px;
   height: 42px;
+  flex: 0 0 auto;
+}
+
+.lq-brand-lockup {
+  width: min(230px, 52vw);
+  height: auto;
   flex: 0 0 auto;
 }
 
@@ -252,8 +258,8 @@ button {
 }
 
 .lq-button {
-  background: linear-gradient(135deg, #35d0ff 0%, #2dd4bf 100%);
-  color: #08111d;
+  background: linear-gradient(135deg, var(--lq-cyan) 0%, var(--lq-teal) 100%);
+  color: #0e1216;
   box-shadow: 0 16px 40px rgba(28, 157, 196, 0.28);
 }
 
@@ -331,6 +337,13 @@ button {
   font-size: 0.7rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.lq-hero-lockup {
+  width: min(440px, 100%);
+  height: auto;
+  margin: 0 0 22px;
+  border-radius: 14px;
 }
 
 .lq-eyebrow-dot {

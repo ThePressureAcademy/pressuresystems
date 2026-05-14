@@ -1,0 +1,277 @@
+{
+  "brand": "DispatchTalon by Pressure Systems",
+  "source": "assets/logos/dispatchtalon/source/dispatchtalon-locked-brand-board.png",
+  "palette": {
+    "charcoal": "#0E1216",
+    "cream": "#F2F0E6",
+    "steel_grey": "#6B7077",
+    "rust": "#E2712A"
+  },
+  "svg_status": "No SVGs are generated in this pass because a true vector source was not supplied and raster-embedded SVGs would be misleading.",
+  "assets": [
+    {
+      "file": "dispatchtalon-app-icon-1024.png",
+      "usage": "large app icon",
+      "recommended_for": [
+        "app stores",
+        "large social avatar source"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Downscale from this file when needed."
+    },
+    {
+      "file": "dispatchtalon-app-icon-512.png",
+      "usage": "standard app icon",
+      "recommended_for": [
+        "web manifest",
+        "portal favicon source"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 512,
+        "height": 512
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use for manifest and app-icon references."
+    },
+    {
+      "file": "dispatchtalon-app-icon.png",
+      "usage": "app icon",
+      "recommended_for": [
+        "app icon",
+        "social avatar source"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use where square crop is required."
+    },
+    {
+      "file": "dispatchtalon-blue-variant.png",
+      "usage": "secondary blue variant",
+      "recommended_for": [
+        "legacy bridge only"
+      ],
+      "background": "dark/navy",
+      "dimensions": {
+        "width": 768,
+        "height": 768
+      },
+      "colour_variant": "legacy blue accent",
+      "do_not_use_notes": "Do not use as the primary brand system."
+    },
+    {
+      "file": "dispatchtalon-favicon-192.png",
+      "usage": "PWA icon",
+      "recommended_for": [
+        "web manifest"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 192,
+        "height": 192
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use for manifest icons."
+    },
+    {
+      "file": "dispatchtalon-favicon-32.png",
+      "usage": "tiny favicon",
+      "recommended_for": [
+        "browser favicon"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 32,
+        "height": 32
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use for browser tabs."
+    },
+    {
+      "file": "dispatchtalon-favicon-512.png",
+      "usage": "large favicon fallback",
+      "recommended_for": [
+        "browser favicon",
+        "social fallback"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 512,
+        "height": 512
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use for high-resolution favicon fallback."
+    },
+    {
+      "file": "dispatchtalon-favicon-64.png",
+      "usage": "small favicon",
+      "recommended_for": [
+        "browser favicon"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 64,
+        "height": 64
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use for browser icon fallback."
+    },
+    {
+      "file": "dispatchtalon-favicon.ico",
+      "usage": "ICO favicon",
+      "recommended_for": [
+        "legacy browser favicon"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 256,
+        "height": 256
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use as ICO fallback only."
+    },
+    {
+      "file": "dispatchtalon-linkedin-ad-corner-mark.png",
+      "usage": "LinkedIn ad corner mark",
+      "recommended_for": [
+        "ad-board brand corner",
+        "campaign creative"
+      ],
+      "background": "dark",
+      "dimensions": {
+        "width": 720,
+        "height": 220
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use as the small campaign lockup; keep clear space."
+    },
+    {
+      "file": "dispatchtalon-locked-brand-board.png",
+      "usage": "locked source board archive copy",
+      "recommended_for": [
+        "brand source reference"
+      ],
+      "background": "dark board",
+      "dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "colour_variant": "full locked board",
+      "do_not_use_notes": "Do not use as a logo export."
+    },
+    {
+      "file": "dispatchtalon-monochrome-dark.png",
+      "usage": "monochrome dark mark",
+      "recommended_for": [
+        "light document background"
+      ],
+      "background": "dark crop from board",
+      "dimensions": {
+        "width": 768,
+        "height": 768
+      },
+      "colour_variant": "steel/dark",
+      "do_not_use_notes": "Use only with enough contrast; designer vector dark-on-light version still recommended."
+    },
+    {
+      "file": "dispatchtalon-monochrome-light.png",
+      "usage": "monochrome light mark",
+      "recommended_for": [
+        "dark dashboard header",
+        "single-colour print"
+      ],
+      "background": "dark",
+      "dimensions": {
+        "width": 768,
+        "height": 768
+      },
+      "colour_variant": "cream only",
+      "do_not_use_notes": "Use where the colour node is not allowed."
+    },
+    {
+      "file": "dispatchtalon-portal-login-lockup.png",
+      "usage": "portal login lockup",
+      "recommended_for": [
+        "portal login screen"
+      ],
+      "background": "dark",
+      "dimensions": {
+        "width": 1100,
+        "height": 340
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use on the console login screen."
+    },
+    {
+      "file": "dispatchtalon-primary-lockup.png",
+      "usage": "primary horizontal lockup",
+      "recommended_for": [
+        "website hero",
+        "sales deck",
+        "proposal cover",
+        "email footer"
+      ],
+      "background": "dark",
+      "dimensions": {
+        "width": 1400,
+        "height": 420
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use as the main product lockup. Do not recolour or crop text."
+    },
+    {
+      "file": "dispatchtalon-primary-mark.png",
+      "usage": "primary icon mark",
+      "recommended_for": [
+        "brand guide",
+        "pitch deck",
+        "large brand panel"
+      ],
+      "background": "dark",
+      "dimensions": {
+        "width": 768,
+        "height": 768
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use where the standalone mark needs room. Do not use as a tiny favicon."
+    },
+    {
+      "file": "dispatchtalon-social-avatar.png",
+      "usage": "social avatar crop",
+      "recommended_for": [
+        "LinkedIn avatar",
+        "profile crop"
+      ],
+      "background": "dark rounded icon",
+      "dimensions": {
+        "width": 1024,
+        "height": 1024
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use as square avatar source."
+    },
+    {
+      "file": "dispatchtalon-website-header-lockup.png",
+      "usage": "website header lockup",
+      "recommended_for": [
+        "public website navigation"
+      ],
+      "background": "dark",
+      "dimensions": {
+        "width": 900,
+        "height": 270
+      },
+      "colour_variant": "charcoal/cream/steel/rust",
+      "do_not_use_notes": "Use in DispatchTalon page headers."
+    }
+  ]
+}

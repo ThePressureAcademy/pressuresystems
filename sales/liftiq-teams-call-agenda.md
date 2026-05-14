@@ -1,5 +1,7 @@
 # DispatchTalon Teams Call Agenda
 
+![DispatchTalon by Pressure Systems](../assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png)
+
 ## 30-Minute Discovery Call
 
 | Time | Segment | Purpose |

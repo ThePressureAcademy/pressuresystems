@@ -8,6 +8,7 @@
 - Optional vertical exports at 720 x 900.
 - Source screenshot folder.
 - Local HTML/CSS render board.
+- Locked DispatchTalon ad corner mark.
 - Copy variants and campaign matrix.
 - Claims and privacy checklist.
 
@@ -25,23 +26,24 @@ All generated PNG exports are under 5 MB.
 
 | File | Dimensions | Size |
 |---|---:|---:|
-| `exports/landscape/ad01-job-intake-1200x628.png` | 1200 x 628 | 416.6 KB |
-| `exports/landscape/ad02-smartrank-1200x628.png` | 1200 x 628 | 417.3 KB |
-| `exports/landscape/ad03-operating-modes-1200x628.png` | 1200 x 628 | 413.7 KB |
-| `exports/landscape/ad04-crane-transport-review-1200x628.png` | 1200 x 628 | 406.2 KB |
-| `exports/square/ad01-job-intake-1200x1200.png` | 1200 x 1200 | 732 KB |
-| `exports/square/ad02-smartrank-1200x1200.png` | 1200 x 1200 | 701 KB |
-| `exports/square/ad03-operating-modes-1200x1200.png` | 1200 x 1200 | 708.1 KB |
-| `exports/square/ad04-crane-transport-review-1200x1200.png` | 1200 x 1200 | 699.1 KB |
-| `exports/vertical/ad01-job-intake-720x900.png` | 720 x 900 | 352.1 KB |
-| `exports/vertical/ad02-smartrank-720x900.png` | 720 x 900 | 355.9 KB |
-| `exports/vertical/ad03-operating-modes-720x900.png` | 720 x 900 | 365.6 KB |
-| `exports/vertical/ad04-crane-transport-review-720x900.png` | 720 x 900 | 354.5 KB |
+| `exports/landscape/ad01-job-intake-1200x628.png` | 1200 x 628 | 410.4 KB |
+| `exports/landscape/ad02-smartrank-1200x628.png` | 1200 x 628 | 416.2 KB |
+| `exports/landscape/ad03-operating-modes-1200x628.png` | 1200 x 628 | 411.7 KB |
+| `exports/landscape/ad04-crane-transport-review-1200x628.png` | 1200 x 628 | 411.3 KB |
+| `exports/square/ad01-job-intake-1200x1200.png` | 1200 x 1200 | 710.3 KB |
+| `exports/square/ad02-smartrank-1200x1200.png` | 1200 x 1200 | 707.7 KB |
+| `exports/square/ad03-operating-modes-1200x1200.png` | 1200 x 1200 | 718.3 KB |
+| `exports/square/ad04-crane-transport-review-1200x1200.png` | 1200 x 1200 | 709.2 KB |
+| `exports/vertical/ad01-job-intake-720x900.png` | 720 x 900 | 356.4 KB |
+| `exports/vertical/ad02-smartrank-720x900.png` | 720 x 900 | 355.5 KB |
+| `exports/vertical/ad03-operating-modes-720x900.png` | 720 x 900 | 363.3 KB |
+| `exports/vertical/ad04-crane-transport-review-720x900.png` | 720 x 900 | 358.1 KB |
 
 ## Screenshots / Artifacts Used
 
 - Existing public DispatchTalon page screenshot from the demo content worktree.
 - Existing DispatchTalon public OG assets from repo.
+- Locked DispatchTalon ad corner mark from `assets/logos/dispatchtalon/`.
 - Sanitised synthetic/demo pilot preview panels rendered from `working/ad-board.html`.
 
 ## Recommended Launch Order

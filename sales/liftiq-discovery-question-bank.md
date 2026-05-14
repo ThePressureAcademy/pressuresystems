@@ -1,5 +1,7 @@
 # DispatchTalon Discovery Question Bank
 
+![DispatchTalon by Pressure Systems](../assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png)
+
 ## Accusation Audit
 
 - You might be thinking this is another tool that creates admin.

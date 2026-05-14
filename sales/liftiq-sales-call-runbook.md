@@ -1,5 +1,7 @@
 # DispatchTalon Sales Call Runbook
 
+![DispatchTalon by Pressure Systems](../assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png)
+
 Internal sales enablement only. Do not publish this file as public site copy.
 
 ## Core Positioning

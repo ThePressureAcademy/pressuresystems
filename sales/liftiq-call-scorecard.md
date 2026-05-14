@@ -1,5 +1,7 @@
 # DispatchTalon Call Scorecard
 
+![DispatchTalon by Pressure Systems](../assets/logos/dispatchtalon/dispatchtalon-primary-lockup.png)
+
 Score each category from 1 to 5.
 
 1 = weak or absent signal.

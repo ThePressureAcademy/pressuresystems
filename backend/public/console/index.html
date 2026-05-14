@@ -4,12 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DispatchTalon Pilot Console</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="./assets/dispatchtalon-app-icon-512.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/dispatchtalon-favicon-32.png">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <div id="login-screen" class="login-shell hidden">
     <form id="login-form" class="login-card">
-      <h1>DispatchTalon</h1>
+      <img class="login-brand-lockup" src="./assets/dispatchtalon-portal-login-lockup.png" alt="DispatchTalon by Pressure Systems">
       <p class="subtitle">Pilot Console</p>
       <div class="security-banner">
         Pilot portal access is invite-only. First login may require a password change.
@@ -57,7 +59,10 @@
 
   <div id="app-shell" class="app-shell hidden">
     <header class="topbar">
-      <div class="brand">DispatchTalon <span class="badge">pilot</span></div>
+      <div class="brand">
+        <img class="topbar-brand-lockup" src="./assets/dispatchtalon-website-header-lockup.png" alt="DispatchTalon by Pressure Systems">
+        <span class="badge">pilot</span>
+      </div>
       <nav id="nav">
         <a href="#/dashboard" data-route="dashboard">Dashboard</a>
         <a href="#/workers" data-route="workers">Workers</a>
