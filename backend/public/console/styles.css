@@ -10,6 +10,10 @@
   --warn: #ffb454;
   --bad: #ff5f6d;
   --info: #a7aaa8;
+  --dt-charcoal: #0E1216;
+  --dt-cream: #F2F0E6;
+  --dt-steel: #6B7077;
+  --dt-rust: #E2712A;
 }
 
 * { box-sizing: border-box; }
@@ -107,14 +111,38 @@ label > span {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(226,113,42,0.12), transparent 26rem),
+    linear-gradient(145deg, #090c10 0%, var(--dt-charcoal) 45%, #111820 100%);
 }
 .login-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 30px;
-  width: 360px;
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(160deg, rgba(242,240,230,0.035), rgba(242,240,230,0)),
+    var(--panel);
+  border: 1px solid rgba(107,112,119,0.55);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.38);
+  padding: 32px;
+  width: 390px;
   max-width: 90vw;
+}
+.login-card::before {
+  content: "";
+  position: absolute;
+  right: -74px;
+  top: -72px;
+  width: 230px;
+  height: 230px;
+  background: url("./assets/dispatchtalon/dispatchtalon-mark-watermark.png") center / contain no-repeat;
+  opacity: 0.75;
+  pointer-events: none;
+}
+.login-card > * {
+  position: relative;
+  z-index: 1;
 }
 .login-card h1 {
   margin: 0;
@@ -123,9 +151,15 @@ label > span {
 }
 .login-brand-lockup {
   width: 100%;
-  max-width: 300px;
+  max-width: 315px;
   height: auto;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
+}
+.login-brand-mark {
+  width: 74px;
+  height: 74px;
+  object-fit: contain;
+  margin-bottom: 14px;
 }
 .login-card .subtitle {
   margin: 0 0 20px 0;
@@ -152,8 +186,10 @@ label > span {
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 
 .topbar {
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(90deg, rgba(242,240,230,0.035), transparent 48%),
+    var(--panel);
+  border-bottom: 1px solid rgba(107,112,119,0.34);
   padding: 10px 20px;
   display: flex;
   align-items: center;
@@ -167,7 +203,7 @@ label > span {
   letter-spacing: 1px;
 }
 .topbar-brand-lockup {
-  width: 172px;
+  width: 182px;
   height: auto;
   flex: 0 0 auto;
 }
@@ -231,6 +267,60 @@ main#view {
 }
 .panel h2 { margin-top: 0; }
 .panel h3 { margin-top: 0; font-size: 15px; color: var(--muted); font-weight: 500; }
+.dt-branded-panel {
+  position: relative;
+  overflow: hidden;
+}
+.dt-branded-panel > *:not(.dt-watermark) {
+  position: relative;
+  z-index: 1;
+}
+.dt-watermark {
+  position: absolute;
+  right: -34px;
+  top: -54px;
+  width: 240px;
+  height: 240px;
+  object-fit: contain;
+  opacity: 0.58;
+  pointer-events: none;
+  z-index: 0;
+}
+.dt-brand-mark,
+.dt-brand-chip-mark,
+.dt-empty-mark {
+  display: block;
+  object-fit: contain;
+}
+.dt-brand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  color: var(--dt-cream);
+}
+.dt-brand-chip-mark {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+.dt-brand-chip strong,
+.dt-brand-chip span {
+  display: block;
+  line-height: 1.2;
+}
+.dt-brand-chip strong {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.dt-toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .access-blocked {
   border-color: rgba(255, 180, 84, 0.35);
 }
@@ -289,6 +379,33 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 .metric-tile .label { color: var(--muted); font-size: 12px; }
 .metric-tile .value { font-size: 28px; font-weight: 600; margin-top: 6px; }
+
+.dt-dashboard-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  border-color: rgba(226,113,42,0.22);
+  background:
+    linear-gradient(135deg, rgba(226,113,42,0.08), transparent 38%),
+    var(--panel);
+}
+.dt-dashboard-hero h3 {
+  color: var(--dt-cream);
+  font-size: 18px;
+  margin: 14px 0 6px;
+}
+.dt-dashboard-copy p {
+  max-width: 720px;
+  margin: 0;
+}
+.dt-dashboard-status {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 230px;
+}
 
 /* ─── SmartRank cards ─── */
 .rank-card {
@@ -482,7 +599,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 
 .build-business-panel {
-  border-left: 4px solid var(--info);
+  border-left: 4px solid var(--dt-rust);
+  background:
+    linear-gradient(135deg, rgba(226,113,42,0.07), transparent 32%),
+    var(--panel);
 }
 
 .setup-steps {
@@ -619,6 +739,56 @@ details[open] summary { color: var(--text); }
   font-size: 13px;
 }
 
+.dt-empty-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  color: var(--text);
+  border-style: dashed;
+  border-color: rgba(107,112,119,0.48);
+  background:
+    linear-gradient(135deg, rgba(242,240,230,0.035), transparent 42%),
+    var(--panel);
+}
+.dt-empty-state-inline {
+  margin-top: 12px;
+  padding: 20px;
+  border: 1px dashed rgba(107,112,119,0.48);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+}
+.dt-empty-mark-wrap {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(226,113,42,0.32);
+  border-radius: 16px;
+  background: rgba(226,113,42,0.08);
+}
+.dt-empty-mark {
+  width: 42px;
+  height: 42px;
+}
+.dt-empty-copy strong {
+  display: block;
+  color: var(--dt-cream);
+  font-size: 15px;
+}
+.dt-empty-copy p {
+  margin: 4px 0 0;
+  max-width: 620px;
+}
+.dt-empty-actions {
+  margin-top: 12px;
+}
+.dt-loading-state {
+  max-width: 520px;
+  margin: 40px auto;
+}
+
 .kv {
   display: grid;
   grid-template-columns: 160px 1fr;
@@ -740,6 +910,28 @@ ul.tag-list li {
     grid-template-columns: 1fr;
   }
 
+  .topbar-brand-lockup {
+    width: min(178px, 48vw);
+  }
+
+  .dt-dashboard-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .dt-dashboard-status {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .dt-empty-state {
+    grid-template-columns: 1fr;
+  }
+
+  .dt-watermark {
+    width: 190px;
+    height: 190px;
+  }
+
   .kv {
     grid-template-columns: 1fr;
   }
@@ -753,7 +945,8 @@ ul.tag-list li {
   .topbar,
   .toast,
   button,
-  .security-actions {
+  .security-actions,
+  .dt-watermark {
     display: none !important;
   }
 

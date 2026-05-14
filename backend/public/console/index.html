@@ -4,17 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DispatchTalon Pilot Console</title>
-  <link rel="icon" type="image/png" sizes="512x512" href="./assets/dispatchtalon-app-icon-512.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/dispatchtalon-favicon-32.png">
+  <meta name="theme-color" content="#0E1216">
+  <link rel="icon" type="image/png" sizes="192x192" href="./assets/dispatchtalon/dispatchtalon-favicon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/dispatchtalon/dispatchtalon-favicon-32.png">
+  <link rel="apple-touch-icon" href="./assets/dispatchtalon/dispatchtalon-app-icon.png">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <div id="login-screen" class="login-shell hidden">
     <form id="login-form" class="login-card">
-      <img class="login-brand-lockup" src="./assets/dispatchtalon-portal-login-lockup.png" alt="DispatchTalon by Pressure Systems">
+      <img class="login-brand-lockup" src="./assets/dispatchtalon/dispatchtalon-logo-lockup.png" alt="DispatchTalon by Pressure Systems">
       <p class="subtitle">Pilot Console</p>
       <div class="security-banner">
-        Pilot portal access is invite-only. First login may require a password change.
+        DispatchTalon portal access is invite-only. First login may require a password change.
       </div>
       <label>
         <span>Email</span>
@@ -32,6 +34,7 @@
 
   <div id="password-change-screen" class="login-shell hidden">
     <form id="password-change-form" class="login-card">
+      <img class="login-brand-mark" src="./assets/dispatchtalon/dispatchtalon-mark-transparent.png" alt="" aria-hidden="true">
       <h1>Password change required</h1>
       <p class="subtitle" id="password-change-context">
         Your temporary password must be replaced before console access.
@@ -60,7 +63,7 @@
   <div id="app-shell" class="app-shell hidden">
     <header class="topbar">
       <div class="brand">
-        <img class="topbar-brand-lockup" src="./assets/dispatchtalon-website-header-lockup.png" alt="DispatchTalon by Pressure Systems">
+        <img class="topbar-brand-lockup" src="./assets/dispatchtalon/dispatchtalon-logo-lockup-small.png" alt="DispatchTalon by Pressure Systems">
         <span class="badge">pilot</span>
       </div>
       <nav id="nav">
