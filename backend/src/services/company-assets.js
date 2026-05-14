@@ -69,6 +69,25 @@ function ensureAssetCatalogueItem(db, catalogueItemId) {
   return item;
 }
 
+function ensureCompanyEnabledAssetClass(db, companyId, catalogueItemId) {
+  const selection = db.prepare(`
+    SELECT is_enabled
+    FROM company_catalogue_selections
+    WHERE company_id = ? AND catalogue_item_id = ?
+  `).get(companyId, Number(catalogueItemId));
+
+  if (!selection || !selection.is_enabled) {
+    throw new Error('Enable this equipment or transport class in Our Business before adding assets.');
+  }
+}
+
+function ensurePlantAndLabourMode(db, companyId) {
+  const company = db.prepare(`SELECT operating_mode FROM companies WHERE id = ?`).get(companyId);
+  if (company?.operating_mode === 'labour_only') {
+    throw new Error('Switch this company to Plant + labour mode before adding assets.');
+  }
+}
+
 function listCompanyAssets(db, companyId, options = {}) {
   const includeArchived = Boolean(options.includeArchived);
   const rows = db.prepare(`
@@ -104,7 +123,9 @@ function listCompanyAssets(db, companyId, options = {}) {
 }
 
 function createCompanyAsset(db, companyId, input = {}) {
+  ensurePlantAndLabourMode(db, companyId);
   const catalogueItem = ensureAssetCatalogueItem(db, input.catalogue_item_id);
+  ensureCompanyEnabledAssetClass(db, companyId, catalogueItem.id);
   const assetNumber = normalizeAssetNumber(input.asset_number);
   if (!assetNumber) throw new Error('asset_number is required');
   const status = String(input.asset_status || 'active').trim() || 'active';
@@ -160,7 +181,9 @@ function updateCompanyAsset(db, companyId, assetId, input = {}) {
 
   let nextCatalogueItemId = existing.catalogue_item_id;
   if (input.catalogue_item_id !== undefined && input.catalogue_item_id !== null && input.catalogue_item_id !== '') {
+    ensurePlantAndLabourMode(db, companyId);
     const nextCatalogueItem = ensureAssetCatalogueItem(db, input.catalogue_item_id);
+    ensureCompanyEnabledAssetClass(db, companyId, nextCatalogueItem.id);
     nextCatalogueItemId = nextCatalogueItem.id;
   }
 

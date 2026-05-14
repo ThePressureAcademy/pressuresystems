@@ -61,6 +61,12 @@ async function createAsset(catalogueItem, assetNumber, overrides = {}, currentTo
   });
 }
 
+async function enableCatalogueItems(catalogueItems, currentToken = token) {
+  return request.post('/api/company/catalogue-selections').set(auth(currentToken)).send({
+    catalogue_item_ids: catalogueItems.map((item) => item.id)
+  });
+}
+
 beforeEach(() => {
   db = createTestDb();
   setDb(db);
@@ -151,7 +157,11 @@ describe('Job intake requirement catalogue', () => {
     const other = await request.get('/api/company/catalogue-selections').set(auth(otherToken));
     assert.equal(other.status, 200);
     assert.equal(other.body.configured, false);
-    assert.ok(other.body.items.some((item) => item.normalized_key === 'transport_semi_trailer' && item.is_enabled));
+    assert.equal(other.body.enabled_count, 0);
+    assert.equal(
+      other.body.items.some((item) => item.normalized_key === 'transport_semi_trailer' && item.recommended_default && !item.is_enabled),
+      true
+    );
   });
 
   test('company operating mode defaults to plant and labour and can switch to labour only', async () => {
@@ -182,12 +192,16 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(otherProfile.body.operating_mode, 'plant_and_labour');
   });
 
-  test('labour-only company gets labour-focused default catalogue while plant and labour keeps equipment defaults', async () => {
+  test('fresh company receives recommended catalogue markers without saved enabled selections', async () => {
     const before = await request.get('/api/company/catalogue-selections').set(auth());
     assert.equal(before.status, 200);
     assert.equal(before.body.operating_mode, 'plant_and_labour');
-    assert.ok(before.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled);
-    assert.ok(before.body.items.find((item) => item.normalized_key === 'transport_low_loader').is_enabled);
+    assert.equal(before.body.configured, false);
+    assert.equal(before.body.enabled_count, 0);
+    assert.equal(before.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').recommended_default, true);
+    assert.equal(before.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled, false);
+    assert.equal(before.body.items.find((item) => item.normalized_key === 'transport_low_loader').recommended_default, true);
+    assert.equal(before.body.items.find((item) => item.normalized_key === 'transport_low_loader').is_enabled, false);
 
     const switched = await request.patch('/api/company/profile').set(auth()).send({
       operating_mode: 'labour_only'
@@ -197,15 +211,21 @@ describe('Job intake requirement catalogue', () => {
     const labour = await request.get('/api/company/catalogue-selections').set(auth());
     assert.equal(labour.status, 200);
     assert.equal(labour.body.operating_mode, 'labour_only');
-    assert.ok(labour.body.items.find((item) => item.normalized_key === 'credential_hrwl_c6').is_enabled);
-    assert.ok(labour.body.items.find((item) => item.normalized_key === 'civil_telehandler').is_enabled);
+    assert.equal(labour.body.configured, false);
+    assert.equal(labour.body.enabled_count, 0);
+    assert.equal(labour.body.items.find((item) => item.normalized_key === 'credential_hrwl_c6').recommended_default, true);
+    assert.equal(labour.body.items.find((item) => item.normalized_key === 'credential_hrwl_c6').is_enabled, false);
+    assert.equal(labour.body.items.find((item) => item.normalized_key === 'civil_telehandler').recommended_default, true);
+    assert.equal(labour.body.items.find((item) => item.normalized_key === 'civil_telehandler').is_enabled, false);
     assert.equal(labour.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled, false);
     assert.equal(labour.body.items.find((item) => item.normalized_key === 'transport_low_loader').is_enabled, false);
 
     const other = await request.get('/api/company/catalogue-selections').set(auth(otherToken));
     assert.equal(other.status, 200);
     assert.equal(other.body.operating_mode, 'plant_and_labour');
-    assert.ok(other.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled);
+    assert.equal(other.body.enabled_count, 0);
+    assert.equal(other.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').recommended_default, true);
+    assert.equal(other.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled, false);
   });
 
   test('job creation stores structured catalogue and one-off requirements', async () => {
@@ -257,6 +277,8 @@ describe('Job intake requirement catalogue', () => {
     const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
     const articulated25 = itemByKey('equipment_articulated_crane_25t');
     const lowLoader = itemByKey('transport_low_loader');
+    const enable = await enableCatalogueItems([mobile20, articulated25, lowLoader]);
+    assert.equal(enable.status, 200);
 
     const initialList = await request.get('/api/company/assets').set(auth());
     assert.equal(initialList.status, 200);
@@ -333,6 +355,10 @@ describe('Job intake requirement catalogue', () => {
   test('asset validation rejects duplicates and non-asset catalogue items while keeping tenant scope', async () => {
     const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
     const c6 = itemByKey('credential_hrwl_c6');
+    const enable = await enableCatalogueItems([mobile20]);
+    assert.equal(enable.status, 200);
+    const enableOther = await enableCatalogueItems([mobile20], otherToken);
+    assert.equal(enableOther.status, 200);
 
     const created = await createAsset(mobile20, 'MC20-001');
     assert.equal(created.status, 201);
@@ -358,6 +384,8 @@ describe('Job intake requirement catalogue', () => {
 
   test('asset update and archive are company scoped and audited', async () => {
     const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
+    const enable = await enableCatalogueItems([mobile20]);
+    assert.equal(enable.status, 200);
     const created = await createAsset(mobile20, 'MC20-010');
     assert.equal(created.status, 201);
 
@@ -397,6 +425,8 @@ describe('Job intake requirement catalogue', () => {
   test('job intake can reference a selected company asset without forcing fleet scheduling', async () => {
     const mobile100 = itemByKey('equipment_mobile_crane_100t');
     const c6 = itemByKey('credential_hrwl_c6');
+    const enable = await enableCatalogueItems([mobile100]);
+    assert.equal(enable.status, 200);
     const asset = await createAsset(mobile100, 'MC100-002', { asset_status: 'unavailable' });
     assert.equal(asset.status, 201);
 
@@ -429,6 +459,8 @@ describe('Job intake requirement catalogue', () => {
 
   test('job brief import detects known and unknown asset numbers without creating unknown assets', async () => {
     const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
+    const enable = await enableCatalogueItems([mobile20]);
+    assert.equal(enable.status, 200);
     const asset = await createAsset(mobile20, 'MC20-001');
     assert.equal(asset.status, 201);
 
@@ -477,6 +509,8 @@ describe('Job intake requirement catalogue', () => {
     await request.patch('/api/company/profile').set(auth()).send({
       operating_mode: 'labour_only'
     });
+    const enable = await enableCatalogueItems([c6]);
+    assert.equal(enable.status, 200);
 
     const preview = await request.post('/api/jobs/import-brief/preview').set(auth()).send({
       source_type: 'pasted_text',

@@ -26,6 +26,52 @@ function getCompanyProfile(db, companyId) {
   return db.prepare(`SELECT * FROM companies WHERE id = ?`).get(companyId);
 }
 
+function countCompanyRows(db, table, companyId) {
+  return db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE company_id = ?`).get(companyId).n;
+}
+
+function buildCompanySetupState(db, companyId) {
+  const company = getCompanyProfile(db, companyId);
+  const catalogue = listCompanyCatalogueSelections(db, companyId);
+  const counts = {
+    workers: countCompanyRows(db, 'workers', companyId),
+    jobs: countCompanyRows(db, 'jobs', companyId),
+    credentials: countCompanyRows(db, 'credentials', companyId),
+    fatigue_records: countCompanyRows(db, 'fatigue_records', companyId),
+    assets: countCompanyRows(db, 'company_assets', companyId),
+    allocations: countCompanyRows(db, 'allocations', companyId),
+    job_imports: countCompanyRows(db, 'job_imports', companyId),
+    catalogue_selections: countCompanyRows(db, 'company_catalogue_selections', companyId),
+    audit_events: countCompanyRows(db, 'audit_events', companyId)
+  };
+  const hasOperationalData = [
+    'workers',
+    'jobs',
+    'credentials',
+    'fatigue_records',
+    'assets',
+    'allocations',
+    'job_imports'
+  ].some((key) => counts[key] > 0);
+
+  return {
+    company: serializeCompanyAccess(company),
+    operating_mode: catalogue.operating_mode,
+    catalogue_configured: Boolean(catalogue.configured),
+    enabled_catalogue_count: catalogue.enabled_count,
+    recommended_catalogue_count: catalogue.recommended_count || 0,
+    counts,
+    is_first_run: !catalogue.configured && !hasOperationalData,
+    next_actions: [
+      'choose_operating_mode',
+      'select_requirement_catalogue',
+      'add_workers',
+      ...(catalogue.operating_mode === 'plant_and_labour' ? ['add_assets'] : []),
+      'create_first_job'
+    ]
+  };
+}
+
 router.get('/profile', requireAuth, (req, res) => {
   const db = getDb();
   const company = getCompanyProfile(db, req.user.company_id);
@@ -69,6 +115,13 @@ router.patch('/profile', requireAuth, requireRole('admin'), (req, res) => {
 router.get('/catalogue-selections', requireAuth, (req, res) => {
   const db = getDb();
   res.json(listCompanyCatalogueSelections(db, req.user.company_id));
+});
+
+router.get('/setup-state', requireAuth, (req, res) => {
+  const db = getDb();
+  const company = getCompanyProfile(db, req.user.company_id);
+  if (!company) return res.status(404).json({ error: 'Company not found' });
+  res.json(buildCompanySetupState(db, req.user.company_id));
 });
 
 router.post('/catalogue-selections', requireAuth, requireRole('admin'), (req, res) => {
