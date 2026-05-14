@@ -159,7 +159,7 @@ describe('Worker import, task preferences, and adaptive learning', () => {
     assert.equal(preview.body.summary.total_rows, 2);
     assert.equal(preview.body.summary.skipped, 1);
     assert.equal(preview.body.summary.rows_with_errors, 1);
-    assert.match(preview.body.rows[0].errors.join(' '), /last_name is required/);
+    assert.match(preview.body.rows[0].errors.join(' '), /Last name is required/);
     assert.match(preview.body.rows[1].warnings.join(' '), /already exists/i);
 
     const imported = await request.post('/api/workers/import').set(auth()).send({

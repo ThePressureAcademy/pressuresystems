@@ -80,17 +80,19 @@ function seedCompanyAndUser(db, overrides = {}) {
  */
 function seedWorker(db, companyId, overrides = {}) {
   const id = overrides.id || randomUUID();
+  const roles = overrides.roles || [overrides.role || 'crane_operator'];
   db.prepare(`
     INSERT INTO workers (
-      id, company_id, name, email, role, employment_type, crane_classes, status,
+      id, company_id, name, email, role, roles, employment_type, crane_classes, status,
       archived_at, archived_by_user_id, archive_reason
     )
-    VALUES (?, ?, ?, ?, ?, 'permanent', ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, 'permanent', ?, ?, ?, ?, ?)
   `).run(
     id, companyId,
     overrides.name            || 'Test Worker',
     overrides.email           || null,
     overrides.role            || 'crane_operator',
+    JSON.stringify(roles),
     JSON.stringify(overrides.crane_classes || ['55T']),
     overrides.status          || 'available',
     overrides.archivedAt      || null,
@@ -127,18 +129,21 @@ function seedJob(db, companyId, userId, overrides = {}) {
     || ((overrides.scheduled_start_at_utc && overrides.scheduled_end_at_utc) ? 'planned' : 'draft');
   db.prepare(`
     INSERT INTO jobs (
-      id, company_id, client_name, site_name, date, shift_type,
-      task_tags, required_credentials, crew_roles_required, site_conditions,
+      id, company_id, client_name, site_name, site_location, date, shift_type,
+      crane_class_required, crane_classes_required, task_tags, required_credentials, crew_roles_required, site_conditions,
       lift_risk_level, scheduled_start_at_utc, scheduled_end_at_utc, job_timezone,
       scheduled_start_local, scheduled_end_local, schedule_status,
       shift_start_time, status, created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(
     id, companyId,
     overrides.client_name           || 'Test Client',
     overrides.site_name             || 'Test Site',
+    overrides.site_location         || null,
     overrides.date                  || '2026-06-01',
     overrides.shift_type            || 'day',
+    overrides.crane_class_required  || null,
+    JSON.stringify(overrides.crane_classes_required || []),
     JSON.stringify(overrides.task_tags || []),
     JSON.stringify(overrides.required_credentials || []),
     JSON.stringify(overrides.crew_roles_required  || []),

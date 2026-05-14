@@ -46,6 +46,14 @@ const {
   parseAssetIds,
   persistJobAssetAssignments
 } = require('../services/company-assets');
+const {
+  credentialDisplayLabel,
+  formatDisplayLabel,
+  normalizeCredentialTypes,
+  normalizeSiteConditions,
+  normalizeWorkerRoles,
+  siteConditionReviewLabels
+} = require('../services/intake-catalogues');
 
 const router = express.Router();
 
@@ -61,8 +69,21 @@ function parseJsonArray(value) {
     const parsed = JSON.parse(value);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [];
+    return String(value)
+      .split(/[|,]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
+}
+
+function normalizeTextList(value) {
+  return Array.from(new Set(parseJsonArray(value)
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)));
+}
+
+function normalizeCraneClasses(value) {
+  return normalizeTextList(value);
 }
 
 function storedLocalTime(localDateTime) {
@@ -79,6 +100,10 @@ function fetchSmartRankData(db, companyId) {
   ).all(companyId);
   workers.forEach((worker) => {
     worker.crane_classes = parseJsonArray(worker.crane_classes);
+    const roles = normalizeWorkerRoles(worker.roles);
+    worker.roles = roles.length > 0
+      ? roles
+      : normalizeWorkerRoles(worker.role);
   });
 
   const allCredentials = db.prepare(
@@ -221,7 +246,8 @@ function shouldAssessPlanning(input, existingRequirement = null) {
   if (!existingRequirement) return false;
   return hasOwn(input, 'travel_notes')
     || hasOwn(input, 'source_note')
-    || hasOwn(input, 'crane_class_required');
+    || hasOwn(input, 'crane_class_required')
+    || hasOwn(input, 'crane_classes_required');
 }
 
 function getJobCraneRequirementRow(db, jobId) {
@@ -233,10 +259,14 @@ function getJobCraneRequirementRow(db, jobId) {
 }
 
 function buildPlanningAssessmentInput(input, existingRequirement = null) {
+  const requestedCraneClasses = normalizeCraneClasses(input.crane_classes_required);
   return {
     crane_model_id: planningValue(input, 'crane_model_id', existingRequirement),
     crane_travel_state_id: planningValue(input, 'crane_travel_state_id', existingRequirement),
     crane_class: planningValue(input, 'crane_class', existingRequirement)
+      || (requestedCraneClasses.length > 0
+        ? requestedCraneClasses[0]
+        : null)
       || (hasOwn(input, 'crane_class_required')
         ? (input.crane_class_required || null)
         : (existingRequirement?.crane_class || null)),
@@ -573,10 +603,32 @@ function inferTravelRequired(taskTags = [], travelNotes = '', jobDescription = '
 function deriveSiteConditions(riskNotes = '') {
   const conditions = [];
   const body = String(riskNotes || '');
-  if (/restricted access/i.test(body)) conditions.push('restricted_access');
-  if (/critical lift/i.test(body)) conditions.push('critical_lift_planning');
-  if (/early arrival/i.test(body)) conditions.push('early_arrival_required');
-  return conditions;
+  const checks = [
+    [/sloped/i, 'sloped_ground'],
+    [/poor\s+ground/i, 'poor_ground_conditions'],
+    [/soft\s+ground/i, 'soft_ground_conditions'],
+    [/underground\s+services?/i, 'underground_services'],
+    [/overhead\s+trees?/i, 'overhead_trees'],
+    [/overhead\s+power\s*lines?/i, 'overhead_powerlines'],
+    [/pedestrians?/i, 'pedestrians_nearby'],
+    [/congested/i, 'congested_worksite'],
+    [/poor\s+lighting/i, 'poor_lighting'],
+    [/poor\s+access|restricted\s+access/i, 'poor_access_and_egress'],
+    [/limited\s+setup/i, 'limited_setup_area'],
+    [/night\s+work/i, 'night_work'],
+    [/wet\s+weather/i, 'wet_weather_exposure'],
+    [/traffic\s+interface/i, 'traffic_interface'],
+    [/public\s+interface/i, 'public_interface'],
+    [/uneven\s+ground/i, 'uneven_ground'],
+    [/wind\s+exposure/i, 'wind_exposure'],
+    [/low\s+overhead\s+clearance/i, 'low_overhead_clearance'],
+    [/nearby\s+structures?/i, 'nearby_structures'],
+    [/live\s+plant/i, 'live_plant_nearby']
+  ];
+  for (const [pattern, key] of checks) {
+    if (pattern.test(body)) conditions.push(key);
+  }
+  return normalizeSiteConditions(conditions);
 }
 
 function buildJobNotes(input) {
@@ -608,6 +660,9 @@ function buildCreateJobPayload(input, companyTimeZone) {
     ...input,
     schedule_status: scheduleStatus
   }, companyTimeZone);
+  const craneClassesRequired = normalizeCraneClasses(
+    input.crane_classes_required || input.crane_class_required || input.crane_class
+  );
 
   const persistedDate = input.date || scheduleFields.scheduled_start_local?.slice(0, 10) || currentLocalDate(companyTimeZone);
 
@@ -622,12 +677,13 @@ function buildCreateJobPayload(input, companyTimeZone) {
     shift_start_time: scheduleFields.shift_start_time || null,
     shift_type: shiftType,
     estimated_duration_hours: input.estimated_duration_hours ?? null,
-    crane_class_required: trimText(input.crane_class_required),
+    crane_class_required: trimText(input.crane_class_required) || craneClassesRequired[0] || null,
+    crane_classes_required: craneClassesRequired,
     job_description: trimText(input.job_description),
-    task_tags: Array.isArray(input.task_tags) ? input.task_tags : parseJsonArray(input.task_tags),
-    crew_roles_required: Array.isArray(input.crew_roles_required) ? input.crew_roles_required : parseJsonArray(input.crew_roles_required),
-    required_credentials: Array.isArray(input.required_credentials) ? input.required_credentials : parseJsonArray(input.required_credentials),
-    site_conditions: Array.isArray(input.site_conditions) ? input.site_conditions : parseJsonArray(input.site_conditions),
+    task_tags: normalizeTextList(input.task_tags),
+    crew_roles_required: normalizeWorkerRoles(input.crew_roles_required),
+    required_credentials: normalizeCredentialTypes(input.required_credentials),
+    site_conditions: normalizeSiteConditions(input.site_conditions),
     lift_risk_level: liftRiskLevel,
     scheduled_start_at_utc: scheduleFields.scheduled_start_at_utc,
     scheduled_end_at_utc: scheduleFields.scheduled_end_at_utc,
@@ -652,13 +708,13 @@ function insertJob(db, user, payload) {
     INSERT INTO jobs (
       id, company_id, reference, client_name, site_name, site_location,
       contact_name, contact_phone, date, shift_start_time, shift_type,
-      estimated_duration_hours, crane_class_required, job_description, task_tags,
+      estimated_duration_hours, crane_class_required, crane_classes_required, job_description, task_tags,
       crew_roles_required, required_credentials, site_conditions, lift_risk_level,
       scheduled_start_at_utc, scheduled_end_at_utc, job_timezone, scheduled_start_local,
       scheduled_end_local, schedule_status, risk_notes, travel_required,
       travel_hours_estimated, travel_notes, source_note, notes, status,
       created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(
     jobId,
     user.company_id,
@@ -673,6 +729,7 @@ function insertJob(db, user, payload) {
     payload.shift_type,
     payload.estimated_duration_hours,
     payload.crane_class_required,
+    JSON.stringify(payload.crane_classes_required || []),
     payload.job_description,
     JSON.stringify(payload.task_tags || []),
     JSON.stringify(payload.crew_roles_required || []),
@@ -784,7 +841,7 @@ function persistJobAssetPayload(db, user, jobId, input, source = 'manual', optio
 }
 
 function normalizeBriefCreatePayload(input) {
-  const taskTags = parseJsonArray(input.task_tags).map((tag) => String(tag)).filter(Boolean);
+  const taskTags = normalizeTextList(input.task_tags);
   const startTime = trimText(input.start_time);
   const endTime = trimText(input.end_time);
   const jobDescription = trimText(input.job_description);
@@ -805,11 +862,15 @@ function normalizeBriefCreatePayload(input) {
     schedule_status: normalizeScheduleStatus(trimText(input.schedule_status) || ((input.scheduled_date && startTime && endTime) ? 'planned' : 'draft')),
     estimated_duration_hours: input.estimated_duration_hours ?? durationHoursFromTimes(startTime, endTime),
     crane_class_required: trimText(input.crane_class),
+    crane_classes_required: normalizeCraneClasses(input.crane_classes_required || input.crane_class),
     job_description: jobDescription,
     task_tags: taskTags,
-    crew_roles_required: parseJsonArray(input.required_roles).map((role) => String(role)).filter(Boolean),
-    required_credentials: parseJsonArray(input.required_credentials).map((credential) => String(credential)).filter(Boolean),
-    site_conditions: deriveSiteConditions(riskNotes),
+    crew_roles_required: normalizeWorkerRoles(input.required_roles),
+    required_credentials: normalizeCredentialTypes(input.required_credentials),
+    site_conditions: normalizeSiteConditions([
+      ...parseJsonArray(input.site_conditions),
+      ...deriveSiteConditions(riskNotes)
+    ]),
     lift_risk_level: inferRiskLevel(taskTags, riskNotes, jobDescription),
     job_timezone: trimText(input.timezone),
     risk_notes: riskNotes,
@@ -869,6 +930,38 @@ router.get('/', requireAuth, (req, res) => {
 
   const jobs = db.prepare(sql).all(...params).map((row) => serializeJob(row, timezone || null, db));
   res.json(jobs);
+});
+
+router.get('/suggestions', requireAuth, (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT client_name, site_name, site_location, site_conditions
+    FROM jobs
+    WHERE company_id = ?
+      AND archived_at IS NULL
+    ORDER BY updated_at DESC, created_at DESC
+    LIMIT 250
+  `).all(req.user.company_id);
+
+  const pick = (field) => Array.from(new Set(rows
+    .map((row) => String(row[field] || '').trim())
+    .filter(Boolean))).slice(0, 50);
+
+  const siteConditionMap = {};
+  for (const row of rows) {
+    const siteKey = String(row.site_name || row.site_location || '').trim();
+    if (!siteKey) continue;
+    const conditions = normalizeSiteConditions(row.site_conditions);
+    if (conditions.length === 0) continue;
+    siteConditionMap[siteKey] = Array.from(new Set([...(siteConditionMap[siteKey] || []), ...conditions]));
+  }
+
+  res.json({
+    client_names: pick('client_name'),
+    site_names: pick('site_name'),
+    site_locations: pick('site_location'),
+    site_conditions_by_site: siteConditionMap
+  });
 });
 
 router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
@@ -1208,12 +1301,18 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
   if (nextDate !== existing.date) queueUpdate('date', nextDate);
   if (hasOwn(req.body, 'shift_type')) queueUpdate('shift_type', req.body.shift_type);
   if (hasOwn(req.body, 'estimated_duration_hours')) queueUpdate('estimated_duration_hours', toNumberOrNull(req.body.estimated_duration_hours), existing.estimated_duration_hours);
-  if (hasOwn(req.body, 'crane_class_required')) queueUpdate('crane_class_required', trimText(req.body.crane_class_required), existing.crane_class_required || null);
+  if (hasOwn(req.body, 'crane_class_required') || hasOwn(req.body, 'crane_classes_required')) {
+    const nextCraneClasses = normalizeCraneClasses(
+      hasOwn(req.body, 'crane_classes_required') ? req.body.crane_classes_required : req.body.crane_class_required
+    );
+    queueUpdate('crane_classes_required', JSON.stringify(nextCraneClasses), existing.crane_classes_required || '[]');
+    queueUpdate('crane_class_required', trimText(req.body.crane_class_required) || nextCraneClasses[0] || null, existing.crane_class_required || null);
+  }
   if (hasOwn(req.body, 'job_description')) queueUpdate('job_description', trimText(req.body.job_description), existing.job_description || null);
-  if (hasOwn(req.body, 'task_tags')) queueUpdate('task_tags', JSON.stringify(parseJsonArray(req.body.task_tags)), existing.task_tags);
-  if (hasOwn(req.body, 'crew_roles_required')) queueUpdate('crew_roles_required', JSON.stringify(parseJsonArray(req.body.crew_roles_required)), existing.crew_roles_required);
-  if (hasOwn(req.body, 'required_credentials')) queueUpdate('required_credentials', JSON.stringify(parseJsonArray(req.body.required_credentials)), existing.required_credentials);
-  if (hasOwn(req.body, 'site_conditions')) queueUpdate('site_conditions', JSON.stringify(parseJsonArray(req.body.site_conditions)), existing.site_conditions);
+  if (hasOwn(req.body, 'task_tags')) queueUpdate('task_tags', JSON.stringify(normalizeTextList(req.body.task_tags)), existing.task_tags);
+  if (hasOwn(req.body, 'crew_roles_required')) queueUpdate('crew_roles_required', JSON.stringify(normalizeWorkerRoles(req.body.crew_roles_required)), existing.crew_roles_required);
+  if (hasOwn(req.body, 'required_credentials')) queueUpdate('required_credentials', JSON.stringify(normalizeCredentialTypes(req.body.required_credentials)), existing.required_credentials);
+  if (hasOwn(req.body, 'site_conditions')) queueUpdate('site_conditions', JSON.stringify(normalizeSiteConditions(req.body.site_conditions)), existing.site_conditions);
   if (hasOwn(req.body, 'lift_risk_level')) queueUpdate('lift_risk_level', req.body.lift_risk_level);
   queueUpdate('shift_start_time', scheduleFields.shift_start_time || null, existing.shift_start_time || null);
   queueUpdate('scheduled_start_at_utc', scheduleFields.scheduled_start_at_utc, existing.scheduled_start_at_utc || null);
@@ -1257,6 +1356,68 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
         payload: {
           changed_fields: Array.from(new Set(changedFields)),
           updated_at: now
+        }
+      });
+    }
+
+    if (changedFields.includes('crew_roles_required')) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'job_required_roles_updated',
+        userId: req.user.id,
+        jobId: req.params.id,
+        payload: {
+          roles: normalizeWorkerRoles(req.body.crew_roles_required)
+        }
+      });
+    }
+
+    if (changedFields.includes('required_credentials')) {
+      const credentials = normalizeCredentialTypes(req.body.required_credentials);
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'job_credentials_updated',
+        userId: req.user.id,
+        jobId: req.params.id,
+        payload: {
+          credentials,
+          credential_labels: credentials.map(credentialDisplayLabel)
+        }
+      });
+    }
+
+    if (changedFields.includes('crane_classes_required') || changedFields.includes('crane_class_required')) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'job_equipment_requirements_updated',
+        userId: req.user.id,
+        jobId: req.params.id,
+        payload: {
+          crane_classes_required: normalizeCraneClasses(req.body.crane_classes_required || req.body.crane_class_required)
+        }
+      });
+    }
+
+    if (changedFields.includes('site_conditions')) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'job_site_conditions_updated',
+        userId: req.user.id,
+        jobId: req.params.id,
+        payload: {
+          site_conditions: normalizeSiteConditions(req.body.site_conditions)
+        }
+      });
+    }
+
+    if (changedFields.some((field) => ['task_tags', 'notes', 'job_description'].includes(field))) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'job_additional_requirements_updated',
+        userId: req.user.id,
+        jobId: req.params.id,
+        payload: {
+          changed_fields: changedFields.filter((field) => ['task_tags', 'notes', 'job_description'].includes(field))
         }
       });
     }

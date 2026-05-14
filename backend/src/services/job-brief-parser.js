@@ -54,18 +54,31 @@ const CRANE_CLASS_MATCHERS = [
 
 const ROLE_MATCHERS = [
   { pattern: /\blift supervisor\b/i, value: 'supervisor' },
+  { pattern: /\boperator\b/i, value: 'crane_operator' },
   { pattern: /\bcrane operator\b/i, value: 'crane_operator' },
   { pattern: /\bdogman\b/i, value: 'dogman' },
   { pattern: /\brigger\b/i, value: 'rigger' },
-  { pattern: /\bsupervisor\b/i, value: 'supervisor' }
+  { pattern: /\bsupervisor\b/i, value: 'supervisor' },
+  { pattern: /\btruck driver\b/i, value: 'truck_driver' },
+  { pattern: /\belectrical spotter\b/i, value: 'electrical_spotter' },
+  { pattern: /\btraffic controller\b/i, value: 'traffic_controller' },
+  { pattern: /\blabou?rer\b/i, value: 'labourer' }
 ];
 
 const CREDENTIAL_MATCHERS = [
   { pattern: /\bwhite card\b/i, value: 'white_card' },
-  { pattern: /\bhrwl[-\s]*c(?:2|6|n)\b/i, value: 'high_risk_licence_crane' },
-  { pattern: /\bhrwl[-\s]*dg\b/i, value: 'high_risk_licence_dogging' },
-  { pattern: /\bhrwl[-\s]*r(?:a|b|i)\b/i, value: 'high_risk_licence_rigging' },
-  { pattern: /\bewp\b/i, value: 'other' }
+  { pattern: /\b(?:hrwl[-\s]*)?c0\b|\bhrwl[-\s]*co\b/i, value: 'hrwl_c0' },
+  { pattern: /\b(?:hrwl[-\s]*)?c1\b/i, value: 'hrwl_c1' },
+  { pattern: /\b(?:hrwl[-\s]*)?c2\b/i, value: 'hrwl_c2' },
+  { pattern: /\b(?:hrwl[-\s]*)?c6\b/i, value: 'hrwl_c6' },
+  { pattern: /\b(?:hrwl[-\s]*)?cn\b/i, value: 'hrwl_cn' },
+  { pattern: /\b(?:hrwl[-\s]*)?dg\b/i, value: 'hrwl_dg' },
+  { pattern: /\b(?:hrwl[-\s]*)?r(?:a|b|i)\b/i, value: 'hrwl_ri' },
+  { pattern: /\bworking at heights?\b|\bwah\b/i, value: 'working_at_height' },
+  { pattern: /\bfirst aid\b/i, value: 'first_aid' },
+  { pattern: /\bconfined space\b/i, value: 'confined_space' },
+  { pattern: /\briw\b/i, value: 'rail_riw' },
+  { pattern: /\bewp\b|\bwp\b/i, value: 'hrwl_wp' }
 ];
 
 const TASK_TAG_MATCHERS = [

@@ -10,6 +10,12 @@ const {
   serializeCompanyAccess
 } = require('../services/company-access');
 const {
+  COMMON_TIMEZONES,
+  isValidTimeZone,
+  normalizeTimeZone
+} = require('../services/timezone');
+const { intakeOptionsPayload } = require('../services/intake-catalogues');
+const {
   listCompanyCatalogueSelections,
   updateCompanyCatalogueSelections
 } = require('../services/job-requirement-catalogue');
@@ -88,22 +94,34 @@ router.get('/profile', requireAuth, (req, res) => {
 });
 
 router.patch('/profile', requireAuth, requireRole('admin'), (req, res) => {
-  const nextMode = req.body?.operating_mode;
-  if (!OPERATING_MODES.includes(nextMode)) {
+  const hasMode = Object.prototype.hasOwnProperty.call(req.body || {}, 'operating_mode');
+  const hasTimezone = Object.prototype.hasOwnProperty.call(req.body || {}, 'timezone');
+  const nextMode = hasMode ? req.body?.operating_mode : undefined;
+  const nextTimezone = hasTimezone ? String(req.body?.timezone || '').trim() : undefined;
+  if (!hasMode && !hasTimezone) {
+    return res.status(400).json({ error: 'operating_mode or timezone is required' });
+  }
+  if (hasMode && !OPERATING_MODES.includes(nextMode)) {
     return res.status(400).json({ error: 'operating_mode must be labour_only or plant_and_labour' });
+  }
+  if (hasTimezone && !isValidTimeZone(nextTimezone)) {
+    return res.status(400).json({ error: 'timezone must be a valid IANA timezone' });
   }
 
   const db = getDb();
   const company = getCompanyProfile(db, req.user.company_id);
   if (!company) return res.status(404).json({ error: 'Company not found' });
   const oldMode = normalizeOperatingMode(company.operating_mode);
-  const normalizedMode = normalizeOperatingMode(nextMode);
+  const normalizedMode = hasMode ? normalizeOperatingMode(nextMode) : oldMode;
+  const oldTimezone = normalizeTimeZone(company.timezone);
+  const normalizedTimezone = hasTimezone ? normalizeTimeZone(nextTimezone) : oldTimezone;
 
   db.prepare(`
     UPDATE companies
-    SET operating_mode = ?
+    SET operating_mode = ?,
+        timezone = ?
     WHERE id = ?
-  `).run(normalizedMode, req.user.company_id);
+  `).run(normalizedMode, normalizedTimezone, req.user.company_id);
 
   if (oldMode !== normalizedMode) {
     appendAuditEvent(db, {
@@ -117,7 +135,26 @@ router.patch('/profile', requireAuth, requireRole('admin'), (req, res) => {
     });
   }
 
+  if (oldTimezone !== normalizedTimezone) {
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'company_default_timezone_updated',
+      userId: req.user.id,
+      payload: {
+        old_timezone: oldTimezone,
+        new_timezone: normalizedTimezone
+      }
+    });
+  }
+
   return res.json(serializeCompanyAccess(getCompanyProfile(db, req.user.company_id)));
+});
+
+router.get('/intake-options', requireAuth, (req, res) => {
+  res.json({
+    ...intakeOptionsPayload(),
+    timezones: COMMON_TIMEZONES
+  });
 });
 
 router.get('/catalogue-selections', requireAuth, (req, res) => {

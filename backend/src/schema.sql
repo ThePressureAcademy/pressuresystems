@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS workers (
                       'crane_operator', 'dogman', 'rigger',
                       'traffic_controller', 'supervisor', 'allocator'
                     )),
+  roles             TEXT NOT NULL DEFAULT '[]',  -- JSON string[] from intake role catalogue
   employment_type   TEXT NOT NULL
                     CHECK (employment_type IN (
                       'permanent', 'casual', 'contractor', 'labour_hire'
@@ -87,13 +88,7 @@ CREATE TABLE IF NOT EXISTS credentials (
   id           TEXT PRIMARY KEY,
   worker_id    TEXT NOT NULL REFERENCES workers(id),
   company_id   TEXT NOT NULL REFERENCES companies(id),
-  type         TEXT NOT NULL
-               CHECK (type IN (
-                 'high_risk_licence_crane', 'high_risk_licence_dogging',
-                 'high_risk_licence_rigging', 'white_card', 'msic_card',
-                 'site_induction', 'client_induction', 'medical_clearance',
-                 'drivers_licence', 'other'
-               )),
+  type         TEXT NOT NULL,
   identifier   TEXT,
   issuing_body TEXT,
   issue_date   TEXT,
@@ -146,6 +141,7 @@ CREATE TABLE IF NOT EXISTS jobs (
                            CHECK (shift_type IN ('day', 'night', 'split')),
   estimated_duration_hours REAL,
   crane_class_required     TEXT,
+  crane_classes_required   TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
   job_description          TEXT,
   task_tags                TEXT NOT NULL DEFAULT '[]',    -- JSON string[]
   crew_roles_required      TEXT NOT NULL DEFAULT '[]',    -- JSON

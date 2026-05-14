@@ -301,6 +301,12 @@ main#view {
 }
 .panel h2 { margin-top: 0; }
 .panel h3 { margin-top: 0; font-size: 15px; color: var(--muted); font-weight: 500; }
+.sub-panel {
+  background: rgba(255,255,255,0.025);
+  border-color: rgba(107,112,119,0.38);
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
 .access-blocked {
   border-color: rgba(255, 180, 84, 0.35);
 }
@@ -468,6 +474,78 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .requirement-pill.custom {
   border-color: rgba(255,180,84,0.45);
   color: var(--warn);
+}
+
+.option-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.option-search {
+  max-width: 360px;
+}
+
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.option-group {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.option-group-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+}
+
+.option-row:first-of-type {
+  border-top: 0;
+}
+
+.option-row input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid rgba(242,240,230,0.16);
+  background: rgba(242,240,230,0.055);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+textarea.large-note {
+  min-height: 140px;
 }
 
 .asset-register,

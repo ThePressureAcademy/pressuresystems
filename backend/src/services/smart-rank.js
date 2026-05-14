@@ -4,6 +4,11 @@ const { computeCredentialStatus } = require('./credential-gate');
 const { computeFatigueStatus } = require('./fatigue-guard');
 const { computeTaskPreferenceFactor } = require('./preferences');
 const { buildSchedulePayload, rangesOverlap } = require('./timezone');
+const {
+  formatDisplayLabel,
+  normalizeWorkerRoles,
+  siteConditionReviewLabels
+} = require('./intake-catalogues');
 
 const WEIGHTS = {
   credential_match: 0.25,
@@ -39,7 +44,10 @@ function evalAvailability(worker) {
 }
 
 function evalCraneExperience(worker, job) {
-  if (!job.crane_class_required) {
+  const requiredClasses = Array.isArray(job.crane_classes_required) && job.crane_classes_required.length > 0
+    ? job.crane_classes_required
+    : (job.crane_class_required ? [job.crane_class_required] : []);
+  if (requiredClasses.length === 0) {
     return { score: 100, detail: 'No specific crane class required' };
   }
 
@@ -47,22 +55,24 @@ function evalCraneExperience(worker, job) {
     ? worker.crane_classes
     : JSON.parse(worker.crane_classes || '[]');
 
-  if (craneClasses.includes(job.crane_class_required)) {
-    return { score: 100, detail: `Experienced on ${job.crane_class_required}` };
+  const matched = requiredClasses.find((required) => craneClasses.includes(required));
+  if (matched) {
+    return { score: 100, detail: `Experienced on ${matched}` };
   }
 
-  if (worker.role === 'crane_operator' && craneClasses.length > 0) {
+  const roles = normalizeWorkerRoles(worker.roles || worker.role);
+  if (roles.includes('crane_operator') && craneClasses.length > 0) {
     return {
       score: 50,
-      detail: `Crane operator - no ${job.crane_class_required} class recorded (has: ${craneClasses.join(', ')})`
+      detail: `Crane operator - no selected crane class recorded (requires: ${requiredClasses.join(', ')}; has: ${craneClasses.join(', ')})`
     };
   }
 
-  if (worker.role === 'crane_operator') {
+  if (roles.includes('crane_operator')) {
     return { score: 30, detail: 'Crane operator - no crane class experience recorded' };
   }
 
-  return { score: 20, detail: `Role (${worker.role}) - crane class match may not apply` };
+  return { score: 20, detail: `Role (${roles.map(formatDisplayLabel).join(', ') || formatDisplayLabel(worker.role)}) - crane class match may not apply` };
 }
 
 function evalSiteFamiliarity(worker, job, recentAllocations) {
@@ -97,7 +107,7 @@ function evalTravel(worker, job) {
   ) {
     return { score: 90, detail: 'Worker depot matches job site' };
   }
-  return { score: 60, detail: 'Travel required - worker is not local to site' };
+  return { score: 60, detail: 'Additional travel over 100km flagged for review - worker is not local to site' };
 }
 
 function effectiveAllocationWindow(allocation) {
@@ -249,6 +259,20 @@ function rankWorkersForJob(
       continue;
     }
     workerWarnings.push(...scheduleConflict.warnings);
+
+    const siteConditionLabels = siteConditionReviewLabels(job.site_conditions || []);
+    if (siteConditionLabels.length > 0) {
+      workerWarnings.push({
+        type: 'site_condition_review',
+        detail: `Site conditions selected for dispatcher review: ${siteConditionLabels.slice(0, 4).join(', ')}`
+      });
+    }
+    if (job.travel_required) {
+      workerWarnings.push({
+        type: 'travel_review',
+        detail: 'Additional travel over 100km flagged for review.'
+      });
+    }
 
     const allocations90d = allAllocations.filter((allocation) => new Date(allocation.allocated_at) >= ninetyDaysAgo);
     const allocations7d = allAllocations.filter((allocation) => new Date(allocation.allocated_at) >= sevenDaysAgo);

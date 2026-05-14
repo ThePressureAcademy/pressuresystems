@@ -5,7 +5,10 @@ const COMMON_TIMEZONES = [
   'Australia/Brisbane',
   'Australia/Sydney',
   'Australia/Melbourne',
+  'Australia/Adelaide',
   'Australia/Perth',
+  'Australia/Darwin',
+  'Australia/Hobart',
   'Pacific/Auckland'
 ];
 const VALID_SCHEDULE_STATUSES = ['draft', 'planned', 'confirmed', 'completed', 'cancelled'];
