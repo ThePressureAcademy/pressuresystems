@@ -173,6 +173,9 @@ CREATE TABLE IF NOT EXISTS jobs (
                              'in_progress', 'complete', 'cancelled'
                            )),
   created_by_user_id       TEXT NOT NULL REFERENCES users(id),
+  archived_at              TEXT,
+  archived_by_user_id      TEXT REFERENCES users(id),
+  archive_reason           TEXT,
   created_at               TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at               TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -439,7 +442,11 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'worker_imported',
                   'worker_import_completed',
                   'worker_removed',
+                  'worker_updated',
+                  'worker_credentials_updated',
+                  'worker_preferences_updated',
                   'job_created',
+                  'job_updated',
                   'job_brief_import_previewed',
                   'job_created_from_brief',
                   'job_counterweight_transport_assessed',
@@ -457,7 +464,9 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'job_asset_selected',
                   'preference_signal_created',
                   'preference_signal_updated',
-                  'learned_preference_applied'
+                  'learned_preference_applied',
+                  'company_reset_started',
+                  'company_reset_completed'
                 )),
   user_id       TEXT REFERENCES users(id),
   worker_id     TEXT REFERENCES workers(id),

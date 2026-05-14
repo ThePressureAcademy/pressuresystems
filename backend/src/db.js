@@ -23,7 +23,11 @@ const AUDIT_EVENT_TYPES = [
   'worker_imported',
   'worker_import_completed',
   'worker_removed',
+  'worker_updated',
+  'worker_credentials_updated',
+  'worker_preferences_updated',
   'job_created',
+  'job_updated',
   'job_brief_import_previewed',
   'job_created_from_brief',
   'job_counterweight_transport_assessed',
@@ -41,7 +45,9 @@ const AUDIT_EVENT_TYPES = [
   'job_asset_selected',
   'preference_signal_created',
   'preference_signal_updated',
-  'learned_preference_applied'
+  'learned_preference_applied',
+  'company_reset_started',
+  'company_reset_completed'
 ];
 
 const AUDIT_EVENTS_CREATE_SQL = `
@@ -310,6 +316,8 @@ CREATE INDEX IF NOT EXISTS idx_jobs_company_schedule_start
   ON jobs(company_id, scheduled_start_at_utc);
 CREATE INDEX IF NOT EXISTS idx_jobs_company_schedule_status
   ON jobs(company_id, schedule_status);
+CREATE INDEX IF NOT EXISTS idx_jobs_company_archived
+  ON jobs(company_id, archived_at);
 CREATE INDEX IF NOT EXISTS idx_allocations_worker_schedule
   ON allocations(worker_id, allocation_start_at_utc, allocation_end_at_utc);
 CREATE INDEX IF NOT EXISTS idx_allocations_company_schedule
@@ -399,6 +407,10 @@ function auditEventsNeedMigration(db) {
     || !row.sql.includes('worker_imported')
     || !row.sql.includes('preference_signal_created')
     || !row.sql.includes('worker_removed')
+    || !row.sql.includes('worker_updated')
+    || !row.sql.includes('worker_credentials_updated')
+    || !row.sql.includes('worker_preferences_updated')
+    || !row.sql.includes('job_updated')
     || !row.sql.includes('job_schedule_changed')
     || !row.sql.includes('job_brief_import_previewed')
     || !row.sql.includes('job_created_from_brief')
@@ -412,7 +424,9 @@ function auditEventsNeedMigration(db) {
     || !row.sql.includes('job_requirements_updated')
     || !row.sql.includes('job_custom_requirement_added')
     || !row.sql.includes('job_requirement_imported_from_brief')
-    || !row.sql.includes('job_asset_selected');
+    || !row.sql.includes('job_asset_selected')
+    || !row.sql.includes('company_reset_started')
+    || !row.sql.includes('company_reset_completed');
 }
 
 function migrateAuditEvents(db) {
@@ -472,6 +486,9 @@ function runMigrations(db) {
   ensureColumn(db, 'jobs', `risk_notes TEXT`, 'risk_notes');
   ensureColumn(db, 'jobs', `travel_notes TEXT`, 'travel_notes');
   ensureColumn(db, 'jobs', `source_note TEXT`, 'source_note');
+  ensureColumn(db, 'jobs', `archived_at TEXT`, 'archived_at');
+  ensureColumn(db, 'jobs', `archived_by_user_id TEXT`, 'archived_by_user_id');
+  ensureColumn(db, 'jobs', `archive_reason TEXT`, 'archive_reason');
   ensureColumn(db, 'allocations', `allocation_start_at_utc TEXT`, 'allocation_start_at_utc');
   ensureColumn(db, 'allocations', `allocation_end_at_utc TEXT`, 'allocation_end_at_utc');
   ensureColumn(db, 'allocations', `allocation_timezone TEXT`, 'allocation_timezone');

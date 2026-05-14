@@ -99,6 +99,40 @@ function ensureUniqueWorkerEmail(db, companyId, email, excludedWorkerId = null) 
   return existing || null;
 }
 
+function hasOwn(body, field) {
+  return Object.prototype.hasOwnProperty.call(body || {}, field);
+}
+
+function normalizeRequiredText(value) {
+  return String(value || '').trim();
+}
+
+function normalizeNullableText(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text || null;
+}
+
+function normalizeCraneClasses(value) {
+  if (value === undefined) return undefined;
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+  return null;
+}
+
+function parseCraneClasses(value) {
+  try {
+    const parsed = JSON.parse(value || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function createImportedRecords(db, user, row, importMode) {
   const workerId = randomUUID();
   const now = new Date().toISOString();
@@ -413,6 +447,7 @@ router.get('/:id/schedule', requireAuth, (req, res) => {
     WHERE a.company_id = ?
       AND a.worker_id = ?
       AND a.status = 'confirmed'
+      AND j.archived_at IS NULL
       AND COALESCE(a.allocation_start_at_utc, j.scheduled_start_at_utc) IS NOT NULL
       AND COALESCE(a.allocation_end_at_utc, j.scheduled_end_at_utc) IS NOT NULL
       AND COALESCE(a.allocation_start_at_utc, j.scheduled_start_at_utc) < ?
@@ -444,74 +479,110 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
   const existing = ensureWorker(db, req.params.id, req.user.company_id);
   if (!ensureActiveWorkerOrResponse(res, existing)) return;
 
-  const {
-    name,
-    email,
-    role,
-    employment_type,
-    crane_classes,
-    usual_depot,
-    contact_number,
-    status,
-    availability_note,
-    notes
-  } = req.body;
+  const updates = [];
+  const params = [];
+  const changedFields = [];
 
-  if (role && !VALID_ROLES.includes(role)) {
-    return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
-  }
-  if (employment_type && !VALID_EMP_TYPES.includes(employment_type)) {
-    return res.status(400).json({ error: `employment_type must be one of: ${VALID_EMP_TYPES.join(', ')}` });
-  }
-  if (status && !VALID_STATUSES.includes(status)) {
-    return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
+  function queueUpdate(column, value, existingValue = existing[column]) {
+    const current = existingValue === undefined ? null : existingValue;
+    const next = value === undefined ? null : value;
+    if (current === next) return;
+    updates.push(`${column} = ?`);
+    params.push(next);
+    changedFields.push(column);
   }
 
-  const normalizedEmail = email !== undefined
-    ? (email ? String(email).trim().toLowerCase() : null)
-    : undefined;
-  if (normalizedEmail && !isValidEmail(normalizedEmail)) {
-    return res.status(400).json({ error: 'email must be a valid email address' });
+  if (hasOwn(req.body, 'name')) {
+    const nextName = normalizeRequiredText(req.body.name);
+    if (!nextName) return res.status(400).json({ error: 'name is required' });
+    queueUpdate('name', nextName);
   }
-  if (normalizedEmail !== undefined) {
-    const duplicate = ensureUniqueWorkerEmail(db, req.user.company_id, normalizedEmail, req.params.id);
-    if (duplicate) {
-      return res.status(409).json({ error: `A worker with email ${normalizedEmail} already exists` });
+
+  if (hasOwn(req.body, 'email')) {
+    const normalizedEmail = normalizeNullableText(req.body.email);
+    if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'email must be a valid email address' });
+    }
+    const nextEmail = normalizedEmail ? normalizedEmail.toLowerCase() : null;
+    if (nextEmail) {
+      const duplicate = ensureUniqueWorkerEmail(db, req.user.company_id, nextEmail, req.params.id);
+      if (duplicate) {
+        return res.status(409).json({ error: `A worker with email ${nextEmail} already exists` });
+      }
+    }
+    queueUpdate('email', nextEmail, existing.email || null);
+  }
+
+  if (hasOwn(req.body, 'role')) {
+    const nextRole = normalizeRequiredText(req.body.role);
+    if (!VALID_ROLES.includes(nextRole)) {
+      return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
+    }
+    queueUpdate('role', nextRole);
+  }
+
+  if (hasOwn(req.body, 'employment_type')) {
+    const nextEmploymentType = normalizeRequiredText(req.body.employment_type);
+    if (!VALID_EMP_TYPES.includes(nextEmploymentType)) {
+      return res.status(400).json({ error: `employment_type must be one of: ${VALID_EMP_TYPES.join(', ')}` });
+    }
+    queueUpdate('employment_type', nextEmploymentType);
+  }
+
+  if (hasOwn(req.body, 'status')) {
+    const nextStatus = normalizeRequiredText(req.body.status);
+    if (!VALID_STATUSES.includes(nextStatus)) {
+      return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
+    }
+    queueUpdate('status', nextStatus);
+  }
+
+  if (hasOwn(req.body, 'crane_classes')) {
+    const nextCraneClasses = normalizeCraneClasses(req.body.crane_classes);
+    if (!Array.isArray(nextCraneClasses)) {
+      return res.status(400).json({ error: 'crane_classes must be an array or comma-separated string' });
+    }
+    const nextCraneClassesJson = JSON.stringify(nextCraneClasses);
+    const currentCraneClassesJson = JSON.stringify(parseCraneClasses(existing.crane_classes));
+    queueUpdate('crane_classes', nextCraneClassesJson, currentCraneClassesJson);
+  }
+
+  for (const field of ['usual_depot', 'contact_number', 'availability_note', 'notes']) {
+    if (hasOwn(req.body, field)) {
+      queueUpdate(field, normalizeNullableText(req.body[field]), existing[field] || null);
     }
   }
 
-  const now = new Date().toISOString();
-  db.prepare(`
-    UPDATE workers
-    SET name = COALESCE(?, name),
-        email = COALESCE(?, email),
-        role = COALESCE(?, role),
-        employment_type = COALESCE(?, employment_type),
-        crane_classes = COALESCE(?, crane_classes),
-        usual_depot = COALESCE(?, usual_depot),
-        contact_number = COALESCE(?, contact_number),
-        status = COALESCE(?, status),
-        availability_note = COALESCE(?, availability_note),
-        notes = COALESCE(?, notes),
-        updated_at = ?
-    WHERE id = ? AND company_id = ?
-  `).run(
-    name || null,
-    normalizedEmail !== undefined ? normalizedEmail : null,
-    role || null,
-    employment_type || null,
-    crane_classes !== undefined ? JSON.stringify(crane_classes) : null,
-    usual_depot || null,
-    contact_number || null,
-    status || null,
-    availability_note || null,
-    notes || null,
-    now,
-    req.params.id,
-    req.user.company_id
-  );
+  if (updates.length === 0) {
+    return res.json(parseWorker(ensureWorker(db, req.params.id, req.user.company_id)));
+  }
 
-  res.json(parseWorker(ensureWorker(db, req.params.id, req.user.company_id)));
+  const now = new Date().toISOString();
+  updates.push('updated_at = ?');
+  params.push(now, req.params.id, req.user.company_id);
+
+  const updatedWorker = db.transaction(() => {
+    db.prepare(`
+      UPDATE workers
+      SET ${updates.join(', ')}
+      WHERE id = ? AND company_id = ?
+    `).run(...params);
+
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'worker_updated',
+      userId: req.user.id,
+      workerId: req.params.id,
+      payload: {
+        changed_fields: changedFields,
+        updated_at: now
+      }
+    });
+
+    return parseWorker(ensureWorker(db, req.params.id, req.user.company_id));
+  })();
+
+  res.json(updatedWorker);
 });
 
 // POST /api/workers/:id/remove
@@ -646,6 +717,18 @@ router.post('/:id/preferences', requireAuth, requireRole('admin', 'dispatcher'),
       rating: numericRating
     }
   });
+  appendAuditEvent(db, {
+    companyId: req.user.company_id,
+    eventType: 'worker_preferences_updated',
+    userId: req.user.id,
+    workerId: req.params.id,
+    payload: {
+      action: 'preference_created',
+      preference_id: id,
+      task_tag: normalizedTag,
+      rating: numericRating
+    }
+  });
 
   res.status(201).json(parsePreference(
     db.prepare(`SELECT * FROM worker_task_preferences WHERE id = ?`).get(id)
@@ -710,6 +793,16 @@ router.patch('/:id/preferences/:preferenceId', requireAuth, requireRole('admin',
       rating: nextRating
     }
   });
+  appendAuditEvent(db, {
+    companyId: req.user.company_id,
+    eventType: 'worker_preferences_updated',
+    userId: req.user.id,
+    workerId: req.params.id,
+    payload: {
+      preference_id: req.params.preferenceId,
+      changed_fields: ['task_tag', 'rating', 'notes'].filter((field) => req.body[field] !== undefined)
+    }
+  });
 
   res.json(parsePreference(
     db.prepare(`SELECT * FROM worker_task_preferences WHERE id = ?`).get(req.params.preferenceId)
@@ -767,6 +860,19 @@ router.post('/:id/credentials', requireAuth, requireRole('admin', 'dispatcher'),
     notes || null
   );
 
+  appendAuditEvent(db, {
+    companyId: req.user.company_id,
+    eventType: 'worker_credentials_updated',
+    userId: req.user.id,
+    workerId: req.params.id,
+    payload: {
+      action: 'credential_created',
+      credential_id: id,
+      type,
+      status
+    }
+  });
+
   res.status(201).json(db.prepare(`SELECT * FROM credentials WHERE id = ?`).get(id));
 });
 
@@ -783,33 +889,51 @@ router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'disp
 
   if (!credential) return res.status(404).json({ error: 'Credential not found' });
 
-  const { identifier, issuing_body, issue_date, expiry_date, verified, notes } = req.body;
-  const nextExpiryDate = expiry_date !== undefined ? expiry_date : credential.expiry_date;
+  const nextIdentifier = hasOwn(req.body, 'identifier') ? normalizeNullableText(req.body.identifier) : credential.identifier;
+  const nextIssuingBody = hasOwn(req.body, 'issuing_body') ? normalizeNullableText(req.body.issuing_body) : credential.issuing_body;
+  const nextIssueDate = hasOwn(req.body, 'issue_date') ? normalizeNullableText(req.body.issue_date) : credential.issue_date;
+  const nextExpiryDate = hasOwn(req.body, 'expiry_date') ? normalizeNullableText(req.body.expiry_date) : credential.expiry_date;
+  const nextVerified = hasOwn(req.body, 'verified') ? (req.body.verified ? 1 : 0) : credential.verified;
+  const nextNotes = hasOwn(req.body, 'notes') ? normalizeNullableText(req.body.notes) : credential.notes;
   const nextStatus = computeCredStatus(credential.type, nextExpiryDate);
   const now = new Date().toISOString();
 
   db.prepare(`
     UPDATE credentials
-    SET identifier = COALESCE(?, identifier),
-        issuing_body = COALESCE(?, issuing_body),
-        issue_date = COALESCE(?, issue_date),
-        expiry_date = COALESCE(?, expiry_date),
-        verified = COALESCE(?, verified),
+    SET identifier = ?,
+        issuing_body = ?,
+        issue_date = ?,
+        expiry_date = ?,
+        verified = ?,
         status = ?,
-        notes = COALESCE(?, notes),
+        notes = ?,
         updated_at = ?
     WHERE id = ?
   `).run(
-    identifier || null,
-    issuing_body || null,
-    issue_date || null,
-    expiry_date !== undefined ? expiry_date : null,
-    verified !== undefined ? (verified ? 1 : 0) : null,
+    nextIdentifier,
+    nextIssuingBody,
+    nextIssueDate,
+    nextExpiryDate,
+    nextVerified,
     nextStatus,
-    notes || null,
+    nextNotes,
     now,
     req.params.credId
   );
+
+  appendAuditEvent(db, {
+    companyId: req.user.company_id,
+    eventType: 'worker_credentials_updated',
+    userId: req.user.id,
+    workerId: req.params.id,
+    payload: {
+      action: 'credential_updated',
+      credential_id: req.params.credId,
+      changed_fields: ['identifier', 'issuing_body', 'issue_date', 'expiry_date', 'verified', 'notes']
+        .filter((field) => hasOwn(req.body, field)),
+      status: nextStatus
+    }
+  });
 
   res.json(db.prepare(`SELECT * FROM credentials WHERE id = ?`).get(req.params.credId));
 });

@@ -31,6 +31,7 @@ router.get('/', requireAuth, (req, res) => {
     SELECT *
     FROM jobs
     WHERE company_id = ?
+      AND archived_at IS NULL
       AND scheduled_start_at_utc IS NOT NULL
       AND scheduled_end_at_utc IS NOT NULL
       AND scheduled_start_at_utc < ?
@@ -58,6 +59,7 @@ router.get('/', requireAuth, (req, res) => {
     JOIN workers w ON a.worker_id = w.id
     WHERE a.company_id = ?
       AND a.status = 'confirmed'
+      AND j.archived_at IS NULL
       AND COALESCE(a.allocation_start_at_utc, j.scheduled_start_at_utc) IS NOT NULL
       AND COALESCE(a.allocation_end_at_utc, j.scheduled_end_at_utc) IS NOT NULL
       AND COALESCE(a.allocation_start_at_utc, j.scheduled_start_at_utc) < ?

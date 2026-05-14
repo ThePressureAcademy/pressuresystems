@@ -12,8 +12,14 @@ router.get('/', requireAuth, (req, res) => {
   const cid = req.user.company_id;
 
   const { from, to } = req.query;
-  const fromStr = from || '1970-01-01';
-  const toStr   = to   || '9999-12-31';
+  const company = db.prepare(`SELECT pilot_starts_at, created_at FROM companies WHERE id = ?`).get(cid);
+  const defaultFrom = company?.pilot_starts_at || company?.created_at || new Date().toISOString();
+  const defaultTo = new Date().toISOString();
+  const fromStr = from || defaultFrom;
+  const toStr = to || defaultTo;
+  const periodLabel = from || to
+    ? `${String(fromStr).slice(0, 10)} to ${String(toStr).slice(0, 10)}`
+    : (company?.pilot_starts_at ? 'Pilot start to today' : 'Initial setup to today');
 
   function countEvents(eventType) {
     return db.prepare(`
@@ -24,7 +30,11 @@ router.get('/', requireAuth, (req, res) => {
   }
 
   const totalJobs = db.prepare(`
-    SELECT COUNT(*) as n FROM jobs WHERE company_id = ? AND created_at >= ? AND created_at <= ?
+    SELECT COUNT(*) as n
+    FROM jobs
+    WHERE company_id = ?
+      AND archived_at IS NULL
+      AND created_at >= ? AND created_at <= ?
   `).get(cid, fromStr, toStr).n;
 
   const totalAllocations = db.prepare(`
@@ -45,7 +55,13 @@ router.get('/', requireAuth, (req, res) => {
   `).get(cid, fromStr, toStr).n;
 
   res.json({
-    period: { from: fromStr, to: toStr },
+    period: {
+      from: String(fromStr).slice(0, 10),
+      to: String(toStr).slice(0, 10),
+      period_start_at: fromStr,
+      period_end_at: toStr,
+      label: periodLabel
+    },
     total_jobs:                totalJobs,
     total_allocations:         totalAllocations,
     workers_imported:          countEvents('worker_imported'),

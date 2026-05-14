@@ -109,7 +109,7 @@ function fetchSmartRankData(db, companyId) {
       j.scheduled_end_at_utc AS job_scheduled_end_at_utc
     FROM allocations a
     JOIN jobs j ON a.job_id = j.id
-    WHERE a.company_id = ? AND a.status = 'confirmed'
+    WHERE a.company_id = ? AND a.status = 'confirmed' AND j.archived_at IS NULL
   `).all(companyId);
   const allocationsByWorker = {};
   for (const allocation of allocations) {
@@ -748,8 +748,15 @@ function persistJobRequirementPayload(db, user, jobId, input, source = 'catalogu
   return requirements;
 }
 
-function persistJobAssetPayload(db, user, jobId, input, source = 'manual') {
-  if (!hasAssetPayload(input)) return null;
+function persistJobAssetPayload(db, user, jobId, input, source = 'manual', options = {}) {
+  const hasExplicitAssetUpdate = hasAssetPayload(input)
+    || hasOwn(input, 'company_asset_ids')
+    || hasOwn(input, 'selected_company_asset_ids')
+    || hasOwn(input, 'company_asset_id')
+    || hasOwn(input, 'selected_company_asset_id')
+    || hasOwn(input, 'asset_numbers')
+    || hasOwn(input, 'asset_number');
+  if (!hasExplicitAssetUpdate) return null;
   const assignments = persistJobAssetAssignments(db, {
     companyId: user.company_id,
     jobId,
@@ -758,7 +765,7 @@ function persistJobAssetPayload(db, user, jobId, input, source = 'manual') {
     source
   });
 
-  if (assignments.length > 0) {
+  if (assignments.length > 0 || options.auditEmpty) {
     appendAuditEvent(db, {
       companyId: user.company_id,
       eventType: 'job_asset_selected',
@@ -847,6 +854,9 @@ router.get('/', requireAuth, (req, res) => {
 
   let sql = `SELECT * FROM jobs WHERE company_id = ?`;
   const params = [req.user.company_id];
+  if (req.query.include_archived !== 'true') {
+    sql += ` AND archived_at IS NULL`;
+  }
   if (status) {
     sql += ` AND status = ?`;
     params.push(status);
@@ -1139,15 +1149,21 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
   const existing = db.prepare(`SELECT * FROM jobs WHERE id = ? AND company_id = ?`)
     .get(req.params.id, req.user.company_id);
   if (!existing) return res.status(404).json({ error: 'Job not found' });
+  if (existing.archived_at) {
+    return res.status(409).json({
+      error: 'Job has been cleared from active dispatch.',
+      archived_at: existing.archived_at
+    });
+  }
 
-  const nextStatus = req.body.status !== undefined ? req.body.status : existing.status;
+  const nextStatus = hasOwn(req.body, 'status') ? req.body.status : existing.status;
   if (nextStatus && !VALID_JOB_STATUSES.includes(nextStatus)) {
     return res.status(400).json({ error: `status must be one of: ${VALID_JOB_STATUSES.join(', ')}` });
   }
-  if (req.body.shift_type && !VALID_SHIFT_TYPES.includes(req.body.shift_type)) {
+  if (hasOwn(req.body, 'shift_type') && !VALID_SHIFT_TYPES.includes(req.body.shift_type)) {
     return res.status(400).json({ error: `shift_type must be one of: ${VALID_SHIFT_TYPES.join(', ')}` });
   }
-  if (req.body.lift_risk_level && !VALID_RISK_LEVELS.includes(req.body.lift_risk_level)) {
+  if (hasOwn(req.body, 'lift_risk_level') && !VALID_RISK_LEVELS.includes(req.body.lift_risk_level)) {
     return res.status(400).json({ error: `lift_risk_level must be one of: ${VALID_RISK_LEVELS.join(', ')}` });
   }
 
@@ -1159,108 +1175,119 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
     return res.status(400).json({ error: error.message });
   }
 
-  const nextDate = req.body.date !== undefined
+  const nextDate = hasOwn(req.body, 'date')
     ? (req.body.date || scheduleFields.scheduled_start_local?.slice(0, 10) || existing.date)
     : existing.date;
+  const updates = [];
+  const params = [];
+  const changedFields = [];
+
+  function queueUpdate(column, value, existingValue = existing[column]) {
+    const current = existingValue === undefined ? null : existingValue;
+    const next = value === undefined ? null : value;
+    if (current === next) return;
+    updates.push(`${column} = ?`);
+    params.push(next);
+    changedFields.push(column);
+  }
+
+  if (hasOwn(req.body, 'reference')) queueUpdate('reference', trimText(req.body.reference), existing.reference || null);
+  if (hasOwn(req.body, 'client_name')) {
+    const nextClient = trimText(req.body.client_name);
+    if (!nextClient) return res.status(400).json({ error: 'client_name is required' });
+    queueUpdate('client_name', nextClient);
+  }
+  if (hasOwn(req.body, 'site_name')) {
+    const nextSite = trimText(req.body.site_name);
+    if (!nextSite) return res.status(400).json({ error: 'site_name is required' });
+    queueUpdate('site_name', nextSite);
+  }
+  if (hasOwn(req.body, 'site_location')) queueUpdate('site_location', trimText(req.body.site_location), existing.site_location || null);
+  if (hasOwn(req.body, 'contact_name')) queueUpdate('contact_name', trimText(req.body.contact_name), existing.contact_name || null);
+  if (hasOwn(req.body, 'contact_phone')) queueUpdate('contact_phone', trimText(req.body.contact_phone), existing.contact_phone || null);
+  if (nextDate !== existing.date) queueUpdate('date', nextDate);
+  if (hasOwn(req.body, 'shift_type')) queueUpdate('shift_type', req.body.shift_type);
+  if (hasOwn(req.body, 'estimated_duration_hours')) queueUpdate('estimated_duration_hours', toNumberOrNull(req.body.estimated_duration_hours), existing.estimated_duration_hours);
+  if (hasOwn(req.body, 'crane_class_required')) queueUpdate('crane_class_required', trimText(req.body.crane_class_required), existing.crane_class_required || null);
+  if (hasOwn(req.body, 'job_description')) queueUpdate('job_description', trimText(req.body.job_description), existing.job_description || null);
+  if (hasOwn(req.body, 'task_tags')) queueUpdate('task_tags', JSON.stringify(parseJsonArray(req.body.task_tags)), existing.task_tags);
+  if (hasOwn(req.body, 'crew_roles_required')) queueUpdate('crew_roles_required', JSON.stringify(parseJsonArray(req.body.crew_roles_required)), existing.crew_roles_required);
+  if (hasOwn(req.body, 'required_credentials')) queueUpdate('required_credentials', JSON.stringify(parseJsonArray(req.body.required_credentials)), existing.required_credentials);
+  if (hasOwn(req.body, 'site_conditions')) queueUpdate('site_conditions', JSON.stringify(parseJsonArray(req.body.site_conditions)), existing.site_conditions);
+  if (hasOwn(req.body, 'lift_risk_level')) queueUpdate('lift_risk_level', req.body.lift_risk_level);
+  queueUpdate('shift_start_time', scheduleFields.shift_start_time || null, existing.shift_start_time || null);
+  queueUpdate('scheduled_start_at_utc', scheduleFields.scheduled_start_at_utc, existing.scheduled_start_at_utc || null);
+  queueUpdate('scheduled_end_at_utc', scheduleFields.scheduled_end_at_utc, existing.scheduled_end_at_utc || null);
+  queueUpdate('job_timezone', scheduleFields.job_timezone, existing.job_timezone || null);
+  queueUpdate('scheduled_start_local', scheduleFields.scheduled_start_local, existing.scheduled_start_local || null);
+  queueUpdate('scheduled_end_local', scheduleFields.scheduled_end_local, existing.scheduled_end_local || null);
+  queueUpdate('schedule_status', scheduleFields.schedule_status, existing.schedule_status || null);
+  if (hasOwn(req.body, 'risk_notes')) queueUpdate('risk_notes', trimText(req.body.risk_notes), existing.risk_notes || null);
+  if (hasOwn(req.body, 'travel_required')) queueUpdate('travel_required', req.body.travel_required ? 1 : 0, Number(existing.travel_required || 0));
+  if (hasOwn(req.body, 'travel_hours_estimated')) queueUpdate('travel_hours_estimated', toNumberOrNull(req.body.travel_hours_estimated), existing.travel_hours_estimated);
+  if (hasOwn(req.body, 'travel_notes')) queueUpdate('travel_notes', trimText(req.body.travel_notes), existing.travel_notes || null);
+  if (hasOwn(req.body, 'source_note')) queueUpdate('source_note', trimText(req.body.source_note), existing.source_note || null);
+  if (hasOwn(req.body, 'notes')) queueUpdate('notes', trimText(req.body.notes), existing.notes || null);
+  if (hasOwn(req.body, 'status')) queueUpdate('status', req.body.status);
+
   const now = new Date().toISOString();
 
-  db.prepare(`
-    UPDATE jobs
-    SET reference = COALESCE(?, reference),
-        client_name = COALESCE(?, client_name),
-        site_name = COALESCE(?, site_name),
-        site_location = COALESCE(?, site_location),
-        contact_name = COALESCE(?, contact_name),
-        contact_phone = COALESCE(?, contact_phone),
-        date = ?,
-        shift_start_time = ?,
-        shift_type = COALESCE(?, shift_type),
-        estimated_duration_hours = COALESCE(?, estimated_duration_hours),
-        crane_class_required = COALESCE(?, crane_class_required),
-        job_description = COALESCE(?, job_description),
-        task_tags = COALESCE(?, task_tags),
-        crew_roles_required = COALESCE(?, crew_roles_required),
-        required_credentials = COALESCE(?, required_credentials),
-        site_conditions = COALESCE(?, site_conditions),
-        lift_risk_level = COALESCE(?, lift_risk_level),
-        scheduled_start_at_utc = ?,
-        scheduled_end_at_utc = ?,
-        job_timezone = ?,
-        scheduled_start_local = ?,
-        scheduled_end_local = ?,
-        schedule_status = ?,
-        risk_notes = COALESCE(?, risk_notes),
-        travel_required = COALESCE(?, travel_required),
-        travel_hours_estimated = COALESCE(?, travel_hours_estimated),
-        travel_notes = COALESCE(?, travel_notes),
-        source_note = COALESCE(?, source_note),
-        notes = COALESCE(?, notes),
-        status = COALESCE(?, status),
-        updated_at = ?
-    WHERE id = ? AND company_id = ?
-  `).run(
-    req.body.reference !== undefined ? (req.body.reference || null) : null,
-    req.body.client_name !== undefined ? (req.body.client_name || null) : null,
-    req.body.site_name !== undefined ? (req.body.site_name || null) : null,
-    req.body.site_location !== undefined ? (req.body.site_location || null) : null,
-    req.body.contact_name !== undefined ? (req.body.contact_name || null) : null,
-    req.body.contact_phone !== undefined ? (req.body.contact_phone || null) : null,
-    nextDate,
-    scheduleFields.shift_start_time || null,
-    req.body.shift_type !== undefined ? req.body.shift_type : null,
-    req.body.estimated_duration_hours !== undefined ? req.body.estimated_duration_hours : null,
-    req.body.crane_class_required !== undefined ? (req.body.crane_class_required || null) : null,
-    req.body.job_description !== undefined ? (req.body.job_description || null) : null,
-    req.body.task_tags !== undefined ? JSON.stringify(req.body.task_tags || []) : null,
-    req.body.crew_roles_required !== undefined ? JSON.stringify(req.body.crew_roles_required || []) : null,
-    req.body.required_credentials !== undefined ? JSON.stringify(req.body.required_credentials || []) : null,
-    req.body.site_conditions !== undefined ? JSON.stringify(req.body.site_conditions || []) : null,
-    req.body.lift_risk_level !== undefined ? req.body.lift_risk_level : null,
-    scheduleFields.scheduled_start_at_utc,
-    scheduleFields.scheduled_end_at_utc,
-    scheduleFields.job_timezone,
-    scheduleFields.scheduled_start_local,
-    scheduleFields.scheduled_end_local,
-    scheduleFields.schedule_status,
-    req.body.risk_notes !== undefined ? (req.body.risk_notes || null) : null,
-    req.body.travel_required !== undefined ? (req.body.travel_required ? 1 : 0) : null,
-    req.body.travel_hours_estimated !== undefined ? req.body.travel_hours_estimated : null,
-    req.body.travel_notes !== undefined ? (req.body.travel_notes || null) : null,
-    req.body.source_note !== undefined ? (req.body.source_note || null) : null,
-    req.body.notes !== undefined ? (req.body.notes || null) : null,
-    req.body.status !== undefined ? req.body.status : null,
-    now,
-    req.params.id,
-    req.user.company_id
-  );
+  const updated = db.transaction(() => {
+    if (updates.length > 0) {
+      updates.push('updated_at = ?');
+      params.push(now, req.params.id, req.user.company_id);
+      db.prepare(`
+        UPDATE jobs
+        SET ${updates.join(', ')}
+        WHERE id = ? AND company_id = ?
+      `).run(...params);
+    }
 
-  persistJobCraneAssessment(db, req.user, req.params.id, req.body);
-  persistJobRequirementPayload(db, req.user, req.params.id, req.body, 'catalogue');
-  const updated = db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(req.params.id);
-  if (req.body.status && req.body.status !== existing.status) {
-    appendAuditEvent(db, {
-      companyId: req.user.company_id,
-      eventType: 'job_status_changed',
-      userId: req.user.id,
-      jobId: req.params.id,
-      payload: { from: existing.status, to: req.body.status }
-    });
-  }
+    persistJobCraneAssessment(db, req.user, req.params.id, req.body);
+    persistJobRequirementPayload(db, req.user, req.params.id, req.body, 'catalogue');
+    persistJobAssetPayload(db, req.user, req.params.id, req.body, 'manual', { auditEmpty: true });
 
-  const beforeSchedule = JSON.stringify(scheduleAuditPayload(existing));
-  const afterSchedule = JSON.stringify(scheduleAuditPayload(updated));
-  if (beforeSchedule !== afterSchedule) {
-    appendAuditEvent(db, {
-      companyId: req.user.company_id,
-      eventType: 'job_schedule_changed',
-      userId: req.user.id,
-      jobId: req.params.id,
-      payload: {
-        before: scheduleAuditPayload(existing),
-        after: scheduleAuditPayload(updated)
-      }
-    });
-  }
+    const saved = db.prepare(`SELECT * FROM jobs WHERE id = ? AND company_id = ?`).get(req.params.id, req.user.company_id);
+    if (changedFields.length > 0) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'job_updated',
+        userId: req.user.id,
+        jobId: req.params.id,
+        payload: {
+          changed_fields: Array.from(new Set(changedFields)),
+          updated_at: now
+        }
+      });
+    }
+
+    if (hasOwn(req.body, 'status') && req.body.status !== existing.status) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'job_status_changed',
+        userId: req.user.id,
+        jobId: req.params.id,
+        payload: { from: existing.status, to: req.body.status }
+      });
+    }
+
+    const beforeSchedule = JSON.stringify(scheduleAuditPayload(existing));
+    const afterSchedule = JSON.stringify(scheduleAuditPayload(saved));
+    if (beforeSchedule !== afterSchedule) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'job_schedule_changed',
+        userId: req.user.id,
+        jobId: req.params.id,
+        payload: {
+          before: scheduleAuditPayload(existing),
+          after: scheduleAuditPayload(saved)
+        }
+      });
+    }
+
+    return saved;
+  })();
 
   res.json(serializeJob(updated, null, db));
 });

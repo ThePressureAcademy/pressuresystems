@@ -28,6 +28,19 @@ let userId;
 let token;
 let request;
 
+function rmTempDirWithRetry(tempDir) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (error.code !== 'EBUSY') throw error;
+      if (attempt === 4) return;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 75);
+    }
+  }
+}
+
 function auth() {
   return { Authorization: `Bearer ${token}` };
 }
@@ -552,7 +565,7 @@ describe('Scheduled allocations and timezone-aware dispatch calendar', () => {
       if (migratedDb) migratedDb.close();
       setDb(null);
       delete process.env.DB_PATH;
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      rmTempDirWithRetry(tempDir);
     }
   });
 });

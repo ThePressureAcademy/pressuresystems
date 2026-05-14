@@ -19,6 +19,10 @@ const {
   listCompanyAssets,
   updateCompanyAsset
 } = require('../services/company-assets');
+const {
+  getCompanyResetPreview,
+  performCompanyReset
+} = require('../services/company-data-reset');
 
 const router = express.Router();
 
@@ -30,16 +34,20 @@ function countCompanyRows(db, table, companyId) {
   return db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE company_id = ?`).get(companyId).n;
 }
 
+function countCompanyRowsWhere(db, table, companyId, whereClause) {
+  return db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE company_id = ? AND ${whereClause}`).get(companyId).n;
+}
+
 function buildCompanySetupState(db, companyId) {
   const company = getCompanyProfile(db, companyId);
   const catalogue = listCompanyCatalogueSelections(db, companyId);
   const counts = {
-    workers: countCompanyRows(db, 'workers', companyId),
-    jobs: countCompanyRows(db, 'jobs', companyId),
+    workers: countCompanyRowsWhere(db, 'workers', companyId, 'archived_at IS NULL'),
+    jobs: countCompanyRowsWhere(db, 'jobs', companyId, 'archived_at IS NULL'),
     credentials: countCompanyRows(db, 'credentials', companyId),
     fatigue_records: countCompanyRows(db, 'fatigue_records', companyId),
-    assets: countCompanyRows(db, 'company_assets', companyId),
-    allocations: countCompanyRows(db, 'allocations', companyId),
+    assets: countCompanyRowsWhere(db, 'company_assets', companyId, `asset_status != 'retired'`),
+    allocations: countCompanyRowsWhere(db, 'allocations', companyId, `status != 'cancelled'`),
     job_imports: countCompanyRows(db, 'job_imports', companyId),
     catalogue_selections: countCompanyRows(db, 'company_catalogue_selections', companyId),
     audit_events: countCompanyRows(db, 'audit_events', companyId)
@@ -122,6 +130,25 @@ router.get('/setup-state', requireAuth, (req, res) => {
   const company = getCompanyProfile(db, req.user.company_id);
   if (!company) return res.status(404).json({ error: 'Company not found' });
   res.json(buildCompanySetupState(db, req.user.company_id));
+});
+
+router.get('/reset-preview', requireAuth, requireRole('admin'), (req, res) => {
+  const db = getDb();
+  try {
+    return res.json(getCompanyResetPreview(db, req.user.company_id, req.query.scope));
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/reset', requireAuth, requireRole('admin'), (req, res) => {
+  const db = getDb();
+  try {
+    const result = performCompanyReset(db, req.user, req.body?.scope, req.body?.confirmation);
+    return res.json(result);
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
 });
 
 router.post('/catalogue-selections', requireAuth, requireRole('admin'), (req, res) => {

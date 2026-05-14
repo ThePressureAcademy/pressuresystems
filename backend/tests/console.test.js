@@ -101,6 +101,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Plant and asset register hidden/);
     assert.match(res.text, /Job requirements/);
     assert.match(res.text, /Asset Register/);
+    assert.match(res.text, /Reset company data/);
+    assert.match(res.text, /CLEAR COMPANY DATA/);
     assert.match(res.text, /Asset number \/ plant number/);
     assert.match(res.text, /No plant numbers added yet/);
     assert.match(res.text, /Select equipment or transport classes before adding plant numbers\./);
@@ -114,6 +116,10 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /refreshAuthenticatedUser/);
     assert.match(res.text, /\/auth\/me/);
     assert.match(res.text, /Select asset \/ plant number/);
+    assert.match(res.text, /Edit job/);
+    assert.match(res.text, /Save job changes/);
+    assert.match(res.text, /Worker update did not return the saved worker/);
+    assert.match(res.text, /Job update did not return the saved job/);
     assert.match(res.text, /Add one-off requirement/);
     assert.match(res.text, /Review required/);
     assert.match(res.text, /Counterweight transport may be required/);
@@ -169,6 +175,7 @@ describe('Pilot console — static asset serving', () => {
     for (const fn of [
       'renderDashboard',     // login screen is in DOMContentLoaded login-form handler
       'renderOurBusiness',   // company requirement catalogue setup
+      'renderCompanyResetPanel', // guarded company-scoped reset controls
       'renderWorkersList',   // workers list
       'renderWorkerImport',  // CSV / TSV import flow
       'renderJobBriefImport',// job brief import flow

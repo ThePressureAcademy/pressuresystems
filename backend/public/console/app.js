@@ -400,6 +400,10 @@ function isCompanyAccessBlocked() {
   return status === 'expired' || status === 'suspended';
 }
 
+function isAdminUser() {
+  return state.user?.role === 'admin';
+}
+
 function formatPilotType(value) {
   const labels = {
     internal: 'internal',
@@ -1122,10 +1126,11 @@ function renderOperatingModePanel(profile = {}) {
 async function renderOurBusiness(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
-  const [profile, catalogue, assetsPayload] = await Promise.all([
+  const [profile, catalogue, assetsPayload, setupState] = await Promise.all([
     loadCompanyProfile(true),
     loadCompanyCatalogue(true),
-    loadCompanyAssets(true)
+    loadCompanyAssets(true),
+    loadCompanySetupState(true)
   ]);
   if (isStaleRender(renderCycle)) return;
   const mode = operatingMode(profile);
@@ -1211,6 +1216,144 @@ async function renderOurBusiness(renderCycle) {
       )
     ));
   }
+  const resetPanel = renderCompanyResetPanel(setupState);
+  if (resetPanel) view.appendChild(resetPanel);
+}
+
+const RESET_OPTIONS = [
+  {
+    scope: 'jobs',
+    label: 'Clear jobs only',
+    phrase: 'CLEAR JOBS',
+    description: 'Archives active jobs, clears job requirements/imports/asset assignments, and cancels company allocations. Workers remain.'
+  },
+  {
+    scope: 'workers',
+    label: 'Clear workers only',
+    phrase: 'CLEAR WORKERS',
+    description: 'Archives active workers, clears worker credentials/fatigue/preferences, and cancels company allocations. Jobs remain unallocated.'
+  },
+  {
+    scope: 'setup',
+    label: 'Clear Our Business setup only',
+    phrase: 'CLEAR SETUP',
+    description: 'Clears catalogue selections and company assets, then returns Our Business to setup-required state. Users, jobs, and workers remain.'
+  },
+  {
+    scope: 'all',
+    label: 'Clear all company operational data',
+    phrase: 'CLEAR COMPANY DATA',
+    description: 'Archives active jobs/workers and clears operational setup, imports, requirements, credentials, fatigue, preferences, assets, and allocations. Users remain.'
+  }
+];
+
+function renderResetCountList(counts = {}) {
+  const keys = [
+    ['jobs', 'active jobs'],
+    ['workers', 'active workers'],
+    ['credentials', 'worker credentials'],
+    ['fatigue_records', 'fatigue records'],
+    ['company_assets', 'active assets'],
+    ['active_allocations', 'active allocations'],
+    ['job_imports', 'job imports'],
+    ['catalogue_selections', 'setup selections'],
+    ['audit_events', 'audit events'],
+    ['users', 'company users kept']
+  ];
+  return el('div', { class: 'reset-count-grid' }, ...keys.map(([key, label]) =>
+    el('div', { class: 'reset-count' },
+      el('strong', {}, String(counts[key] ?? (key === 'company_assets' ? counts.assets : 0) ?? 0)),
+      el('span', {}, label)
+    )
+  ));
+}
+
+function renderCompanyResetPanel(setupState = {}) {
+  if (!isAdminUser()) return null;
+
+  const panel = el('details', { class: 'panel danger-panel reset-panel' });
+  panel.appendChild(el('summary', {}, 'Reset company data'));
+  panel.appendChild(el('p', { class: 'small muted' },
+    'Use this only for test setup or when rebuilding a company workspace. These actions only apply to this company and do not delete users or global reference catalogues.'
+  ));
+  panel.appendChild(el('div', { class: 'read-only-banner' },
+    'Reset actions cannot be automatically restored. Review the preview counts and type the exact confirmation phrase before continuing.'
+  ));
+  panel.appendChild(renderResetCountList(setupState.counts || {}));
+
+  const cards = el('div', { class: 'reset-grid' });
+  for (const option of RESET_OPTIONS) {
+    const previewBox = el('div', { class: 'reset-preview small muted' }, 'Preview not loaded yet.');
+    const phraseInput = el('input', {
+      name: `confirmation_${option.scope}`,
+      placeholder: option.phrase,
+      autocomplete: 'off',
+      'aria-label': `Type ${option.phrase} to confirm ${option.label}`
+    });
+    const errBox = el('div', { class: 'error' });
+    const previewButton = el('button', { type: 'button', class: 'secondary' }, 'Preview');
+    const resetButton = el('button', { type: 'button', class: 'danger' }, option.label);
+
+    previewButton.addEventListener('click', async () => {
+      errBox.textContent = '';
+      setButtonBusy(previewButton, true, 'Preview', 'Loading...');
+      try {
+        const preview = await api('GET', `/company/reset-preview?scope=${encodeURIComponent(option.scope)}`);
+        previewBox.innerHTML = '';
+        previewBox.appendChild(renderResetCountList(preview.counts || {}));
+        if (preview.effects?.length) {
+          previewBox.appendChild(el('ul', {}, ...preview.effects.map((effect) => el('li', {}, effect))));
+        }
+      } catch (err) {
+        errBox.textContent = err.error || 'Could not load reset preview';
+      } finally {
+        setButtonBusy(previewButton, false, 'Preview', 'Loading...');
+      }
+    });
+
+    resetButton.addEventListener('click', async () => {
+      errBox.textContent = '';
+      if (phraseInput.value !== option.phrase) {
+        errBox.textContent = `Type ${option.phrase} to enable this reset.`;
+        phraseInput.focus();
+        return;
+      }
+      const confirmed = window.confirm(
+        `${option.label}?\n\nThis only applies to this company. Users and global catalogues will be kept.\n\nType confirmation has been entered. Continue?`
+      );
+      if (!confirmed) return;
+
+      setButtonBusy(resetButton, true, option.label, 'Resetting...');
+      try {
+        const result = await api('POST', '/company/reset', {
+          scope: option.scope,
+          confirmation: phraseInput.value
+        });
+        companyCatalogueCache = null;
+        companyAssetsCache = null;
+        companySetupStateCache = null;
+        toast(result.label || 'Company data reset completed', 'success');
+        router();
+      } catch (err) {
+        errBox.textContent = err.error || 'Could not reset company data';
+      } finally {
+        setButtonBusy(resetButton, false, option.label, 'Resetting...');
+      }
+    });
+
+    cards.appendChild(el('div', { class: 'reset-card' },
+      el('h4', {}, option.label),
+      el('p', { class: 'small muted' }, option.description),
+      el('div', { class: 'small' }, 'Confirmation phrase: ', el('strong', {}, option.phrase)),
+      previewBox,
+      buildFieldWrapper('Type confirmation phrase', phraseInput),
+      errBox,
+      el('div', { class: 'button-row' }, previewButton, resetButton)
+    ));
+  }
+
+  panel.appendChild(cards);
+  return panel;
 }
 
 function renderAssetRegister(catalogue, assetsPayload = {}) {
@@ -1349,10 +1492,11 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
   return panel;
 }
 
-function renderJobAssetSelector(catalogue = {}, assetsPayload = {}) {
+function renderJobAssetSelector(catalogue = {}, assetsPayload = {}, options = {}) {
   const panel = el('div', { class: 'asset-selector-panel' });
   const assetsByItem = assetsGroupedByCatalogueItem(assetsPayload.assets || []);
   const itemsById = new Map((catalogue.items || []).map((item) => [String(item.id), item]));
+  const selectedAssetIds = new Set((options.selectedAssetIds || []).map((id) => String(id)));
 
   const refresh = (form) => {
     panel.innerHTML = '';
@@ -1381,9 +1525,11 @@ function renderJobAssetSelector(catalogue = {}, assetsPayload = {}) {
       const select = el('select', { name: 'company_asset_ids' });
       select.appendChild(el('option', { value: '' }, `Any available ${item.label}`));
       for (const asset of assets) {
-        select.appendChild(el('option', { value: String(asset.id) },
+        const option = el('option', { value: String(asset.id) },
           `${asset.asset_number} - ${asset.display_name || item.label} (${asset.asset_status})`
-        ));
+        );
+        if (selectedAssetIds.has(String(asset.id))) option.selected = true;
+        select.appendChild(option);
       }
       panel.appendChild(buildFieldWrapper(`Select asset / plant number for ${item.label}`, select));
     }
@@ -1910,23 +2056,34 @@ async function renderWorkerDetail(workerId, renderCycle) {
       event.preventDefault();
       editErr.textContent = '';
       const fd = new FormData(editForm);
+      const payload = {
+        name: fd.get('name'),
+        email: fd.get('email') || null,
+        status: fd.get('status'),
+        role: fd.get('role'),
+        employment_type: fd.get('employment_type'),
+        contact_number: fd.get('contact_number') || null,
+        crane_classes: splitCsv(fd.get('crane_classes')),
+        usual_depot: fd.get('usual_depot') || null,
+        availability_note: fd.get('availability_note') || null,
+        notes: fd.get('notes') || null
+      };
+      setButtonBusy(editSubmit, true, 'Save changes', 'Saving...');
       try {
-        await api('PATCH', `/workers/${workerId}`, {
-          name: fd.get('name'),
-          email: fd.get('email') || null,
-          status: fd.get('status'),
-          role: fd.get('role'),
-          employment_type: fd.get('employment_type'),
-          contact_number: fd.get('contact_number') || null,
-          crane_classes: splitCsv(fd.get('crane_classes')),
-          usual_depot: fd.get('usual_depot') || null,
-          availability_note: fd.get('availability_note') || null,
-          notes: fd.get('notes') || null
-        });
+        const savedWorker = await api('PATCH', `/workers/${workerId}`, payload);
+        if (!savedWorker || savedWorker.id !== workerId) {
+          throw { error: 'Worker update did not return the saved worker.' };
+        }
+        const persistedWorker = await api('GET', `/workers/${workerId}`);
+        if (!persistedWorker || persistedWorker.id !== workerId) {
+          throw { error: 'Worker update could not be confirmed from the server.' };
+        }
         toast('Worker updated', 'success');
         router();
       } catch (err) {
-        editErr.textContent = err.error;
+        editErr.textContent = err.error || 'Could not save worker changes';
+      } finally {
+        setButtonBusy(editSubmit, false, 'Save changes', 'Saving...');
       }
     });
   }
@@ -2909,19 +3066,248 @@ async function renderNewJob(renderCycle) {
   view.appendChild(form);
 }
 
+function selectedRequirementIdsFromJob(job = {}) {
+  return (job.structured_requirements || [])
+    .map((item) => item.catalogue_item_id)
+    .filter((id) => id != null);
+}
+
+function selectedAssetIdsFromJob(job = {}) {
+  return (job.asset_assignments || [])
+    .map((assignment) => assignment.asset?.id)
+    .filter((id) => id != null);
+}
+
+function customRequirementsFromJob(job = {}) {
+  return (job.structured_requirements || [])
+    .filter((item) => item.is_custom)
+    .map((item) => item.label)
+    .filter(Boolean)
+    .join(', ');
+}
+
+function buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, companyAssets, jobId) {
+  const mode = operatingMode(companyProfile);
+  const startParts = splitLocalDateTime(job.schedule?.scheduled_start_local || job.scheduled_start_local || '');
+  const endParts = splitLocalDateTime(job.schedule?.scheduled_end_local || job.scheduled_end_local || '');
+  const detectedTimeZone = job.job_timezone || job.schedule?.timezone || detectBrowserTimeZone() || 'Australia/Brisbane';
+  const panel = el('details', { class: 'panel job-edit-panel' });
+  panel.appendChild(el('summary', {}, 'Edit job'));
+  const form = el('form', { class: 'job-edit-form' });
+  const errBox = el('div', { class: 'error' });
+  const submit = el('button', { type: 'submit' }, 'Save job changes');
+
+  const cranePlanning = job.crane_planning || {};
+  const craneModelSelect = el('select', { name: 'crane_model_id' });
+  craneModelSelect.appendChild(el('option', { value: '' }, 'Select crane model'));
+  for (const model of craneModels || []) {
+    const option = el('option', { value: String(model.id) }, formatCraneModelOption(model));
+    if (cranePlanning.crane_model_id != null && String(cranePlanning.crane_model_id) === String(model.id)) {
+      option.selected = true;
+    }
+    craneModelSelect.appendChild(option);
+  }
+  const craneTravelStateSelect = el('select', { name: 'crane_travel_state_id' });
+  populateCraneTravelStateSelect(craneTravelStateSelect, [], cranePlanning.crane_travel_state_id);
+  const travelStateStatus = el('div', { class: 'status-note' }, 'Select a crane model to load travel states.');
+
+  const loadTravelStatesForModel = async () => {
+    const craneModelId = craneModelSelect.value;
+    populateCraneTravelStateSelect(craneTravelStateSelect, [], cranePlanning.crane_travel_state_id);
+    if (!craneModelId) {
+      travelStateStatus.textContent = 'Select a crane model to load travel states.';
+      return;
+    }
+    travelStateStatus.textContent = 'Loading travel states...';
+    try {
+      const states = await loadCraneTravelStates(craneModelId);
+      populateCraneTravelStateSelect(craneTravelStateSelect, states, cranePlanning.crane_travel_state_id);
+      travelStateStatus.textContent = `${states.length} travel state(s) available.`;
+    } catch (err) {
+      travelStateStatus.textContent = err.error || 'Could not load travel states.';
+    }
+  };
+
+  form.appendChild(el('h3', {}, 'Edit job'));
+  form.appendChild(el('div', { class: 'small muted' },
+    'Save persists to the backend, reloads the saved job, and records audit events for changed job, schedule, requirements, and asset context.'
+  ));
+  form.appendChild(el('div', { class: 'row' },
+    buildInput('reference', 'Reference', { value: job.reference || '' }),
+    buildInput('client_name', 'Client name', { required: true, value: job.client_name || '' }),
+    buildInput('site_name', 'Site name', { required: true, value: job.site_name || '' }),
+    buildInput('site_location', 'Site location', { value: job.site_location || '' }),
+    buildInput('contact_name', 'Contact name', { value: job.contact_name || '' }),
+    buildInput('contact_phone', 'Contact phone', { value: job.contact_phone || '' }),
+    buildSelect('status', 'Job status', ['draft', 'open', 'allocated', 'in_progress', 'complete', 'cancelled'], { value: job.status || 'open' }),
+    buildInput('date', 'Scheduled date', { type: 'date', value: job.date || startParts.date || '' }),
+    buildInput('shift_start_time', 'Scheduled start time', { type: 'time', value: startParts.time || job.shift_start_time || '' }),
+    buildInput('scheduled_end_time', 'Scheduled end time', { type: 'time', value: endParts.time || '' }),
+    buildFieldWrapper('Timezone', el('input', {
+      name: 'job_timezone',
+      value: detectedTimeZone,
+      list: 'job-timezone-options',
+      placeholder: 'Australia/Brisbane'
+    })),
+    buildSelect('schedule_status', 'Schedule status', SCHEDULE_STATUS_OPTIONS, { value: job.schedule?.status || job.schedule_status || 'planned' }),
+    buildSelect('shift_type', 'Shift type', SHIFT_OPTIONS, { value: job.shift_type || 'day', required: true }),
+    buildInput('estimated_duration_hours', 'Estimated duration (hours)', { type: 'number', step: '0.5', value: job.estimated_duration_hours ?? '' }),
+    buildInput('crane_class_required', 'Crane class required', { value: job.crane_class_required || '' }),
+    buildInput('task_tags', 'Task tags (comma-separated)', { value: (job.task_tags || []).join(', ') }),
+    buildInput('crew_roles_required', 'Crew roles required (comma-separated)', { value: (job.crew_roles_required || []).join(', ') }),
+    buildInput('required_credentials', 'Required credentials (comma-separated)', { value: (job.required_credentials || []).join(', ') }),
+    buildInput('site_conditions', 'Site conditions (comma-separated)', { value: (job.site_conditions || []).join(', ') }),
+    buildSelect('lift_risk_level', 'Lift risk level', RISK_OPTIONS, { value: job.lift_risk_level || 'routine' }),
+    buildSelect('travel_required', 'Travel required', ['false', 'true'], { value: job.travel_required ? 'true' : 'false' })
+  ));
+  form.appendChild(buildTextarea('job_description', 'Job description', { value: job.job_description || '' }));
+  form.appendChild(buildTextarea('risk_notes', 'Risk notes', { value: job.risk_notes || '' }));
+  form.appendChild(buildTextarea('travel_notes', 'Travel notes', { value: job.travel_notes || '' }));
+  form.appendChild(buildTextarea('source_note', 'Source / job brief note', { value: job.source_note || '' }));
+  form.appendChild(buildTextarea('notes', 'Notes', { value: job.notes || '' }));
+
+  const enabledCompanyCatalogue = filterCatalogueForOperatingMode(enabledCatalogueOnly(companyCatalogue), mode);
+  const requirementsSection = el('div', { class: 'panel requirement-form-section' });
+  requirementsSection.appendChild(el('h3', {}, 'Structured requirements'));
+  requirementsSection.appendChild(renderRequirementChecklist(enabledCompanyCatalogue, {
+    selectedIds: selectedRequirementIdsFromJob(job),
+    emptyText: 'No company requirements selected yet. Open Our Business to choose requirement catalogue items.'
+  }));
+  const assetSelectorPanel = mode === 'plant_and_labour'
+    ? renderJobAssetSelector(enabledCompanyCatalogue, companyAssets, { selectedAssetIds: selectedAssetIdsFromJob(job) })
+    : null;
+  if (assetSelectorPanel) requirementsSection.appendChild(assetSelectorPanel);
+  requirementsSection.appendChild(buildInput('custom_requirements', 'One-off requirements (comma-separated)', {
+    value: customRequirementsFromJob(job)
+  }));
+  form.appendChild(requirementsSection);
+
+  if (assetSelectorPanel) {
+    assetSelectorPanel.refresh(form);
+    requirementsSection.querySelectorAll('input[name="requirement_item_ids"]').forEach((checkbox) => {
+      checkbox.addEventListener('change', () => assetSelectorPanel.refresh(form));
+    });
+  }
+
+  if (mode === 'plant_and_labour') {
+    const craneSection = el('div', { class: 'panel crane-form-section' });
+    craneSection.appendChild(el('h3', {}, 'Crane, counterweight and transport'));
+    craneSection.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
+      'Planning support only. Review required language does not approve permits, compliance, or lift engineering.'
+    ));
+    craneSection.appendChild(el('div', { class: 'row' },
+      buildFieldWrapper('Crane model', craneModelSelect),
+      buildFieldWrapper('Travel state', craneTravelStateSelect),
+      buildInput('required_capacity_tonnes', 'Required capacity tonnes', { type: 'number', step: '0.1', value: cranePlanning.required_capacity_tonnes ?? '' }),
+      buildInput('lift_weight_tonnes', 'Lift weight tonnes', { type: 'number', step: '0.1', value: cranePlanning.lift_weight_tonnes ?? '' }),
+      buildInput('radius_m', 'Radius metres', { type: 'number', step: '0.1', value: cranePlanning.radius_m ?? '' }),
+      buildInput('height_m', 'Height metres', { type: 'number', step: '0.1', value: cranePlanning.height_m ?? '' }),
+      buildInput('counterweight_required_tonnes', 'Counterweight required tonnes', { type: 'number', step: '0.1', value: cranePlanning.counterweight_required_tonnes ?? '' })
+    ));
+    craneSection.appendChild(travelStateStatus);
+    craneSection.appendChild(buildTextarea('site_access_notes', 'Site access notes', { value: cranePlanning.site_access_notes || '' }));
+    craneSection.appendChild(buildTextarea('setup_notes', 'Setup notes', { value: cranePlanning.setup_notes || '' }));
+    form.appendChild(craneSection);
+    craneModelSelect.addEventListener('change', loadTravelStatesForModel);
+    loadTravelStatesForModel();
+  }
+
+  form.appendChild(errBox);
+  form.appendChild(el('div', { class: 'button-row' },
+    submit,
+    el('a', { href: `#/jobs/${jobId}` }, el('button', { type: 'button', class: 'secondary' }, 'Cancel'))
+  ));
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errBox.textContent = '';
+    const fd = new FormData(form);
+    const body = {
+      reference: fd.get('reference') || null,
+      client_name: fd.get('client_name'),
+      site_name: fd.get('site_name'),
+      site_location: fd.get('site_location') || null,
+      contact_name: fd.get('contact_name') || null,
+      contact_phone: fd.get('contact_phone') || null,
+      status: fd.get('status'),
+      date: fd.get('date') || null,
+      shift_start_time: fd.get('shift_start_time') || null,
+      scheduled_end_time: fd.get('scheduled_end_time') || null,
+      job_timezone: fd.get('job_timezone') || detectedTimeZone,
+      schedule_status: fd.get('schedule_status') || 'planned',
+      shift_type: fd.get('shift_type'),
+      estimated_duration_hours: fd.get('estimated_duration_hours') ? Number(fd.get('estimated_duration_hours')) : null,
+      crane_class_required: fd.get('crane_class_required') || null,
+      job_description: fd.get('job_description') || null,
+      task_tags: splitCsv(fd.get('task_tags')),
+      crew_roles_required: splitCsv(fd.get('crew_roles_required')),
+      required_credentials: splitCsv(fd.get('required_credentials')),
+      site_conditions: splitCsv(fd.get('site_conditions')),
+      lift_risk_level: fd.get('lift_risk_level'),
+      travel_required: fd.get('travel_required') === 'true',
+      risk_notes: fd.get('risk_notes') || null,
+      travel_notes: fd.get('travel_notes') || null,
+      source_note: fd.get('source_note') || null,
+      notes: fd.get('notes') || null,
+      crane_model_id: fd.get('crane_model_id') || null,
+      crane_travel_state_id: fd.get('crane_travel_state_id') || null,
+      required_capacity_tonnes: fd.get('required_capacity_tonnes') ? Number(fd.get('required_capacity_tonnes')) : null,
+      lift_weight_tonnes: fd.get('lift_weight_tonnes') ? Number(fd.get('lift_weight_tonnes')) : null,
+      radius_m: fd.get('radius_m') ? Number(fd.get('radius_m')) : null,
+      height_m: fd.get('height_m') ? Number(fd.get('height_m')) : null,
+      counterweight_required_tonnes: fd.get('counterweight_required_tonnes') ? Number(fd.get('counterweight_required_tonnes')) : null,
+      site_access_notes: fd.get('site_access_notes') || null,
+      setup_notes: fd.get('setup_notes') || null,
+      requirement_item_ids: selectedRequirementIdsFromForm(form),
+      company_asset_ids: selectedCompanyAssetIdsFromForm(form),
+      custom_requirements: splitCsv(fd.get('custom_requirements')).map((label) => ({
+        category: 'custom',
+        label
+      }))
+    };
+    setButtonBusy(submit, true, 'Save job changes', 'Saving...');
+    try {
+      const savedJob = await api('PATCH', `/jobs/${jobId}`, body);
+      if (!savedJob || savedJob.id !== jobId) {
+        throw { error: 'Job update did not return the saved job.' };
+      }
+      const persistedJob = await api('GET', `/jobs/${jobId}`);
+      if (!persistedJob || persistedJob.id !== jobId) {
+        throw { error: 'Job update could not be confirmed from the server.' };
+      }
+      toast('Job updated', 'success');
+      router();
+    } catch (err) {
+      errBox.textContent = err.error || 'Could not save job changes';
+    } finally {
+      setButtonBusy(submit, false, 'Save job changes', 'Saving...');
+    }
+  });
+
+  panel.appendChild(form);
+  return panel;
+}
+
 async function renderJobDetail(jobId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [job, allocations] = await Promise.all([
+  const [job, allocations, companyProfile, craneModels, companyCatalogue, companyAssets] = await Promise.all([
     api('GET', `/jobs/${jobId}`),
-    api('GET', `/jobs/${jobId}/allocations`)
+    api('GET', `/jobs/${jobId}/allocations`),
+    loadCompanyProfile(),
+    loadCraneModels(),
+    loadCompanyCatalogue(),
+    loadCompanyAssets()
   ]);
   if (isStaleRender(renderCycle)) return;
 
   view.appendChild(el('div', { class: 'toolbar' },
     el('h2', {}, `${job.site_name} - ${job.client_name}`),
-    el('a', { href: `#/jobs/${jobId}/smartrank` }, el('button', {}, 'Run SmartRank'))
+    el('div', { class: 'button-row' },
+      el('a', { href: `#/jobs/${jobId}/smartrank` }, el('button', {}, 'Run SmartRank')),
+      el('a', { href: '#/jobs' }, el('button', { class: 'secondary' }, '< All jobs'))
+    )
   ));
 
   const kv = el('div', { class: 'kv' });
@@ -2957,6 +3343,7 @@ async function renderJobDetail(jobId, renderCycle) {
   view.appendChild(renderStructuredRequirementsSummary(job.structured_requirements || []));
   view.appendChild(renderAssetAssignmentsSummary(job.asset_assignments || [], job.asset_assignment_warnings || []));
   view.appendChild(renderCranePlanningSummary(job.crane_planning));
+  view.appendChild(buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, companyAssets, jobId));
 
   const allocPanel = el('div', { class: 'panel' });
   allocPanel.appendChild(el('h3', {}, `Allocations (${allocations.length})`));
@@ -3475,7 +3862,7 @@ async function renderMetrics(renderCycle) {
   ].every((key) => Number(metrics[key] || 0) === 0);
 
   view.appendChild(el('div', { class: 'panel' },
-    el('div', { class: 'small muted' }, `Period: ${metrics.period.from} to ${metrics.period.to}`),
+    el('div', { class: 'small muted' }, `Period: ${metrics.period?.label || `${metrics.period?.from || ''} to ${metrics.period?.to || ''}`}`),
     el('div', { class: 'metrics-grid', style: 'margin-top:14px;' },
       metricTile('Total jobs', metrics.total_jobs),
       metricTile('Total allocations', metrics.total_allocations),
