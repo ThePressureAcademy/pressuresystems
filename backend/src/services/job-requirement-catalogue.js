@@ -335,7 +335,7 @@ function listCompanyCatalogueSelections(db, companyId) {
   const items = rows.map((row) => {
     const enabled = configured
       ? Boolean(row.company_is_enabled)
-      : defaultKeys.has(row.normalized_key);
+      : false;
     return {
       ...serializeItem(row, enabled),
       display_order: row.display_order,
@@ -349,7 +349,9 @@ function listCompanyCatalogueSelections(db, companyId) {
     operating_mode: operatingMode,
     items,
     grouped: groupItems(items),
-    enabled_count: items.filter((itemRow) => itemRow.is_enabled).length
+    enabled_count: items.filter((itemRow) => itemRow.is_enabled).length,
+    recommended_count: items.filter((itemRow) => itemRow.recommended_default).length,
+    requires_setup: !configured
   };
 }
 

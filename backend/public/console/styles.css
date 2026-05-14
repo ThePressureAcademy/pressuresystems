@@ -467,6 +467,28 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   display: block;
 }
 
+.build-business-panel {
+  border-left: 4px solid var(--info);
+}
+
+.setup-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.setup-step {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.setup-step p {
+  min-height: 34px;
+}
+
 .crane-form-alerts,
 .crane-planning-alerts {
   background: rgba(101, 197, 255, 0.08);

@@ -103,7 +103,12 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Asset Register/);
     assert.match(res.text, /Asset number \/ plant number/);
     assert.match(res.text, /No plant numbers added yet/);
-    assert.match(res.text, /No assets added yet\. Add plant numbers under the equipment classes your business uses\./);
+    assert.match(res.text, /Select equipment or transport classes before adding plant numbers\./);
+    assert.match(res.text, /Build My Business/);
+    assert.match(res.text, /No company requirements selected yet/);
+    assert.match(res.text, /No workers added yet\. Import a spreadsheet or add your first worker\./);
+    assert.match(res.text, /No jobs created yet\. Import a job brief or create a job manually\./);
+    assert.match(res.text, /Metrics will appear after workers, jobs, allocations, and audit events are created\./);
     assert.match(res.text, /Collapse reminder/);
     assert.match(res.text, /liftiq\.passwordReminderDismissed/);
     assert.match(res.text, /refreshAuthenticatedUser/);

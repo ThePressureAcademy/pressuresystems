@@ -194,6 +194,7 @@ const craneTravelStateCache = new Map();
 let companyProfileCache = null;
 let companyCatalogueCache = null;
 let companyAssetsCache = null;
+let companySetupStateCache = null;
 
 const LABOUR_ONLY_CATALOGUE_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
 
@@ -231,6 +232,12 @@ async function loadCompanyAssets(force = false) {
   if (companyAssetsCache && !force) return companyAssetsCache;
   companyAssetsCache = await api('GET', '/company/assets');
   return companyAssetsCache;
+}
+
+async function loadCompanySetupState(force = false) {
+  if (companySetupStateCache && !force) return companySetupStateCache;
+  companySetupStateCache = await api('GET', '/company/setup-state');
+  return companySetupStateCache;
 }
 
 function boolLabel(value) {
@@ -432,6 +439,7 @@ function logout() {
   companyProfileCache = null;
   companyCatalogueCache = null;
   companyAssetsCache = null;
+  companySetupStateCache = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(PASSWORD_REMINDER_DISMISSED_KEY);
@@ -801,7 +809,7 @@ function renderRequirementChecklist(catalogue, options = {}) {
       card.appendChild(el('label', { class: 'check-row' },
         box,
         el('span', {}, item.label),
-        item.recommended_default ? el('span', { class: 'pill pill-info' }, 'default') : null
+        item.recommended_default ? el('span', { class: 'pill pill-info' }, 'recommended') : null
       ));
     }
 
@@ -809,7 +817,7 @@ function renderRequirementChecklist(catalogue, options = {}) {
   }
 
   if (groups.length === 0) {
-    root.appendChild(el('div', { class: 'empty' }, 'No requirement catalogue items available.'));
+    root.appendChild(el('div', { class: 'empty' }, options.emptyText || 'No requirement catalogue items available.'));
   }
 
   return root;
@@ -919,11 +927,89 @@ function renderPreferenceSignals(signals) {
   }));
 }
 
+function renderBuildMyBusinessPanel(setupState = {}) {
+  const counts = setupState.counts || {};
+  const mode = setupState.operating_mode || operatingMode();
+  const isPlantAndLabour = mode === 'plant_and_labour';
+  const panel = el('div', { class: 'panel build-business-panel' });
+  const steps = [
+    {
+      title: '1. Choose operating mode',
+      body: mode === 'labour_only'
+        ? 'Current mode: Labour only.'
+        : 'Current mode: Plant + labour.',
+      href: '#/our-business',
+      action: 'Open Our Business'
+    },
+    {
+      title: '2. Select company requirements',
+      body: setupState.catalogue_configured
+        ? `${setupState.enabled_catalogue_count || 0} requirement item(s) enabled.`
+        : 'No company requirements selected yet.',
+      href: '#/our-business',
+      action: 'Choose requirements'
+    },
+    {
+      title: '3. Add workers',
+      body: counts.workers > 0
+        ? `${counts.workers} worker(s) added.`
+        : 'Import a spreadsheet, add manually, or skip for now.',
+      href: '#/workers/import',
+      action: 'Import workers'
+    },
+    ...(isPlantAndLabour ? [{
+      title: '4. Add assets',
+      body: counts.assets > 0
+        ? `${counts.assets} plant number(s) registered.`
+        : 'Enable equipment or transport classes, then add plant numbers under each class.',
+      href: '#/our-business',
+      action: 'Build asset register'
+    }] : []),
+    {
+      title: isPlantAndLabour ? '5. Create first job' : '4. Create first job',
+      body: counts.jobs > 0
+        ? `${counts.jobs} job(s) created.`
+        : 'Import a job brief, create manually, or skip until a real job is ready.',
+      href: '#/jobs/import-brief',
+      action: 'Import job brief'
+    }
+  ];
+
+  panel.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h3', {}, 'Build My Business'),
+      el('p', { class: 'small muted' },
+        'Start clean: choose your mode, save the requirements your company uses, then add workers, assets where applicable, and jobs.'
+      )
+    ),
+    setupState.is_first_run
+      ? el('span', { class: 'pill pill-info' }, 'first-run setup')
+      : el('span', { class: 'pill' }, 'setup progress')
+  ));
+
+  panel.appendChild(el('div', { class: 'setup-steps' }, ...steps.map((step) =>
+    el('div', { class: 'setup-step' },
+      el('strong', {}, step.title),
+      el('p', { class: 'small muted' }, step.body),
+      el('a', { href: step.href }, el('button', { class: 'secondary' }, step.action))
+    )
+  )));
+
+  panel.appendChild(el('div', { class: 'status-note' },
+    'This setup is not mandatory all at once. Save progress as the company data becomes available.'
+  ));
+
+  return panel;
+}
+
 async function renderDashboard(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const metrics = await api('GET', '/metrics');
+  const [metrics, setupState] = await Promise.all([
+    api('GET', '/metrics'),
+    loadCompanySetupState(true)
+  ]);
   if (isStaleRender(renderCycle)) return;
 
   view.appendChild(el('div', { class: 'toolbar' },
@@ -936,6 +1022,9 @@ async function renderDashboard(renderCycle) {
   ));
 
   view.appendChild(buildSecurityPanel());
+  if (setupState.is_first_run || !setupState.catalogue_configured || (setupState.counts?.workers || 0) === 0 || (setupState.counts?.jobs || 0) === 0) {
+    view.appendChild(renderBuildMyBusinessPanel(setupState));
+  }
 
   view.appendChild(el('div', { class: 'panel' },
     el('div', { class: 'metrics-grid' },
@@ -1014,6 +1103,7 @@ function renderOperatingModePanel(profile = {}) {
       companyProfileCache = updated;
       companyCatalogueCache = null;
       companyAssetsCache = null;
+      companySetupStateCache = null;
       if (state.user) {
         state.user = { ...state.user, company: updated };
         localStorage.setItem(USER_KEY, JSON.stringify(state.user));
@@ -1061,8 +1151,8 @@ async function renderOurBusiness(renderCycle) {
   if (!catalogue.configured) {
     form.appendChild(el('div', { class: 'read-only-banner' },
       mode === 'labour_only'
-        ? 'Labour-only defaults are shown because this company has not saved a catalogue profile yet. Plant/equipment defaults are hidden.'
-        : 'Recommended defaults are shown because this company has not saved a catalogue profile yet. Save selections here to reduce the job form to relevant options.'
+        ? 'No company requirements have been saved yet. Labour-only recommendations are marked, but nothing is enabled until you save this setup.'
+        : 'No company requirements have been saved yet. Recommended items are marked, but nothing is enabled until you save this setup.'
     ));
   }
 
@@ -1101,7 +1191,8 @@ async function renderOurBusiness(renderCycle) {
         ]
       });
       companyCatalogueCache = response;
-      success.textContent = `Company setup saved. ${visibleCatalogue.items.length} visible item(s) reviewed.`;
+      companySetupStateCache = null;
+      success.textContent = `Company setup saved. ${response.enabled_count || 0} requirement item(s) enabled.`;
       success.classList.remove('hidden');
       toast('Company setup saved', 'success');
     } catch (err) {
@@ -1153,7 +1244,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
 
   if (registerItems.size === 0) {
     panel.appendChild(el('div', { class: 'empty' },
-      'No assets added yet. Add plant numbers under the equipment classes your business uses.'
+      'Select equipment or transport classes before adding plant numbers.'
     ));
     return panel;
   }
@@ -1191,6 +1282,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
               try {
                 await api('POST', `/company/assets/${asset.id}/archive`);
                 companyAssetsCache = null;
+                companySetupStateCache = null;
                 toast('Asset archived', 'success');
                 router();
               } catch (err) {
@@ -1229,6 +1321,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
           notes: fd.get('notes') || null
         });
         companyAssetsCache = null;
+        companySetupStateCache = null;
         toast('Asset added', 'success');
         router();
       } catch (err) {
@@ -1280,7 +1373,7 @@ function renderJobAssetSelector(catalogue = {}, assetsPayload = {}) {
       const assets = (assetsByItem.get(String(item.id)) || []).filter((asset) => asset.asset_status !== 'retired');
       if (assets.length === 0) {
         panel.appendChild(el('div', { class: 'small muted asset-select-row' },
-          `No specific assets registered for ${item.label}. The job will use the requirement only.`
+          `No plant numbers registered for this class. The job will use the ${item.label} requirement only.`
         ));
         continue;
       }
@@ -1508,7 +1601,7 @@ async function renderWorkersList(renderCycle) {
   ));
 
   if (workers.length === 0) {
-    view.appendChild(el('div', { class: 'panel empty' }, 'No workers yet. Import the pilot sample or add your first worker manually.'));
+    view.appendChild(el('div', { class: 'panel empty' }, 'No workers added yet. Import a spreadsheet or add your first worker.'));
     return;
   }
 
@@ -2569,7 +2662,7 @@ async function renderJobsList(renderCycle) {
   ));
 
   if (jobs.length === 0) {
-    view.appendChild(el('div', { class: 'panel empty' }, 'No jobs yet. Create your first job to get started.'));
+    view.appendChild(el('div', { class: 'panel empty' }, 'No jobs created yet. Import a job brief or create a job manually.'));
     return;
   }
 
@@ -2670,12 +2763,16 @@ async function renderNewJob(renderCycle) {
   requirementsSection.appendChild(el('h3', {}, 'Job requirements'));
   requirementsSection.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
     mode === 'labour_only'
-      ? 'Labour-only mode: credentials, VOCs, civil/access, rail, and energy requirements are shown. Use one-off notes for plant/equipment mentions.'
+      ? (companyCatalogue.configured
+        ? 'Labour-only mode: company-enabled credentials, VOCs, civil/access, rail, and energy requirements are shown. Use one-off notes for plant/equipment mentions.'
+        : 'No company requirements selected yet. Open Our Business to choose labour credentials, VOCs, access, rail, and energy requirements.')
       : (companyCatalogue.configured
         ? 'Only company-enabled catalogue items are shown. Add one-off requirements for job-specific items.'
-        : 'Recommended defaults are shown. Configure your company equipment and requirements in Our Business to reduce this list.')
+        : 'No company requirements selected yet. Open Our Business to choose credentials, equipment, transport, and review items relevant to your operation.')
   ));
-  requirementsSection.appendChild(renderRequirementChecklist(enabledCompanyCatalogue));
+  requirementsSection.appendChild(renderRequirementChecklist(enabledCompanyCatalogue, {
+    emptyText: 'No company requirements selected yet. Open Our Business to choose the credentials, equipment, transport, and review items relevant to your operation.'
+  }));
   const assetSelectorPanel = mode === 'plant_and_labour'
     ? renderJobAssetSelector(enabledCompanyCatalogue, companyAssets)
     : null;
@@ -3359,6 +3456,23 @@ async function renderMetrics(renderCycle) {
 
   const metrics = await api('GET', '/metrics');
   if (isStaleRender(renderCycle)) return;
+  const metricsEmpty = [
+    'total_jobs',
+    'total_allocations',
+    'workers_imported',
+    'top_ranked_selections',
+    'lower_ranked_selections',
+    'credential_blocks',
+    'fatigue_blocks',
+    'fatigue_warnings',
+    'availability_blocks',
+    'warning_overrides',
+    'allocation_rejections',
+    'preference_signals_created',
+    'preference_signals_updated',
+    'learned_preference_applications',
+    'total_audit_events'
+  ].every((key) => Number(metrics[key] || 0) === 0);
 
   view.appendChild(el('div', { class: 'panel' },
     el('div', { class: 'small muted' }, `Period: ${metrics.period.from} to ${metrics.period.to}`),
@@ -3380,6 +3494,12 @@ async function renderMetrics(renderCycle) {
       metricTile('Total audit events', metrics.total_audit_events)
     )
   ));
+
+  if (metricsEmpty) {
+    view.appendChild(el('div', { class: 'panel empty' },
+      'Metrics will appear after workers, jobs, allocations, and audit events are created.'
+    ));
+  }
 
   view.appendChild(el('div', { class: 'panel small muted' },
     'These metrics are derived from append-only audit events. ',
