@@ -1,5 +1,39 @@
+# OS / system
 .DS_Store
 Thumbs.db
+ehthumbs.db
 desktop.ini
 
-.vercel
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+
+# node
+node_modules/
+
+# test / coverage
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+.playwright/
+
+# cache
+.cache/
+.parcel-cache/
+.eslintcache
+
+# editor
+*.swp
+*.swo
+*~
+
+# local deploy metadata
+.vercel/
