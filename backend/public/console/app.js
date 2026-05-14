@@ -8,6 +8,7 @@ const state = {
 
 const TOKEN_KEY = 'liftiq.token';
 const USER_KEY = 'liftiq.user';
+const PASSWORD_REMINDER_DISMISSED_KEY = 'liftiq.passwordReminderDismissed';
 
 const ROLE_OPTIONS = ['crane_operator', 'dogman', 'rigger', 'traffic_controller', 'supervisor', 'allocator'];
 const EMPLOYMENT_OPTIONS = ['permanent', 'casual', 'contractor', 'labour_hire'];
@@ -176,13 +177,11 @@ async function api(method, path, body) {
   }
   if (!res.ok) {
     if (res.status === 403 && data?.must_change_password) {
-      state.user = state.user ? { ...state.user, must_change_password: true } : { must_change_password: true };
-      localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+      persistUser(state.user ? { ...state.user, must_change_password: true } : { must_change_password: true });
       showPasswordChange();
     }
     if (res.status === 403 && data?.company_access_status) {
-      state.user = state.user ? { ...state.user, company: data.company } : state.user;
-      if (state.user) localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+      if (state.user) persistUser({ ...state.user, company: data.company });
       showAccessBlocked(data.company, data.message || data.error);
     }
     throw { status: res.status, error: (data && data.error) || `HTTP ${res.status}`, data };
@@ -217,8 +216,7 @@ async function loadCompanyProfile(force = false) {
   if (companyProfileCache && !force) return companyProfileCache;
   companyProfileCache = await api('GET', '/company/profile');
   if (state.user) {
-    state.user = { ...state.user, company: companyProfileCache };
-    localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+    persistUser({ ...state.user, company: companyProfileCache });
   }
   return companyProfileCache;
 }
@@ -350,17 +348,40 @@ function loadSession() {
   if (!token || !user) return;
   state.token = token;
   try {
-    state.user = JSON.parse(user);
+    state.user = normalizeUserSession(JSON.parse(user));
   } catch {
     state.user = null;
   }
 }
 
+function normalizeUserSession(user) {
+  if (!user) return null;
+  return {
+    ...user,
+    must_change_password: Boolean(user.must_change_password)
+  };
+}
+
+function persistUser(user) {
+  state.user = normalizeUserSession(user);
+  if (state.user) localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+  else localStorage.removeItem(USER_KEY);
+}
+
 function saveSession(token, user) {
   state.token = token;
-  state.user = user;
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  persistUser(user);
+}
+
+async function refreshAuthenticatedUser() {
+  const user = await api('GET', '/auth/me');
+  persistUser(user);
+  return state.user;
+}
+
+function isPasswordChangeRequired() {
+  return state.user?.must_change_password === true;
 }
 
 function companyAccessStatus() {
@@ -413,6 +434,7 @@ function logout() {
   companyAssetsCache = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(PASSWORD_REMINDER_DISMISSED_KEY);
   showLogin();
 }
 
@@ -432,8 +454,8 @@ function showPasswordChange() {
   document.getElementById('password-change-success').textContent = '';
   document.getElementById('password-change-success').classList.add('hidden');
   document.getElementById('password-change-context').textContent = state.user
-    ? `Signed in as ${state.user.email}. Replace the bootstrap password before opening the pilot console.`
-    : 'Your temporary bootstrap password must be replaced before console access.';
+    ? `Signed in as ${state.user.email}. Set a new account password before opening the pilot console.`
+    : 'Your temporary password must be replaced before console access.';
 }
 
 function showAccessBlocked(company = state.user?.company, message = '') {
@@ -459,7 +481,7 @@ function showAccessBlocked(company = state.user?.company, message = '') {
 }
 
 function showApp() {
-  if (state.user?.must_change_password) {
+  if (isPasswordChangeRequired()) {
     showPasswordChange();
     return;
   }
@@ -529,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const result = await api('POST', '/auth/login', { email, password });
       saveSession(result.token, result.user);
-      if (result.must_change_password || result.user?.must_change_password) {
+      if (result.must_change_password || isPasswordChangeRequired()) {
         showPasswordChange();
       } else if (result.user?.company?.effective_access_status === 'expired' || result.user?.company?.effective_access_status === 'suspended') {
         showAccessBlocked(result.user.company);
@@ -551,9 +573,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('logout').addEventListener('click', logout);
   window.addEventListener('hashchange', router);
 
-  if (state.token && state.user?.must_change_password) showPasswordChange();
-  else if (state.token) showApp();
-  else showLogin();
+  if (state.token) {
+    refreshAuthenticatedUser()
+      .then(() => {
+        if (isPasswordChangeRequired()) showPasswordChange();
+        else showApp();
+      })
+      .catch(() => logout());
+  } else {
+    showLogin();
+  }
 });
 
 function router() {
@@ -561,7 +590,7 @@ function router() {
     showLogin();
     return;
   }
-  if (state.user?.must_change_password) {
+  if (isPasswordChangeRequired()) {
     showPasswordChange();
     return;
   }
@@ -1116,7 +1145,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
     el('div', {},
       el('h3', {}, 'Asset Register'),
       el('div', { class: 'small muted' },
-        'Register actual machines by asset number / plant number under enabled equipment and transport classes. This is not fleet maintenance or availability automation.'
+        'Register actual machines by asset number / plant number under enabled equipment and transport classes. Assets are not created automatically.'
       )
     ),
     el('span', { class: 'pill pill-info' }, `${assets.length} active asset(s)`)
@@ -1124,7 +1153,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
 
   if (registerItems.size === 0) {
     panel.appendChild(el('div', { class: 'empty' },
-      'Enable an equipment or transport item above, then add plant numbers for actual machines.'
+      'No assets added yet. Add plant numbers under the equipment classes your business uses.'
     ));
     return panel;
   }
@@ -1145,7 +1174,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
     }
 
     if (existingAssets.length === 0) {
-      group.appendChild(el('div', { class: 'small muted' }, `No specific assets registered for ${item.label}.`));
+      group.appendChild(el('div', { class: 'small muted asset-empty' }, 'No plant numbers added yet.'));
     } else {
       group.appendChild(el('div', { class: 'asset-list' }, ...existingAssets.map((asset) =>
         el('div', { class: 'asset-row' },
@@ -1173,7 +1202,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
       )));
     }
 
-    const addForm = el('form', { class: 'asset-add-form' });
+    const addForm = el('form', { class: 'asset-add-form hidden' });
     const errBox = el('div', { class: 'error' });
     addForm.appendChild(el('div', { class: 'row' },
       buildInput('asset_number', 'Asset number / plant number', { placeholder: 'MC20-001', required: true }),
@@ -1184,7 +1213,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
     addForm.appendChild(buildTextarea('notes', 'Notes'));
     addForm.appendChild(errBox);
     addForm.appendChild(el('div', { class: 'button-row' },
-      el('button', { type: 'submit' }, 'Add asset')
+      el('button', { type: 'submit' }, 'Save asset')
     ));
     addForm.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -1206,7 +1235,21 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
         errBox.textContent = err.error || 'Could not add asset';
       }
     });
-    group.appendChild(addForm);
+    if (item.is_enabled) {
+      const addToggle = el('button', {
+        type: 'button',
+        class: 'secondary asset-add-toggle',
+        onclick: () => {
+          addForm.classList.toggle('hidden');
+          if (!addForm.classList.contains('hidden')) {
+            const input = addForm.querySelector('input[name="asset_number"]');
+            if (input) input.focus();
+          }
+        }
+      }, 'Add asset');
+      group.appendChild(el('div', { class: 'button-row asset-add-row' }, addToggle));
+      group.appendChild(addForm);
+    }
     panel.appendChild(group);
   }
 
@@ -1259,54 +1302,76 @@ function renderJobAssetSelector(catalogue = {}, assetsPayload = {}) {
 
 function buildSecurityPanel() {
   const panel = el('div', { class: 'panel security-panel' });
+  const dismissed = localStorage.getItem(PASSWORD_REMINDER_DISMISSED_KEY) === 'true';
+
+  if (dismissed) {
+    panel.classList.add('security-panel-compact');
+    panel.appendChild(el('div', { class: 'toolbar' },
+      el('div', {},
+        el('h3', {}, 'Account security'),
+        el('p', { class: 'small muted' }, 'Password options are collapsed for this session.')
+      ),
+      el('button', {
+        type: 'button',
+        class: 'secondary',
+        onclick: () => {
+          localStorage.removeItem(PASSWORD_REMINDER_DISMISSED_KEY);
+          router();
+        }
+      }, 'Show password options')
+    ));
+    return panel;
+  }
+
   const copy = el('div', { class: 'security-copy' },
-    el('h3', {}, 'Pilot security'),
+    el('h3', {}, 'Account security'),
     el('p', {},
-      'The default seeded admin credentials are compromised. Rotate the pilot admin password before real partner data or external pilot use.'
+      'Pilot portal access is invite-only. First login may require a password change.'
     ),
     el('p', { class: 'small muted' },
-      state.user?.email === 'admin@example.com'
-        ? 'You are signed in with the seeded admin account. Rotate it now.'
-        : 'If this environment still uses the default seeded admin password, rotate it now.'
+      'Use this panel if you want to rotate your own account password. Mandatory password changes are handled before dashboard access.'
     )
   );
 
   const actions = el('div', { class: 'security-actions' });
-  if (state.user?.role !== 'admin') {
-    actions.appendChild(el('h3', {}, 'Admin action required'));
-    actions.appendChild(el('p', { class: 'small muted' },
-      'Only an authenticated admin can rotate the pilot password from the console.'
-    ));
-  } else {
-    const form = el('form');
-    const errBox = el('div', { class: 'error' });
-    const submit = el('button', { type: 'submit' }, 'Change password');
-    form.appendChild(el('h3', {}, 'Change current admin password'));
-    form.appendChild(el('label', {},
-      el('span', {}, 'Current password'),
-      el('input', { name: 'current_password', type: 'password', required: true, autocomplete: 'current-password' })
-    ));
-    form.appendChild(el('label', {},
-      el('span', {}, 'New password'),
-      el('input', { name: 'new_password', type: 'password', required: true, minlength: '10', autocomplete: 'new-password' })
-    ));
-    form.appendChild(el('label', {},
-      el('span', {}, 'Confirm new password'),
-      el('input', { name: 'confirm_new_password', type: 'password', required: true, minlength: '10', autocomplete: 'new-password' })
-    ));
-    form.appendChild(errBox);
-    form.appendChild(el('div', { class: 'button-row' }, submit));
-    form.appendChild(el('div', { class: 'status-note' },
-      'A successful password change signs you out so the next login proves the new password works.'
-    ));
+  const form = el('form');
+  const errBox = el('div', { class: 'error' });
+  const submit = el('button', { type: 'submit' }, 'Change password');
+  form.appendChild(el('h3', {}, 'Change account password'));
+  form.appendChild(el('label', {},
+    el('span', {}, 'Current password'),
+    el('input', { name: 'current_password', type: 'password', required: true, autocomplete: 'current-password' })
+  ));
+  form.appendChild(el('label', {},
+    el('span', {}, 'New password'),
+    el('input', { name: 'new_password', type: 'password', required: true, minlength: '10', autocomplete: 'new-password' })
+  ));
+  form.appendChild(el('label', {},
+    el('span', {}, 'Confirm new password'),
+    el('input', { name: 'confirm_new_password', type: 'password', required: true, minlength: '10', autocomplete: 'new-password' })
+  ));
+  form.appendChild(errBox);
+  form.appendChild(el('div', { class: 'button-row' },
+    submit,
+    el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: () => {
+        localStorage.setItem(PASSWORD_REMINDER_DISMISSED_KEY, 'true');
+        router();
+      }
+    }, 'Collapse reminder')
+  ));
+  form.appendChild(el('div', { class: 'status-note' },
+    'A successful password change signs you out so the next login proves the new password works.'
+  ));
 
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      await submitPasswordChange(form, submit, { errorNode: errBox, successNode: null });
-    });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitPasswordChange(form, submit, { errorNode: errBox, successNode: null });
+  });
 
-    actions.appendChild(form);
-  }
+  actions.appendChild(form);
 
   panel.appendChild(el('div', { class: 'security-grid' }, copy, actions));
   return panel;
@@ -1486,7 +1551,7 @@ function renderNewWorker() {
     buildSelect('role', 'Role', ROLE_OPTIONS, { required: true }),
     buildSelect('employment_type', 'Employment type', EMPLOYMENT_OPTIONS, { required: true }),
     buildSelect('status', 'Availability status', STATUS_OPTIONS),
-    buildInput('crane_classes', 'Crane classes (comma-separated)', { placeholder: 'Franna, Mobile Crane' }),
+    buildInput('crane_classes', 'Crane classes (comma-separated)', { placeholder: 'Articulated / Pick-and-Carry, Mobile Crane' }),
     buildInput('usual_depot', 'Base location / depot'),
     buildInput('contact_number', 'Phone')
   ));
@@ -2588,7 +2653,7 @@ async function renderNewJob(renderCycle) {
     buildSelect('schedule_status', 'Schedule status', SCHEDULE_STATUS_OPTIONS, { value: 'planned' }),
     buildSelect('shift_type', 'Shift type', SHIFT_OPTIONS, { required: true }),
     buildInput('estimated_duration_hours', 'Estimated duration (hours)', { type: 'number', step: '0.5' }),
-    buildInput('crane_class_required', 'Crane class required', { placeholder: 'Franna, Tower Crane, 55T' }),
+    buildInput('crane_class_required', 'Crane class required', { placeholder: 'Articulated / Pick-and-Carry, Tower Crane, 55T' }),
     buildInput('task_tags', 'Task tags (comma-separated)', { placeholder: 'tower_crane, shutdown, critical_lift' }),
     buildInput('crew_roles_required', 'Crew roles required (comma-separated)', { placeholder: 'crane_operator, dogman' }),
     buildInput('required_credentials', 'Required credentials (comma-separated)', { placeholder: 'high_risk_licence_crane, white_card' }),
@@ -2618,7 +2683,7 @@ async function renderNewJob(renderCycle) {
   requirementsSection.appendChild(buildInput('custom_requirements', mode === 'labour_only' ? 'Add one-off requirement or equipment/plant note' : 'Add one-off requirement', {
     placeholder: mode === 'labour_only'
       ? 'client induction, shutdown spotter, equipment note for review'
-      : '40T Franna, special access ticket, client induction'
+      : '40T Articulated / Pick-and-Carry, special access ticket, client induction'
   }));
   requirementsSection.appendChild(el('div', { class: 'small muted' },
     'One-off requirements attach to this job only and require review before allocation.'

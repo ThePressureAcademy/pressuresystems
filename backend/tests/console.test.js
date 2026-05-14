@@ -40,7 +40,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /id="app-shell"/);
     assert.match(res.text, /\.\/app\.js/);
     assert.match(res.text, /\.\/styles\.css/);
-    assert.match(res.text, /seeded admin credentials are compromised/i);
+    assert.match(res.text, /Pilot portal access is invite-only/i);
+    assert.equal(/seed password|seeded admin|compromised|admin@example\.com|changeme123|bootstrap/i.test(res.text), false);
     assert.match(res.text, /href="#\/workers\/import"/);
     assert.match(res.text, />Import workers</);
     assert.match(res.text, /href="#\/schedule"/);
@@ -101,6 +102,12 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Job requirements/);
     assert.match(res.text, /Asset Register/);
     assert.match(res.text, /Asset number \/ plant number/);
+    assert.match(res.text, /No plant numbers added yet/);
+    assert.match(res.text, /No assets added yet\. Add plant numbers under the equipment classes your business uses\./);
+    assert.match(res.text, /Collapse reminder/);
+    assert.match(res.text, /liftiq\.passwordReminderDismissed/);
+    assert.match(res.text, /refreshAuthenticatedUser/);
+    assert.match(res.text, /\/auth\/me/);
     assert.match(res.text, /Select asset \/ plant number/);
     assert.match(res.text, /Add one-off requirement/);
     assert.match(res.text, /Review required/);
@@ -171,9 +178,11 @@ describe('Pilot console — static asset serving', () => {
       'renderMetrics',       // pilot metrics
       'buildCredentialForm', // credential entry
       'buildFatigueForm',    // fatigue entry
-      'buildSecurityPanel',  // seeded admin warning + minimal password rotation
-      'showPasswordChange',  // forced bootstrap rotation screen
+      'buildSecurityPanel',  // account security panel + optional password rotation
+      'showPasswordChange',  // forced password rotation screen
       'submitPasswordChange',// password change submission flow
+      'refreshAuthenticatedUser', // server auth state overrides stale localStorage
+      'isPasswordChangeRequired', // required vs optional password state split
       'getHashState',        // audit filter hash routing
       'nextRenderCycle',     // async render guard
       'isStaleRender',       // async render guard
