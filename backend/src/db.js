@@ -22,6 +22,7 @@ const AUDIT_EVENT_TYPES = [
   'credential_expiry_alert',
   'worker_imported',
   'worker_import_completed',
+  'worker_updated',
   'worker_removed',
   'job_created',
   'job_brief_import_previewed',
@@ -398,6 +399,7 @@ function auditEventsNeedMigration(db) {
   return !row.sql.includes('learned_preference_applied')
     || !row.sql.includes('worker_imported')
     || !row.sql.includes('preference_signal_created')
+    || !row.sql.includes('worker_updated')
     || !row.sql.includes('worker_removed')
     || !row.sql.includes('job_schedule_changed')
     || !row.sql.includes('job_brief_import_previewed')

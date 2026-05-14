@@ -62,6 +62,31 @@ const fmtDateOnly = (value) => {
   return String(value).length > 10 ? String(value).slice(0, 10) : String(value);
 };
 
+const isPlaceholderPeriodDate = (value) => /^(0000|1970|9999)-/.test(String(value || ''));
+const fmtMetricDate = (value) => {
+  if (!value || isPlaceholderPeriodDate(value)) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Brisbane',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(date);
+};
+const metricsPeriodLabel = (metrics) => {
+  const label = metrics?.period_label || metrics?.period?.label;
+  if (label && !/1970-01-01|9999-12-31/.test(label)) return label;
+
+  const from = metrics?.period_start_at || metrics?.period?.from;
+  const to = metrics?.period_end_at || metrics?.period?.to;
+  const fromLabel = fmtMetricDate(from);
+  const toLabel = fmtMetricDate(to);
+  if (fromLabel && toLabel) return `${fromLabel} to ${toLabel}`;
+  if (fromLabel) return `${fromLabel} to today`;
+  return 'Today';
+};
+
 const shortId = (value) => value ? String(value).slice(0, 8) : '-';
 const splitCsv = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 const splitPipe = (value) => String(value || '').split('|').map((item) => item.trim()).filter(Boolean);
@@ -1910,23 +1935,34 @@ async function renderWorkerDetail(workerId, renderCycle) {
       event.preventDefault();
       editErr.textContent = '';
       const fd = new FormData(editForm);
+      const payload = {
+        name: fd.get('name'),
+        email: fd.get('email') || null,
+        status: fd.get('status'),
+        role: fd.get('role'),
+        employment_type: fd.get('employment_type'),
+        contact_number: fd.get('contact_number') || null,
+        crane_classes: splitCsv(fd.get('crane_classes')),
+        usual_depot: fd.get('usual_depot') || null,
+        availability_note: fd.get('availability_note') || null,
+        notes: fd.get('notes') || null
+      };
+      setButtonBusy(editSubmit, true, 'Save changes', 'Saving...');
       try {
-        await api('PATCH', `/workers/${workerId}`, {
-          name: fd.get('name'),
-          email: fd.get('email') || null,
-          status: fd.get('status'),
-          role: fd.get('role'),
-          employment_type: fd.get('employment_type'),
-          contact_number: fd.get('contact_number') || null,
-          crane_classes: splitCsv(fd.get('crane_classes')),
-          usual_depot: fd.get('usual_depot') || null,
-          availability_note: fd.get('availability_note') || null,
-          notes: fd.get('notes') || null
-        });
+        const savedWorker = await api('PATCH', `/workers/${workerId}`, payload);
+        if (!savedWorker || savedWorker.id !== workerId) {
+          throw { error: 'Worker update did not return the saved worker.' };
+        }
+        const persistedWorker = await api('GET', `/workers/${workerId}`);
+        if (!persistedWorker || persistedWorker.id !== workerId) {
+          throw { error: 'Worker update could not be confirmed from the server.' };
+        }
         toast('Worker updated', 'success');
         router();
       } catch (err) {
-        editErr.textContent = err.error;
+        editErr.textContent = err.error || 'Could not save worker changes';
+      } finally {
+        setButtonBusy(editSubmit, false, 'Save changes', 'Saving...');
       }
     });
   }
@@ -3475,7 +3511,7 @@ async function renderMetrics(renderCycle) {
   ].every((key) => Number(metrics[key] || 0) === 0);
 
   view.appendChild(el('div', { class: 'panel' },
-    el('div', { class: 'small muted' }, `Period: ${metrics.period.from} to ${metrics.period.to}`),
+    el('div', { class: 'small muted' }, `Period: ${metricsPeriodLabel(metrics)}`),
     el('div', { class: 'metrics-grid', style: 'margin-top:14px;' },
       metricTile('Total jobs', metrics.total_jobs),
       metricTile('Total allocations', metrics.total_allocations),

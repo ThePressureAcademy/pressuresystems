@@ -438,6 +438,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'credential_expiry_alert',
                   'worker_imported',
                   'worker_import_completed',
+                  'worker_updated',
                   'worker_removed',
                   'job_created',
                   'job_brief_import_previewed',

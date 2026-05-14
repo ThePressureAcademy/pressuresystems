@@ -109,6 +109,10 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /No workers added yet\. Import a spreadsheet or add your first worker\./);
     assert.match(res.text, /No jobs created yet\. Import a job brief or create a job manually\./);
     assert.match(res.text, /Metrics will appear after workers, jobs, allocations, and audit events are created\./);
+    assert.match(res.text, /metricsPeriodLabel/);
+    assert.equal(/1970-01-01 to 9999-12-31/.test(res.text), false);
+    assert.match(res.text, /Saving\.\.\./);
+    assert.match(res.text, /Worker update could not be confirmed from the server\./);
     assert.match(res.text, /Collapse reminder/);
     assert.match(res.text, /liftiq\.passwordReminderDismissed/);
     assert.match(res.text, /refreshAuthenticatedUser/);
