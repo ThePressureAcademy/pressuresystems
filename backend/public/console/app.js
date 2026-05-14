@@ -19,7 +19,10 @@ const COMMON_TIMEZONES = [
   'Australia/Brisbane',
   'Australia/Sydney',
   'Australia/Melbourne',
+  'Australia/Adelaide',
   'Australia/Perth',
+  'Australia/Darwin',
+  'Australia/Hobart',
   'Pacific/Auckland'
 ];
 const SCHEDULE_STATUS_OPTIONS = ['draft', 'planned', 'confirmed', 'completed', 'cancelled'];
@@ -35,6 +38,51 @@ const CREDENTIAL_OPTIONS = [
   'drivers_licence',
   'other'
 ];
+
+const DISPLAY_LABEL_OVERRIDES = {
+  crane_operator: 'Crane Operator',
+  heavy_lift_crane_operator: 'Heavy Lift Crane Operator',
+  traffic_controller: 'Traffic Controller',
+  lift_engineer: 'Lift Engineer',
+  truck_driver: 'Truck Driver',
+  electrical_spotter: 'Electrical Spotter',
+  plant_and_labour: 'Plant + labour',
+  labour_only: 'Labour only',
+  labour_hire: 'Labour hire',
+  on_leave: 'On leave',
+  in_progress: 'In progress',
+  expiring_soon: 'Expiring soon',
+  high_risk_licence_crane: 'High Risk Work Crane',
+  high_risk_licence_dogging: 'High Risk Work Dogging',
+  high_risk_licence_rigging: 'High Risk Work Rigging',
+  white_card: 'White Card',
+  msic_card: 'MSIC Card',
+  site_induction: 'Site Induction',
+  client_induction: 'Client Induction',
+  medical_clearance: 'Medical Clearance',
+  drivers_licence: 'Driver Licence',
+  working_at_height: 'Working at Height',
+  confined_space: 'Confined Space',
+  operate_breathing_apparatus: 'Operate Breathing Apparatus',
+  health_and_safety_representative: 'Health and Safety Representative',
+  first_aid: 'First Aid',
+  rail_riw: 'RIW',
+  rail_sarc: 'SARC',
+  rail_wett: 'WETT',
+  hrwl_c0: 'C0',
+  job_requirement_items: 'Job requirements',
+  job_timezone: 'Timezone',
+  schedule_status: 'Schedule status',
+  shift_type: 'Shift type',
+  lift_risk_level: 'Lift risk level',
+  employment_type: 'Employment type',
+  self_declared_fatigue: 'Self-declared fatigue',
+  crew_roles_required: 'Crew roles',
+  required_credentials: 'Required credentials',
+  site_conditions: 'Site conditions',
+  crane_classes_required: 'Crane / equipment classes',
+  task_tags: 'Task context'
+};
 
 const el = (tag, attrs = {}, ...children) => {
   const node = document.createElement(tag);
@@ -65,6 +113,70 @@ const fmtDateOnly = (value) => {
 const shortId = (value) => value ? String(value).slice(0, 8) : '-';
 const splitCsv = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 const splitPipe = (value) => String(value || '').split('|').map((item) => item.trim()).filter(Boolean);
+function keyify(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/\+/g, ' plus ')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_');
+}
+
+function titleCase(value) {
+  const text = String(value || '').replace(/_/g, ' ').trim();
+  if (!text) return '';
+  return text.split(/\s+/).map((part) => {
+    const upper = part.toUpperCase();
+    if (['VOC', 'RIW', 'SARC', 'WETT', 'EWP', 'HRWL', 'MSIC', 'NHVR'].includes(upper)) return upper;
+    if (/^[A-Z]{1,3}\d?$/.test(upper)) return upper;
+    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+function optionLabel(value) {
+  if (value && typeof value === 'object') return value.label || formatDisplayLabel(value.value);
+  return formatDisplayLabel(value);
+}
+
+function optionValue(value) {
+  if (value && typeof value === 'object') return value.value;
+  return value;
+}
+
+function formatDisplayLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const key = keyify(raw);
+  if (DISPLAY_LABEL_OVERRIDES[key]) return DISPLAY_LABEL_OVERRIDES[key];
+  if (/^hrwl_[a-z]{1,2}\d?$/.test(key)) return key.replace(/^hrwl_/, '').toUpperCase().replace('CO', 'C0');
+  if (/^voc_/.test(key)) return `VOC ${titleCase(key.replace(/^voc_/, ''))}`;
+  return titleCase(raw);
+}
+
+function labelsFromValues(values = [], labelLookup = null) {
+  const lookup = labelLookup || {};
+  return (values || []).map((value) => lookup[value] || formatDisplayLabel(value));
+}
+
+function renderChipList(values = [], labelLookup = null, emptyLabel = '-') {
+  if (!values || values.length === 0) return el('span', { class: 'muted' }, emptyLabel);
+  return el('div', { class: 'chip-list' }, ...values.map((value) =>
+    el('span', { class: 'chip' }, labelsFromValues([value], labelLookup)[0])
+  ));
+}
+
+function friendlyErrorMessage(message) {
+  return String(message || '')
+    .replace(/\b[a-z]+(?:_[a-z0-9]+)+\b/g, (token) => formatDisplayLabel(token));
+}
+
+function selectedCheckboxValues(form, name) {
+  return Array.from(form.querySelectorAll(`input[name="${name}"]:checked`))
+    .map((node) => node.value)
+    .filter(Boolean);
+}
 const splitLocalDateTime = (value) => {
   if (!value || !String(value).includes(' ')) return { date: '', time: '' };
   const [datePart, timePart] = String(value).split(' ');
@@ -184,7 +296,7 @@ async function api(method, path, body) {
       if (state.user) persistUser({ ...state.user, company: data.company });
       showAccessBlocked(data.company, data.message || data.error);
     }
-    throw { status: res.status, error: (data && data.error) || `HTTP ${res.status}`, data };
+    throw { status: res.status, error: friendlyErrorMessage((data && data.error) || `HTTP ${res.status}`), data };
   }
   return data;
 }
@@ -195,6 +307,7 @@ let companyProfileCache = null;
 let companyCatalogueCache = null;
 let companyAssetsCache = null;
 let companySetupStateCache = null;
+let intakeOptionsCache = null;
 
 const LABOUR_ONLY_CATALOGUE_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
 
@@ -238,6 +351,12 @@ async function loadCompanySetupState(force = false) {
   if (companySetupStateCache && !force) return companySetupStateCache;
   companySetupStateCache = await api('GET', '/company/setup-state');
   return companySetupStateCache;
+}
+
+async function loadIntakeOptions(force = false) {
+  if (intakeOptionsCache && !force) return intakeOptionsCache;
+  intakeOptionsCache = await api('GET', '/company/intake-options');
+  return intakeOptionsCache;
 }
 
 function boolLabel(value) {
@@ -309,8 +428,8 @@ function renderCranePlanningSummary(planning, options = {}) {
   addKv('Road access review required', boolLabel(planning.transport_review_required || planning.route_review_required));
   addKv('NHVR / state road access review required', boolLabel(planning.nhvr_review_required || planning.osom_review_required));
   addKv('Permit review required', boolLabel(planning.permit_review_required));
-  addKv('Source confidence', planning.source_confidence || '-');
-  addKv('Review reason', planning.review_reason || '-');
+  addKv('Source confidence', planning.source_confidence ? formatDisplayLabel(planning.source_confidence) : '-');
+  addKv('Review reason', planning.review_reason ? friendlyErrorMessage(planning.review_reason) : '-');
   panel.appendChild(kv);
 
   if ((planning.messages || []).length > 0) {
@@ -327,7 +446,7 @@ function renderCranePlanningSummary(planning, options = {}) {
         el('div', { class: 'schedule-card-head' },
           el('div', {},
             el('div', { class: 'rank-name' }, item.load_description || 'Transport requirement'),
-            el('div', { class: 'rank-meta' }, item.vehicle_type || 'unknown_manual_review')
+            el('div', { class: 'rank-meta' }, formatDisplayLabel(item.vehicle_type || 'unknown_manual_review'))
           ),
           el('div', { class: 'button-row' },
             item.nhvr_review_required ? el('span', { class: 'pill pill-warn' }, 'NHVR review') : null,
@@ -638,7 +757,7 @@ function router() {
     audit: () => renderAudit(renderCycle),
     metrics: () => renderMetrics(renderCycle),
     'new-job': () => renderNewJob(renderCycle),
-    'new-worker': renderNewWorker,
+    'new-worker': () => renderNewWorker(renderCycle),
   };
 
   const handler = routes[route] || (() => renderDashboard(renderCycle));
@@ -667,12 +786,12 @@ function statusPill(status) {
     on_leave: 'pill-muted',
     inactive: 'pill-muted',
   };
-  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, status);
+  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, formatDisplayLabel(status));
 }
 
 function riskPill(risk) {
   const map = { routine: 'pill-muted', complex: 'pill-warn', critical: 'pill-bad' };
-  return el('span', { class: `pill ${map[risk] || 'pill-muted'}` }, risk);
+  return el('span', { class: `pill ${map[risk] || 'pill-muted'}` }, formatDisplayLabel(risk));
 }
 
 function jobStatusPill(status) {
@@ -684,7 +803,7 @@ function jobStatusPill(status) {
     complete: 'pill-muted',
     cancelled: 'pill-bad'
   };
-  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, status);
+  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, formatDisplayLabel(status));
 }
 
 function scheduleStatusPill(status) {
@@ -695,7 +814,7 @@ function scheduleStatusPill(status) {
     completed: 'pill-muted',
     cancelled: 'pill-bad'
   };
-  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, status);
+  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, formatDisplayLabel(status));
 }
 
 function confidencePill(level = 'low') {
@@ -703,7 +822,7 @@ function confidencePill(level = 'low') {
   const className = normalized === 'high'
     ? 'pill-ok'
     : (normalized === 'medium' ? 'pill-warn' : 'pill-bad');
-  return el('span', { class: `pill ${className}` }, normalized);
+  return el('span', { class: `pill ${className}` }, formatDisplayLabel(normalized));
 }
 
 function credPill(status) {
@@ -713,12 +832,14 @@ function credPill(status) {
     expired: 'pill-bad',
     pending_verification: 'pill-info',
   };
-  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, status);
+  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, formatDisplayLabel(status));
 }
 
-function renderTagList(tags, emptyLabel = '-') {
+function renderTagList(tags, emptyLabel = '-', labelLookup = null) {
   if (!tags || tags.length === 0) return el('span', { class: 'muted' }, emptyLabel);
-  return el('ul', { class: 'tag-list' }, ...(tags || []).map((tag) => el('li', {}, String(tag))));
+  return el('ul', { class: 'tag-list' }, ...(tags || []).map((tag) =>
+    el('li', {}, (labelLookup && labelLookup[tag]) || formatDisplayLabel(tag))
+  ));
 }
 
 function flattenCatalogueGroups(grouped = {}) {
@@ -827,6 +948,71 @@ function renderRequirementChecklist(catalogue, options = {}) {
   return root;
 }
 
+function optionLabelLookup(groups = []) {
+  const lookup = {};
+  for (const group of groups || []) {
+    for (const option of group.options || []) {
+      lookup[option.value] = option.label;
+    }
+  }
+  return lookup;
+}
+
+function equipmentGroupsFromCatalogue(catalogue = {}) {
+  const grouped = {};
+  for (const item of catalogue.items || []) {
+    if (!['equipment', 'transport'].includes(item.category)) continue;
+    const group = item.group_label || formatDisplayLabel(item.category);
+    grouped[group] = grouped[group] || [];
+    grouped[group].push({ value: item.label, label: item.label });
+  }
+  return Object.entries(grouped).map(([group, options]) => ({ group, options }));
+}
+
+function renderGroupedCheckboxPicker(name, groups = [], options = {}) {
+  const selected = new Set((options.selectedValues || []).map(String));
+  const root = el('div', { class: 'option-picker' });
+  if (options.helpText) root.appendChild(el('div', { class: 'small muted' }, options.helpText));
+  if (options.search !== false) {
+    const search = el('input', {
+      type: 'search',
+      class: 'option-search',
+      placeholder: options.searchPlaceholder || 'Search options...',
+      'aria-label': options.searchPlaceholder || 'Search options'
+    });
+    root.appendChild(search);
+    search.addEventListener('input', () => {
+      const query = search.value.trim().toLowerCase();
+      root.querySelectorAll('.option-row').forEach((row) => {
+        row.classList.toggle('hidden', query && !row.textContent.toLowerCase().includes(query));
+      });
+    });
+  }
+
+  const grid = el('div', { class: 'option-grid' });
+  for (const group of groups || []) {
+    const card = el('div', { class: 'option-group' });
+    card.appendChild(el('div', { class: 'option-group-head' },
+      el('strong', {}, group.group),
+      el('span', { class: 'small muted' }, `${(group.options || []).length} option(s)`)
+    ));
+    for (const option of group.options || []) {
+      const box = el('input', { type: 'checkbox', name, value: option.value });
+      box.checked = selected.has(String(option.value));
+      card.appendChild(el('label', { class: 'option-row' },
+        box,
+        el('span', {}, option.label)
+      ));
+    }
+    grid.appendChild(card);
+  }
+  if (!groups || groups.length === 0) {
+    grid.appendChild(el('div', { class: 'empty' }, options.emptyText || 'No options available.'));
+  }
+  root.appendChild(grid);
+  return root;
+}
+
 function selectedRequirementIdsFromForm(form) {
   return Array.from(form.querySelectorAll('input[name="requirement_item_ids"]:checked'))
     .map((node) => Number(node.value))
@@ -893,7 +1079,7 @@ function renderAssetAssignmentsSummary(assignments = [], warnings = []) {
         el('strong', {}, asset.asset_number),
         el('div', { class: 'small muted' }, asset.display_name || asset.catalogue_item?.label || 'Asset')
       ),
-      el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, asset.asset_status || 'active'),
+      el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, formatDisplayLabel(asset.asset_status || 'active')),
       el('span', { class: 'small muted' }, asset.home_location || '-')
     );
   })));
@@ -919,9 +1105,9 @@ function renderPreferenceSignals(signals) {
 
   return el('div', { class: 'signal-list' }, ...(signals || []).map((signal) => {
     const parts = [
-      signal.task_tag,
+      formatDisplayLabel(signal.task_tag),
       `${stars(signal.rating)} (${signal.rating})`,
-      signal.source
+      formatDisplayLabel(signal.source)
     ];
     if (signal.source === 'learned') {
       parts.push(`${signal.approval_count || 0} confirmed`);
@@ -1123,14 +1309,57 @@ function renderOperatingModePanel(profile = {}) {
   return form;
 }
 
+function renderDefaultTimezonePanel(profile, intakeOptions = {}) {
+  const form = el('form', { class: 'panel' });
+  const errBox = el('div', { class: 'error' });
+  const success = el('div', { class: 'status-note hidden' });
+  const timezones = intakeOptions.timezones?.length ? intakeOptions.timezones : COMMON_TIMEZONES;
+
+  form.appendChild(el('h3', {}, 'Default timezone'));
+  form.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
+    'New jobs default to this timezone. Dispatchers can still override timezone per job.'
+  ));
+  form.appendChild(buildSelect('timezone', 'Company default timezone', timezones, {
+    value: profile.timezone || 'Australia/Brisbane'
+  }));
+  form.appendChild(errBox);
+  form.appendChild(success);
+  form.appendChild(el('div', { class: 'button-row' },
+    el('button', { type: 'submit' }, 'Save timezone')
+  ));
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errBox.textContent = '';
+    success.classList.add('hidden');
+    const fd = new FormData(form);
+    try {
+      const updated = await api('PATCH', '/company/profile', {
+        timezone: fd.get('timezone')
+      });
+      companyProfileCache = updated;
+      if (state.user) {
+        state.user = { ...state.user, company: updated };
+        localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+      }
+      success.textContent = 'Default timezone saved.';
+      success.classList.remove('hidden');
+      toast('Default timezone saved', 'success');
+    } catch (err) {
+      errBox.textContent = err.error || 'Could not save default timezone';
+    }
+  });
+  return form;
+}
+
 async function renderOurBusiness(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
-  const [profile, catalogue, assetsPayload, setupState] = await Promise.all([
+  const [profile, catalogue, assetsPayload, setupState, intakeOptions] = await Promise.all([
     loadCompanyProfile(true),
     loadCompanyCatalogue(true),
     loadCompanyAssets(true),
-    loadCompanySetupState(true)
+    loadCompanySetupState(true),
+    loadIntakeOptions()
   ]);
   if (isStaleRender(renderCycle)) return;
   const mode = operatingMode(profile);
@@ -1152,6 +1381,7 @@ async function renderOurBusiness(renderCycle) {
     el('span', { class: 'pill pill-info' }, `${visibleCatalogue.enabled_count || 0} visible enabled`)
   ));
   view.appendChild(renderOperatingModePanel(profile));
+  view.appendChild(renderDefaultTimezonePanel(profile, intakeOptions));
 
   if (!catalogue.configured) {
     form.appendChild(el('div', { class: 'read-only-banner' },
@@ -1416,7 +1646,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
             el('strong', {}, asset.asset_number),
             el('div', { class: 'small muted' }, asset.display_name || asset.catalogue_item?.label || item.label)
           ),
-          el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, asset.asset_status),
+          el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, formatDisplayLabel(asset.asset_status)),
           el('span', { class: 'small muted' }, asset.home_location || '-'),
           el('button', {
             type: 'button',
@@ -1526,7 +1756,7 @@ function renderJobAssetSelector(catalogue = {}, assetsPayload = {}, options = {}
       select.appendChild(el('option', { value: '' }, `Any available ${item.label}`));
       for (const asset of assets) {
         const option = el('option', { value: String(asset.id) },
-          `${asset.asset_number} - ${asset.display_name || item.label} (${asset.asset_status})`
+          `${asset.asset_number} - ${asset.display_name || item.label} (${formatDisplayLabel(asset.asset_status)})`
         );
         if (selectedAssetIds.has(String(asset.id))) option.selected = true;
         select.appendChild(option);
@@ -1697,12 +1927,12 @@ async function renderSchedule(renderCycle) {
           el('div', { class: 'small', style: 'margin-top:10px;' },
             el('strong', {}, 'Assigned: '),
             assigned.length > 0
-              ? assigned.map((item) => `${item.worker_name} (${item.allocation_status || item.status})`).join(', ')
+              ? assigned.map((item) => `${item.worker_name} (${formatDisplayLabel(item.allocation_status || item.status)})`).join(', ')
               : 'Unallocated'
           ),
           el('div', { class: 'small', style: 'margin-top:6px;' },
-            el('strong', {}, 'Task tags: '),
-            (job.task_tags || []).join(', ') || 'none'
+            el('strong', {}, 'Task context: '),
+            labelsFromValues(job.task_tags || [], null).join(', ') || 'none'
           ),
           job.crane_planning && (job.crane_planning.transport_review_required || job.crane_planning.manual_review_required)
             ? el('div', { class: 'button-row', style: 'margin-top:8px;' },
@@ -1766,9 +1996,9 @@ async function renderWorkersList(renderCycle) {
     body.appendChild(el('tr', {},
       el('td', {}, el('a', { href: `#/workers/${worker.id}` }, worker.name)),
       el('td', {}, worker.email || '-'),
-      el('td', {}, worker.role),
-      el('td', {}, worker.employment_type),
-      el('td', {}, (worker.crane_classes || []).join(', ') || '-'),
+      el('td', {}, labelsFromValues(worker.roles || [worker.role], null).join(', ') || '-'),
+      el('td', {}, formatDisplayLabel(worker.employment_type)),
+        el('td', {}, labelsFromValues(worker.crane_classes || [], null).join(', ') || '-'),
       el('td', {}, statusPill(worker.status)),
       el('td', {}, worker.usual_depot || '-')
     ));
@@ -1777,9 +2007,11 @@ async function renderWorkersList(renderCycle) {
   view.appendChild(el('div', { class: 'panel' }, table));
 }
 
-function renderNewWorker() {
+async function renderNewWorker(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
+  const intakeOptions = await loadIntakeOptions();
+  if (isStaleRender(renderCycle)) return;
 
   const form = el('form', { class: 'panel' });
   const errBox = el('div', { class: 'error' });
@@ -1787,12 +2019,18 @@ function renderNewWorker() {
   form.appendChild(el('div', { class: 'row' },
     buildInput('name', 'Name', { required: true }),
     buildInput('email', 'Email', { type: 'email' }),
-    buildSelect('role', 'Role', ROLE_OPTIONS, { required: true }),
     buildSelect('employment_type', 'Employment type', EMPLOYMENT_OPTIONS, { required: true }),
     buildSelect('status', 'Availability status', STATUS_OPTIONS),
     buildInput('crane_classes', 'Crane classes (comma-separated)', { placeholder: 'Articulated / Pick-and-Carry, Mobile Crane' }),
     buildInput('usual_depot', 'Base location / depot'),
     buildInput('contact_number', 'Phone')
+  ));
+  form.appendChild(el('div', { class: 'panel sub-panel' },
+    el('h3', {}, 'Worker roles'),
+    renderGroupedCheckboxPicker('roles', intakeOptions.worker_role_groups || [], {
+      helpText: 'Select every role this worker can realistically be considered for. Credentials still decide allocation eligibility.',
+      searchPlaceholder: 'Search roles...'
+    })
   ));
   form.appendChild(buildTextarea('notes', 'Notes'));
   form.appendChild(errBox);
@@ -1808,7 +2046,7 @@ function renderNewWorker() {
     const body = {
       name: fd.get('name'),
       email: fd.get('email') || null,
-      role: fd.get('role'),
+      roles: selectedCheckboxValues(form, 'roles'),
       employment_type: fd.get('employment_type'),
       status: fd.get('status') || 'available',
       crane_classes: splitCsv(fd.get('crane_classes')),
@@ -2006,11 +2244,12 @@ async function renderWorkerDetail(workerId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [worker, credentials, fatigue, preferences] = await Promise.all([
+  const [worker, credentials, fatigue, preferences, intakeOptions] = await Promise.all([
     api('GET', `/workers/${workerId}`),
     api('GET', `/workers/${workerId}/credentials`),
     api('GET', `/workers/${workerId}/fatigue-records`),
-    api('GET', `/workers/${workerId}/preferences`)
+    api('GET', `/workers/${workerId}/preferences`),
+    loadIntakeOptions()
   ]);
   if (isStaleRender(renderCycle)) return;
   const workerArchived = Boolean(worker.archived_at);
@@ -2037,12 +2276,19 @@ async function renderWorkerDetail(workerId, renderCycle) {
     buildInput('name', 'Name', { value: worker.name || '' }),
     buildInput('email', 'Email', { type: 'email', value: worker.email || '' }),
     buildSelect('status', 'Status', STATUS_OPTIONS, { value: worker.status || 'available' }),
-    buildSelect('role', 'Role', ROLE_OPTIONS, { value: worker.role || 'crane_operator' }),
     buildSelect('employment_type', 'Employment type', EMPLOYMENT_OPTIONS, { value: worker.employment_type || 'permanent' }),
     buildInput('contact_number', 'Phone', { value: worker.contact_number || '' }),
     buildInput('usual_depot', 'Base location / depot', { value: worker.usual_depot || '' }),
     buildInput('crane_classes', 'Crane classes (comma-separated)', { value: (worker.crane_classes || []).join(', ') }),
     buildInput('availability_note', 'Availability note', { value: worker.availability_note || '' })
+  ));
+  editForm.appendChild(el('div', { class: 'panel sub-panel' },
+    el('h3', {}, 'Worker roles'),
+    renderGroupedCheckboxPicker('roles', intakeOptions.worker_role_groups || [], {
+      selectedValues: worker.roles || [worker.role],
+      helpText: 'Roles help filtering and human context. Credentials, VOCs, availability, fatigue, and job requirements remain the allocation gates.',
+      searchPlaceholder: 'Search roles...'
+    })
   ));
   editForm.appendChild(buildTextarea('notes', 'Notes', { value: worker.notes || '' }));
   editForm.appendChild(editErr);
@@ -2060,7 +2306,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
         name: fd.get('name'),
         email: fd.get('email') || null,
         status: fd.get('status'),
-        role: fd.get('role'),
+        roles: selectedCheckboxValues(editForm, 'roles'),
         employment_type: fd.get('employment_type'),
         contact_number: fd.get('contact_number') || null,
         crane_classes: splitCsv(fd.get('crane_classes')),
@@ -2161,7 +2407,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
           class: 'secondary',
           onclick: () => {
             prefForm.elements.preference_id.value = preference.id;
-            prefForm.elements.task_tag.value = preference.task_tag;
+            prefForm.elements.task_tag.value = formatDisplayLabel(preference.task_tag);
             prefForm.elements.rating.value = String(preference.rating);
             prefForm.elements.notes.value = preference.notes || '';
             prefMode.textContent = 'Edit manual task preference';
@@ -2172,9 +2418,9 @@ async function renderWorkerDetail(workerId, renderCycle) {
       }
 
       body.appendChild(el('tr', {},
-        el('td', {}, preference.task_tag),
+        el('td', {}, formatDisplayLabel(preference.task_tag)),
         el('td', {}, `${stars(preference.rating)} (${preference.rating})`),
-        el('td', {}, el('span', { class: `pill ${preference.source === 'manual' ? 'pill-ok' : (preference.source === 'imported' ? 'pill-info' : 'pill-warn')}` }, preference.source)),
+        el('td', {}, el('span', { class: `pill ${preference.source === 'manual' ? 'pill-ok' : (preference.source === 'imported' ? 'pill-info' : 'pill-warn')}` }, formatDisplayLabel(preference.source))),
         el('td', {}, preference.source === 'learned' ? Number(preference.confidence || 0).toFixed(2) : '1.00'),
         el('td', {}, preference.source === 'learned' ? String(preference.approval_count || 0) : '-'),
         el('td', {}, preference.notes || '-'),
@@ -2190,7 +2436,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
   prefForm.appendChild(prefMode);
   prefForm.appendChild(el('input', { type: 'hidden', name: 'preference_id' }));
   prefForm.appendChild(el('div', { class: 'row' },
-    buildInput('task_tag', 'Task tag', { required: true, placeholder: 'tower_crane, shutdown, night_shift' }),
+    buildInput('task_tag', 'Task context', { required: true, placeholder: 'Tower crane, shutdown, night shift' }),
     buildSelect('rating', 'Star rating', ['5', '4', '3', '2', '1'], { required: true, value: '5' })
   ));
   prefForm.appendChild(buildTextarea('notes', 'Notes', { placeholder: 'Optional dispatcher context for this manual preference' }));
@@ -2255,7 +2501,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
     const body = el('tbody');
     for (const credential of credentials) {
       body.appendChild(el('tr', {},
-        el('td', {}, credential.type),
+        el('td', {}, formatDisplayLabel(credential.type)),
         el('td', {}, credential.identifier || '-'),
         el('td', {}, fmtDateOnly(credential.issue_date)),
         el('td', {}, fmtDateOnly(credential.expiry_date)),
@@ -2271,7 +2517,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
       'Archived workers keep existing credential history, but new credential entries are disabled in the active pilot workflow.'
     ));
   } else {
-    credPanel.appendChild(buildCredentialForm(workerId));
+    credPanel.appendChild(buildCredentialForm(workerId, intakeOptions));
   }
   view.appendChild(credPanel);
 
@@ -2295,7 +2541,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
         el('td', {}, fmtDate(record.shift_start)),
         el('td', {}, fmtDate(record.shift_end)),
         el('td', {}, `${Number(record.shift_length_hours || 0).toFixed(1)}h`),
-        el('td', {}, record.shift_type),
+        el('td', {}, formatDisplayLabel(record.shift_type)),
         el('td', {}, `${record.travel_hours || 0}h`),
         el('td', {}, record.self_declared_fatigue ? el('span', { class: 'pill pill-warn' }, 'declared') : '-')
       ));
@@ -2313,12 +2559,16 @@ async function renderWorkerDetail(workerId, renderCycle) {
   view.appendChild(fatPanel);
 }
 
-function buildCredentialForm(workerId) {
+function buildCredentialForm(workerId, intakeOptions = {}) {
   const form = el('form', { style: 'margin-top:16px;' });
   const errBox = el('div', { class: 'error' });
+  const credentialGroups = intakeOptions.credential_groups || [{
+    group: 'Credentials',
+    options: CREDENTIAL_OPTIONS.map((value) => ({ value, label: formatDisplayLabel(value) }))
+  }];
   form.appendChild(el('h3', {}, 'Add credential'));
   form.appendChild(el('div', { class: 'row' },
-    buildSelect('type', 'Type', CREDENTIAL_OPTIONS, { required: true }),
+    buildGroupedSelect('type', 'Type', credentialGroups, { required: true }),
     buildInput('identifier', 'Identifier'),
     buildInput('issuing_body', 'Issuing body'),
     buildInput('issue_date', 'Issue date', { type: 'date' }),
@@ -2583,11 +2833,11 @@ function renderJobBriefImport(renderCycle) {
       value: extracted.counterweight_required_tonnes ?? ''
     });
     appendConfidenceNote(counterweightField, confidence, 'counterweight_required_tonnes');
-    const rolesField = buildInput('required_roles', 'Required roles (comma-separated)', { value: joinListValue(extracted.required_roles) });
+    const rolesField = buildInput('required_roles', 'Required roles (comma-separated)', { value: labelsFromValues(extracted.required_roles || []).join(', ') });
     appendConfidenceNote(rolesField, confidence, 'required_roles');
-    const credentialsField = buildInput('required_credentials', 'Required credentials (comma-separated)', { value: joinListValue(extracted.required_credentials) });
+    const credentialsField = buildInput('required_credentials', 'Required credentials (comma-separated)', { value: labelsFromValues(extracted.required_credentials || []).join(', ') });
     appendConfidenceNote(credentialsField, confidence, 'required_credentials');
-    const tagsField = buildInput('task_tags', 'Task tags (comma-separated)', { value: joinListValue(extracted.task_tags) });
+    const tagsField = buildInput('task_tags', 'Additional job context (comma-separated)', { value: labelsFromValues(extracted.task_tags || []).join(', ') });
     appendConfidenceNote(tagsField, confidence, 'task_tags');
     const riskField = buildTextarea('risk_notes', 'Risk notes', { value: extracted.risk_notes || '' });
     appendConfidenceNote(riskField, confidence, 'risk_notes');
@@ -2828,7 +3078,7 @@ async function renderJobsList(renderCycle) {
     el('th', {}, 'Schedule'),
     el('th', {}, 'Client'),
     el('th', {}, 'Site'),
-    el('th', {}, 'Task tags'),
+    el('th', {}, 'Task context'),
     el('th', {}, 'Timezone'),
     el('th', {}, 'Risk'),
     el('th', {}, 'Status'),
@@ -2839,11 +3089,11 @@ async function renderJobsList(renderCycle) {
     body.appendChild(el('tr', {},
       el('td', {},
         el('div', { class: 'small' }, formatScheduleRange(job.schedule)),
-        el('div', { class: 'small muted' }, `Schedule: ${job.schedule?.status || job.schedule_status}`)
+        el('div', { class: 'small muted' }, `Schedule: ${formatDisplayLabel(job.schedule?.status || job.schedule_status)}`)
       ),
       el('td', {}, job.client_name),
       el('td', {}, el('a', { href: `#/jobs/${job.id}` }, job.site_name)),
-      el('td', {}, (job.task_tags || []).join(', ') || '-'),
+      el('td', {}, labelsFromValues(job.task_tags || [], null).join(', ') || '-'),
       el('td', {}, job.schedule?.timezone || job.job_timezone || '-'),
       el('td', {}, riskPill(job.lift_risk_level)),
       el('td', {}, el('div', { class: 'button-row' },
@@ -2863,17 +3113,24 @@ async function renderNewJob(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [companyProfile, craneModels, companyCatalogue, companyAssets] = await Promise.all([
+  const [companyProfile, craneModels, companyCatalogue, companyAssets, intakeOptions, jobSuggestions] = await Promise.all([
     loadCompanyProfile(),
     loadCraneModels(),
     loadCompanyCatalogue(),
-    loadCompanyAssets()
+    loadCompanyAssets(),
+    loadIntakeOptions(),
+    api('GET', '/jobs/suggestions').catch(() => ({
+      client_names: [],
+      site_names: [],
+      site_locations: [],
+      site_conditions_by_site: {}
+    }))
   ]);
   if (isStaleRender(renderCycle)) return;
   const mode = operatingMode(companyProfile);
 
-  const detectedTimeZone = detectBrowserTimeZone() || 'Australia/Brisbane';
-  const today = isoDateInTimeZone(new Date(), detectedTimeZone);
+  const defaultTimeZone = companyProfile.timezone || 'Australia/Brisbane';
+  const today = isoDateInTimeZone(new Date(), defaultTimeZone);
   const form = el('form', { class: 'panel' });
   const errBox = el('div', { class: 'error' });
   const craneModelSelect = el('select', { name: 'crane_model_id' });
@@ -2888,35 +3145,75 @@ async function renderNewJob(renderCycle) {
   form.appendChild(el('h2', {}, 'Create job'));
   form.appendChild(el('div', { class: 'row' },
     buildInput('reference', 'Reference'),
-    buildInput('client_name', 'Client name', { required: true }),
-    buildInput('site_name', 'Site name', { required: true }),
-    buildInput('site_location', 'Site location'),
+    buildInput('client_name', 'Client name', { required: true, list: 'job-client-suggestions', autocomplete: 'off' }),
+    buildInput('site_name', 'Site name', { required: true, list: 'job-site-suggestions', autocomplete: 'off' }),
+    buildInput('site_location', 'Site location', { list: 'job-location-suggestions', autocomplete: 'off' }),
     buildInput('date', 'Scheduled date', { type: 'date', value: today }),
     buildInput('shift_start_time', 'Scheduled start time', { type: 'time' }),
     buildInput('scheduled_end_time', 'Scheduled end time', { type: 'time' }),
     buildFieldWrapper('Timezone', el('input', {
       name: 'job_timezone',
-      value: detectedTimeZone,
+      value: defaultTimeZone,
       list: 'job-timezone-options',
       placeholder: 'Australia/Brisbane'
     })),
     buildSelect('schedule_status', 'Schedule status', SCHEDULE_STATUS_OPTIONS, { value: 'planned' }),
     buildSelect('shift_type', 'Shift type', SHIFT_OPTIONS, { required: true }),
     buildInput('estimated_duration_hours', 'Estimated duration (hours)', { type: 'number', step: '0.5' }),
-    buildInput('crane_class_required', 'Crane class required', { placeholder: 'Articulated / Pick-and-Carry, Tower Crane, 55T' }),
-    buildInput('task_tags', 'Task tags (comma-separated)', { placeholder: 'tower_crane, shutdown, critical_lift' }),
-    buildInput('crew_roles_required', 'Crew roles required (comma-separated)', { placeholder: 'crane_operator, dogman' }),
-    buildInput('required_credentials', 'Required credentials (comma-separated)', { placeholder: 'high_risk_licence_crane, white_card' }),
-    buildInput('site_conditions', 'Site conditions (comma-separated)'),
     buildSelect('lift_risk_level', 'Lift risk level', RISK_OPTIONS),
-    buildSelect('travel_required', 'Travel required', ['false', 'true'])
+    buildSelect('travel_required', 'Additional travel required exceeding 100km', ['false', 'true'])
   ));
   form.appendChild(el('datalist', { id: 'job-timezone-options' },
-    ...COMMON_TIMEZONES.map((item) => el('option', { value: item }, item))
+    ...(intakeOptions.timezones || COMMON_TIMEZONES).map((item) => el('option', { value: item }, item))
+  ));
+  form.appendChild(el('datalist', { id: 'job-client-suggestions' },
+    ...(jobSuggestions.client_names || []).map((item) => el('option', { value: item }, item))
+  ));
+  form.appendChild(el('datalist', { id: 'job-site-suggestions' },
+    ...(jobSuggestions.site_names || []).map((item) => el('option', { value: item }, item))
+  ));
+  form.appendChild(el('datalist', { id: 'job-location-suggestions' },
+    ...(jobSuggestions.site_locations || []).map((item) => el('option', { value: item }, item))
   ));
 
-  const requirementsSection = el('div', { class: 'panel requirement-form-section' });
   const enabledCompanyCatalogue = filterCatalogueForOperatingMode(enabledCatalogueOnly(companyCatalogue), mode);
+  form.appendChild(el('div', { class: 'panel sub-panel' },
+    el('h3', {}, 'Crew roles'),
+    renderGroupedCheckboxPicker('crew_roles_required', intakeOptions.worker_role_groups || [], {
+      helpText: 'Select the crew roles the job needs. Roles help filtering; credentials remain the hard allocation gate.',
+      searchPlaceholder: 'Search crew roles...'
+    })
+  ));
+  form.appendChild(el('div', { class: 'panel sub-panel' },
+    el('h3', {}, 'Required credentials and VOCs'),
+    renderGroupedCheckboxPicker('required_credentials', intakeOptions.credential_groups || [], {
+      helpText: 'Select licences, tickets, VOCs, and site credentials required for this job.',
+      searchPlaceholder: 'Search credentials...'
+    })
+  ));
+  if (mode === 'plant_and_labour') {
+    form.appendChild(el('div', { class: 'panel sub-panel' },
+      el('h3', {}, 'Crane / equipment classes'),
+      renderGroupedCheckboxPicker('crane_classes_required', equipmentGroupsFromCatalogue(enabledCompanyCatalogue), {
+        helpText: 'Select one or more equipment classes or transport requirements. This is planning context, not lift engineering approval.',
+        searchPlaceholder: 'Search equipment classes...',
+        emptyText: 'No equipment or transport classes are enabled yet. Open Our Business to enable plant classes.'
+      })
+    ));
+  }
+  form.appendChild(el('div', { class: 'panel sub-panel' },
+    el('h3', {}, 'Site conditions'),
+    renderGroupedCheckboxPicker('site_conditions', intakeOptions.site_condition_groups || [], {
+      helpText: 'Select site conditions that should be visible during dispatch review. This is a review aid, not a compliance determination.',
+      searchPlaceholder: 'Search site conditions...'
+    })
+  ));
+  form.appendChild(buildTextarea('additional_requirements_note', 'Additional job requirements / notes', {
+    class: 'large-note',
+    placeholder: 'Example: spreader bar, extra timber, crane mats, tag lines, client induction, restricted access.'
+  }));
+
+  const requirementsSection = el('div', { class: 'panel requirement-form-section' });
   requirementsSection.appendChild(el('h3', {}, 'Job requirements'));
   requirementsSection.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
     mode === 'labour_only'
@@ -2988,7 +3285,7 @@ async function renderNewJob(renderCycle) {
     ));
   }
   form.appendChild(el('div', { class: 'panel small muted' },
-    `Default timezone from this browser: ${detectedTimeZone}. Planned and confirmed jobs require start, end, and timezone; draft jobs can be saved without a schedule window.`
+    `Company default timezone: ${defaultTimeZone}. Planned and confirmed jobs require start, end, and timezone; draft jobs can be saved without a schedule window.`
   ));
   form.appendChild(buildTextarea('notes', 'Notes'));
   form.appendChild(errBox);
@@ -3026,18 +3323,22 @@ async function renderNewJob(renderCycle) {
       date: fd.get('date') || null,
       shift_start_time: fd.get('shift_start_time') || null,
       scheduled_end_time: fd.get('scheduled_end_time') || null,
-      job_timezone: fd.get('job_timezone') || detectedTimeZone,
+      job_timezone: fd.get('job_timezone') || defaultTimeZone,
       schedule_status: fd.get('schedule_status') || 'planned',
       shift_type: fd.get('shift_type'),
       estimated_duration_hours: fd.get('estimated_duration_hours') ? Number(fd.get('estimated_duration_hours')) : null,
-      crane_class_required: fd.get('crane_class_required') || null,
-      task_tags: splitCsv(fd.get('task_tags')),
-      crew_roles_required: splitCsv(fd.get('crew_roles_required')),
-      required_credentials: splitCsv(fd.get('required_credentials')),
-      site_conditions: splitCsv(fd.get('site_conditions')),
+      crane_class_required: selectedCheckboxValues(form, 'crane_classes_required')[0] || null,
+      crane_classes_required: selectedCheckboxValues(form, 'crane_classes_required'),
+      task_tags: [],
+      crew_roles_required: selectedCheckboxValues(form, 'crew_roles_required'),
+      required_credentials: selectedCheckboxValues(form, 'required_credentials'),
+      site_conditions: selectedCheckboxValues(form, 'site_conditions'),
       lift_risk_level: fd.get('lift_risk_level'),
       travel_required: fd.get('travel_required') === 'true',
-      notes: fd.get('notes') || null,
+      notes: [fd.get('additional_requirements_note'), fd.get('notes')]
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join('\n\n') || null,
       crane_model_id: fd.get('crane_model_id') || null,
       crane_travel_state_id: fd.get('crane_travel_state_id') || null,
       required_capacity_tonnes: fd.get('required_capacity_tonnes') ? Number(fd.get('required_capacity_tonnes')) : null,
@@ -3086,7 +3387,7 @@ function customRequirementsFromJob(job = {}) {
     .join(', ');
 }
 
-function buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, companyAssets, jobId) {
+function buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, companyAssets, jobId, intakeOptions = {}) {
   const mode = operatingMode(companyProfile);
   const startParts = splitLocalDateTime(job.schedule?.scheduled_start_local || job.scheduled_start_local || '');
   const endParts = splitLocalDateTime(job.schedule?.scheduled_end_local || job.scheduled_end_local || '');
@@ -3152,13 +3453,46 @@ function buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, c
     buildSelect('schedule_status', 'Schedule status', SCHEDULE_STATUS_OPTIONS, { value: job.schedule?.status || job.schedule_status || 'planned' }),
     buildSelect('shift_type', 'Shift type', SHIFT_OPTIONS, { value: job.shift_type || 'day', required: true }),
     buildInput('estimated_duration_hours', 'Estimated duration (hours)', { type: 'number', step: '0.5', value: job.estimated_duration_hours ?? '' }),
-    buildInput('crane_class_required', 'Crane class required', { value: job.crane_class_required || '' }),
-    buildInput('task_tags', 'Task tags (comma-separated)', { value: (job.task_tags || []).join(', ') }),
-    buildInput('crew_roles_required', 'Crew roles required (comma-separated)', { value: (job.crew_roles_required || []).join(', ') }),
-    buildInput('required_credentials', 'Required credentials (comma-separated)', { value: (job.required_credentials || []).join(', ') }),
-    buildInput('site_conditions', 'Site conditions (comma-separated)', { value: (job.site_conditions || []).join(', ') }),
     buildSelect('lift_risk_level', 'Lift risk level', RISK_OPTIONS, { value: job.lift_risk_level || 'routine' }),
-    buildSelect('travel_required', 'Travel required', ['false', 'true'], { value: job.travel_required ? 'true' : 'false' })
+    buildSelect('travel_required', 'Additional travel required exceeding 100km', ['false', 'true'], { value: job.travel_required ? 'true' : 'false' })
+  ));
+  form.appendChild(el('datalist', { id: 'job-timezone-options' },
+    ...(intakeOptions.timezones || COMMON_TIMEZONES).map((item) => el('option', { value: item }, item))
+  ));
+  const enabledCompanyCatalogue = filterCatalogueForOperatingMode(enabledCatalogueOnly(companyCatalogue), mode);
+  form.appendChild(el('div', { class: 'panel sub-panel' },
+    el('h3', {}, 'Crew roles'),
+    renderGroupedCheckboxPicker('crew_roles_required', intakeOptions.worker_role_groups || [], {
+      selectedValues: job.crew_roles_required || [],
+      helpText: 'Select the crew roles this job needs.',
+      searchPlaceholder: 'Search crew roles...'
+    })
+  ));
+  form.appendChild(el('div', { class: 'panel sub-panel' },
+    el('h3', {}, 'Required credentials and VOCs'),
+    renderGroupedCheckboxPicker('required_credentials', intakeOptions.credential_groups || [], {
+      selectedValues: job.required_credentials || [],
+      helpText: 'Select licences, tickets, VOCs, and site credentials required for this job.',
+      searchPlaceholder: 'Search credentials...'
+    })
+  ));
+  if (mode === 'plant_and_labour') {
+    form.appendChild(el('div', { class: 'panel sub-panel' },
+      el('h3', {}, 'Crane / equipment classes'),
+      renderGroupedCheckboxPicker('crane_classes_required', equipmentGroupsFromCatalogue(enabledCompanyCatalogue), {
+        selectedValues: job.crane_classes_required || (job.crane_class_required ? [job.crane_class_required] : []),
+        helpText: 'Select one or more equipment classes or transport requirements.',
+        searchPlaceholder: 'Search equipment classes...'
+      })
+    ));
+  }
+  form.appendChild(el('div', { class: 'panel sub-panel' },
+    el('h3', {}, 'Site conditions'),
+    renderGroupedCheckboxPicker('site_conditions', intakeOptions.site_condition_groups || [], {
+      selectedValues: job.site_conditions || [],
+      helpText: 'Select site conditions that should be visible during dispatch review.',
+      searchPlaceholder: 'Search site conditions...'
+    })
   ));
   form.appendChild(buildTextarea('job_description', 'Job description', { value: job.job_description || '' }));
   form.appendChild(buildTextarea('risk_notes', 'Risk notes', { value: job.risk_notes || '' }));
@@ -3166,7 +3500,6 @@ function buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, c
   form.appendChild(buildTextarea('source_note', 'Source / job brief note', { value: job.source_note || '' }));
   form.appendChild(buildTextarea('notes', 'Notes', { value: job.notes || '' }));
 
-  const enabledCompanyCatalogue = filterCatalogueForOperatingMode(enabledCatalogueOnly(companyCatalogue), mode);
   const requirementsSection = el('div', { class: 'panel requirement-form-section' });
   requirementsSection.appendChild(el('h3', {}, 'Structured requirements'));
   requirementsSection.appendChild(renderRequirementChecklist(enabledCompanyCatalogue, {
@@ -3237,12 +3570,13 @@ function buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, c
       schedule_status: fd.get('schedule_status') || 'planned',
       shift_type: fd.get('shift_type'),
       estimated_duration_hours: fd.get('estimated_duration_hours') ? Number(fd.get('estimated_duration_hours')) : null,
-      crane_class_required: fd.get('crane_class_required') || null,
+      crane_class_required: selectedCheckboxValues(form, 'crane_classes_required')[0] || null,
+      crane_classes_required: selectedCheckboxValues(form, 'crane_classes_required'),
       job_description: fd.get('job_description') || null,
-      task_tags: splitCsv(fd.get('task_tags')),
-      crew_roles_required: splitCsv(fd.get('crew_roles_required')),
-      required_credentials: splitCsv(fd.get('required_credentials')),
-      site_conditions: splitCsv(fd.get('site_conditions')),
+      task_tags: job.task_tags || [],
+      crew_roles_required: selectedCheckboxValues(form, 'crew_roles_required'),
+      required_credentials: selectedCheckboxValues(form, 'required_credentials'),
+      site_conditions: selectedCheckboxValues(form, 'site_conditions'),
       lift_risk_level: fd.get('lift_risk_level'),
       travel_required: fd.get('travel_required') === 'true',
       risk_notes: fd.get('risk_notes') || null,
@@ -3292,13 +3626,14 @@ async function renderJobDetail(jobId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [job, allocations, companyProfile, craneModels, companyCatalogue, companyAssets] = await Promise.all([
+  const [job, allocations, companyProfile, craneModels, companyCatalogue, companyAssets, intakeOptions] = await Promise.all([
     api('GET', `/jobs/${jobId}`),
     api('GET', `/jobs/${jobId}/allocations`),
     loadCompanyProfile(),
     loadCraneModels(),
     loadCompanyCatalogue(),
-    loadCompanyAssets()
+    loadCompanyAssets(),
+    loadIntakeOptions()
   ]);
   if (isStaleRender(renderCycle)) return;
 
@@ -3326,15 +3661,15 @@ async function renderJobDetail(jobId, renderCycle) {
   addKv('Timezone', job.schedule?.timezone || job.job_timezone || '-');
   addKv('Site address', job.site_location || '-');
   addKv('Contact', [job.contact_name, job.contact_phone].filter(Boolean).join(' / ') || '-');
-  addKv('Crane class', job.crane_class_required || '-');
+  addKv('Crane / equipment classes', renderChipList(job.crane_classes_required || (job.crane_class_required ? [job.crane_class_required] : []), null, '-'));
   addKv('Job description', job.job_description || '-');
-  addKv('Task tags', renderTagList(job.task_tags, 'none'));
-  addKv('Crew roles', (job.crew_roles_required || []).join(', ') || '-');
-  addKv('Required credentials', (job.required_credentials || []).join(', ') || 'none');
-  addKv('Site conditions', (job.site_conditions || []).join(', ') || '-');
+  addKv('Task context', renderTagList(job.task_tags, 'none'));
+  addKv('Crew roles', renderChipList(job.crew_roles_required || [], null, '-'));
+  addKv('Required credentials', renderChipList(job.required_credentials || [], null, 'none'));
+  addKv('Site conditions', renderChipList(job.site_conditions || [], null, '-'));
   addKv('Risk level', riskPill(job.lift_risk_level));
   addKv('Risk notes', job.risk_notes || '-');
-  addKv('Travel', job.travel_required ? 'Yes' : 'No');
+  addKv('Additional travel over 100km', job.travel_required ? 'Yes' : 'No');
   addKv('Travel notes', job.travel_notes || '-');
   addKv('Reference', job.reference || '-');
   addKv('Source note', job.source_note || '-');
@@ -3343,7 +3678,7 @@ async function renderJobDetail(jobId, renderCycle) {
   view.appendChild(renderStructuredRequirementsSummary(job.structured_requirements || []));
   view.appendChild(renderAssetAssignmentsSummary(job.asset_assignments || [], job.asset_assignment_warnings || []));
   view.appendChild(renderCranePlanningSummary(job.crane_planning));
-  view.appendChild(buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, companyAssets, jobId));
+  view.appendChild(buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, companyAssets, jobId, intakeOptions));
 
   const allocPanel = el('div', { class: 'panel' });
   allocPanel.appendChild(el('h3', {}, `Allocations (${allocations.length})`));
@@ -3365,7 +3700,7 @@ function renderAllocationCard(allocation) {
   card.appendChild(el('div', { class: 'rank-head' },
     el('div', {},
       el('div', { class: 'rank-name' }, `Rank #${allocation.smartrank_position} (score ${allocation.smartrank_score})`),
-      el('div', { class: 'rank-meta' }, `Allocated ${fmtDate(allocation.allocated_at)} · Status: ${allocation.status}`)
+      el('div', { class: 'rank-meta' }, `Allocated ${fmtDate(allocation.allocated_at)} · Status: ${formatDisplayLabel(allocation.status)}`)
     )
   ));
   if (allocation.override_reason) {
@@ -3382,7 +3717,7 @@ function renderAllocationCard(allocation) {
   }
   if (allocation.active_warnings?.length) {
     const list = el('ul');
-    for (const warning of allocation.active_warnings) list.appendChild(el('li', {}, warning.detail || warning.type));
+    for (const warning of allocation.active_warnings) list.appendChild(el('li', {}, warning.detail || formatDisplayLabel(warning.type)));
     card.appendChild(el('div', { class: 'alerts' },
       el('strong', {}, 'Warnings at allocation: '),
       list
@@ -3417,7 +3752,7 @@ async function renderSmartRank(jobId, renderCycle) {
       'Confirmed allocation learning may adjust the task preference factor, but it never overrides hard blocks or hides warnings.'
     ),
     el('div', { class: 'button-row', style: 'margin-top:10px;' },
-      el('strong', {}, 'Task tags:'),
+      el('strong', {}, 'Task context:'),
       renderTagList(result.job.task_tags, 'none')
     ),
     result.job.crane_planning && (result.job.crane_planning.manual_review_required || result.job.crane_planning.transport_review_required)
@@ -3446,7 +3781,7 @@ async function renderSmartRank(jobId, renderCycle) {
       : null,
     el('div', { class: 'small', style: 'margin-top:8px;' },
       el('strong', {}, 'Required credentials: '),
-      (result.job.required_credentials || []).join(', ') || 'none'
+      labelsFromValues(result.job.required_credentials || [], null).join(', ') || 'none'
     )
   ));
 
@@ -3478,7 +3813,7 @@ function renderRankCard(jobId, ranked, isTop) {
         isTop ? el('span', { class: 'pill pill-ok', style: 'margin-left:8px;' }, 'recommended') : null
       ),
       el('div', { class: 'rank-meta' },
-        `${ranked.worker.role} · ${ranked.worker.employment_type} · ${ranked.worker.status}`
+        `${labelsFromValues(ranked.worker.roles || [ranked.worker.role], null).join(', ')} / ${formatDisplayLabel(ranked.worker.employment_type)} / ${formatDisplayLabel(ranked.worker.status)}`
       )
     ),
     el('div', { class: 'rank-score' }, String(ranked.score))
@@ -3487,7 +3822,7 @@ function renderRankCard(jobId, ranked, isTop) {
   const breakdown = el('div', { class: 'breakdown' });
   for (const [factor, info] of Object.entries(ranked.score_breakdown || {})) {
     breakdown.appendChild(el('div', {},
-      el('strong', {}, `${factor.replace(/_/g, ' ')}:`),
+      el('strong', {}, `${formatDisplayLabel(factor)}:`),
       ` ${info.score} x ${info.weight} = ${Number(info.weighted || 0).toFixed(1)}`
     ));
   }
@@ -3501,13 +3836,13 @@ function renderRankCard(jobId, ranked, isTop) {
   card.appendChild(el('details', {},
     el('summary', {}, 'Factor details'),
     el('ul', {}, ...Object.entries(ranked.score_breakdown || {}).map(([key, info]) =>
-      el('li', { class: 'small' }, `${key}: ${info.detail}`)
+      el('li', { class: 'small' }, `${formatDisplayLabel(key)}: ${info.detail}`)
     ))
   ));
 
   if (hasWarnings) {
     const list = el('ul');
-    for (const warning of ranked.warnings) list.appendChild(el('li', {}, warning.detail || warning.type));
+    for (const warning of ranked.warnings) list.appendChild(el('li', {}, warning.detail || formatDisplayLabel(warning.type)));
     card.appendChild(el('div', { class: 'alerts' },
       el('strong', {}, 'Warnings: '),
       list
@@ -3531,13 +3866,13 @@ function renderBlockedCard(blocked) {
         blocked.worker.name,
         el('span', { class: 'pill pill-bad', style: 'margin-left:8px;' }, 'blocked')
       ),
-      el('div', { class: 'rank-meta' }, `${blocked.worker.role} · ${blocked.worker.status}`)
+      el('div', { class: 'rank-meta' }, `${labelsFromValues(blocked.worker.roles || [blocked.worker.role], null).join(', ')} / ${formatDisplayLabel(blocked.worker.status)}`)
     )
   ));
 
   const list = el('ul');
   for (const reason of blocked.blocks || []) {
-    list.appendChild(el('li', {}, `${reason.type}: ${reason.detail || ''}`));
+    list.appendChild(el('li', {}, `${formatDisplayLabel(reason.type)}: ${reason.detail || ''}`));
   }
   card.appendChild(el('div', { class: 'alerts' },
     el('strong', {}, 'Block reasons:'),
@@ -3566,7 +3901,7 @@ async function renderAllocate(jobId, workerId, renderCycle) {
     panel.appendChild(el('h3', {}, blocked.worker.name));
     panel.appendChild(el('div', { class: 'pill pill-bad' }, 'Hard-blocked - cannot allocate'));
     const list = el('ul');
-    for (const reason of blocked.blocks) list.appendChild(el('li', {}, reason.detail || reason.type));
+    for (const reason of blocked.blocks) list.appendChild(el('li', {}, reason.detail || formatDisplayLabel(reason.type)));
     panel.appendChild(el('div', { class: 'alerts', style: 'margin-top:10px;' },
       el('strong', {}, 'Block reasons:'),
       list
@@ -3715,7 +4050,7 @@ async function renderAudit(renderCycle) {
     'availability_block_applied',
     'credential_expiry_alert'
   ]) {
-    const opt = el('option', { value: option }, option || '- all -');
+    const opt = el('option', { value: option }, option ? formatDisplayLabel(option) : '- all -');
     if (option === eventType) opt.selected = true;
     select.appendChild(opt);
   }
@@ -3742,13 +4077,13 @@ async function renderAudit(renderCycle) {
 function auditEventReason(event) {
   const payload = event.payload || {};
   if (payload.override_reason) return payload.override_reason;
-  if (payload.review_reason) return payload.review_reason;
-  if (payload.task_tag && payload.rating != null) return `${payload.task_tag} -> ${payload.rating} star`;
-  if (payload.reason) return payload.reason;
-  if (payload.from && payload.to) return `${payload.from} -> ${payload.to}`;
+  if (payload.review_reason) return friendlyErrorMessage(payload.review_reason);
+  if (payload.task_tag && payload.rating != null) return `${formatDisplayLabel(payload.task_tag)} -> ${payload.rating} star`;
+  if (payload.reason) return friendlyErrorMessage(payload.reason);
+  if (payload.from && payload.to) return `${formatDisplayLabel(payload.from)} -> ${formatDisplayLabel(payload.to)}`;
   if (payload.selected_rank) return `Selected rank #${payload.selected_rank}`;
   if (payload.import_id) return `Import ${shortId(payload.import_id)}`;
-  if (payload.transport_type) return payload.transport_type;
+  if (payload.transport_type) return formatDisplayLabel(payload.transport_type);
   if (payload.client_name || payload.site_name) return [payload.client_name, payload.site_name].filter(Boolean).join(' / ');
   if (payload.email) return payload.email;
   if (payload.score != null) return `Score ${payload.score}`;
@@ -3761,7 +4096,7 @@ function auditEventSignals(event) {
   if (Array.isArray(payload.blocks) && payload.blocks.length) values.push(...payload.blocks.map((item) => item.detail || item.type));
   if (Array.isArray(payload.warnings) && payload.warnings.length) values.push(...payload.warnings.map((item) => item.detail || item.type));
   if (payload.warnings_count) values.push(`${payload.warnings_count} warning(s)`);
-  if (Array.isArray(payload.block_types) && payload.block_types.length) values.push(...payload.block_types);
+  if (Array.isArray(payload.block_types) && payload.block_types.length) values.push(...payload.block_types.map(formatDisplayLabel));
   if (payload.credential_count != null) values.push(`${payload.credential_count} credential(s)`);
   if (payload.preference_count != null) values.push(`${payload.preference_count} preference(s)`);
   if (payload.applied_count != null) values.push(`${payload.applied_count} learned signal(s)`);
@@ -3820,7 +4155,7 @@ function auditEventsTable(events) {
 
     body.appendChild(el('tr', {},
       el('td', { class: 'small' }, fmtDate(event.timestamp)),
-      el('td', {}, el('span', { class: `pill ${auditEventPill(event.event_type)}` }, event.event_type)),
+      el('td', {}, el('span', { class: `pill ${auditEventPill(event.event_type)}` }, formatDisplayLabel(event.event_type))),
       el('td', { class: 'mono small' }, shortId(event.user_id)),
       el('td', {}, refs),
       el('td', { class: 'small' }, auditEventReason(event)),
@@ -3908,10 +4243,30 @@ function buildTextarea(name, label, attrs = {}) {
 function buildSelect(name, label, options, attrs = {}) {
   const select = el('select', { name, ...attrs });
   for (const option of options) {
-    const value = String(option);
-    const node = el('option', { value }, value);
+    const value = String(optionValue(option));
+    const node = el('option', { value }, optionLabel(option));
     if (attrs.value != null && String(attrs.value) === value) node.selected = true;
     select.appendChild(node);
+  }
+  return buildFieldWrapper(label, select);
+}
+
+function buildGroupedSelect(name, label, groups, attrs = {}) {
+  const select = el('select', { name, ...attrs });
+  const hasValue = attrs.value != null && String(attrs.value) !== '';
+  const placeholder = el('option', { value: '' }, attrs.placeholder || 'Select');
+  placeholder.selected = !hasValue;
+  placeholder.disabled = Boolean(attrs.required);
+  select.appendChild(placeholder);
+  for (const group of groups || []) {
+    const optGroup = el('optgroup', { label: group.group || 'Options' });
+    for (const option of group.options || []) {
+      const value = String(optionValue(option));
+      const node = el('option', { value }, optionLabel(option));
+      if (attrs.value != null && String(attrs.value) === value) node.selected = true;
+      optGroup.appendChild(node);
+    }
+    select.appendChild(optGroup);
   }
   return buildFieldWrapper(label, select);
 }

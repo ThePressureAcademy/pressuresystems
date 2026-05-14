@@ -1,5 +1,12 @@
 'use strict';
 
+const {
+  credentialDisplayLabel,
+  credentialMatchesRequirement,
+  normalizeCredentialType,
+  normalizeCredentialTypes
+} = require('./intake-catalogues');
+
 const EXPIRY_WARNING_DAYS = 30;
 
 /**
@@ -25,25 +32,27 @@ function computeCredentialStatus(credentials, requiredTypes, today = new Date())
   const blocks = [];
   const warnings = [];
 
-  if (!requiredTypes || requiredTypes.length === 0) {
+  const normalizedRequiredTypes = normalizeCredentialTypes(requiredTypes);
+
+  if (!normalizedRequiredTypes || normalizedRequiredTypes.length === 0) {
     return { hardBlocked: false, blocks, warnings, credentialScore: 100 };
   }
 
-  // Index worker credentials by type
-  const byType = {};
-  for (const cred of credentials) {
-    if (!byType[cred.type]) byType[cred.type] = [];
-    byType[cred.type].push(cred);
-  }
+  const normalizedCredentials = (credentials || [])
+    .map((cred) => ({ ...cred, normalized_type: normalizeCredentialType(cred.type) }))
+    .filter((cred) => cred.normalized_type);
 
-  for (const reqType of requiredTypes) {
-    const workerCreds = byType[reqType] || [];
+  for (const reqType of normalizedRequiredTypes) {
+    const label = credentialDisplayLabel(reqType);
+    const workerCreds = normalizedCredentials.filter((cred) =>
+      credentialMatchesRequirement(cred.normalized_type, reqType)
+    );
 
     if (workerCreds.length === 0) {
       blocks.push({
         type: 'credential_missing',
         credential_type: reqType,
-        detail: `Missing required credential: ${reqType}`
+        detail: `Missing required credential: ${label}`
       });
       continue;
     }
@@ -61,7 +70,7 @@ function computeCredentialStatus(credentials, requiredTypes, today = new Date())
       blocks.push({
         type: 'credential_expired',
         credential_type: reqType,
-        detail: `Expired credential: ${reqType} (expired ${latest.expiry_date})`
+        detail: `Expired credential: ${label} (expired ${latest.expiry_date})`
       });
       continue;
     }
@@ -76,7 +85,7 @@ function computeCredentialStatus(credentials, requiredTypes, today = new Date())
       warnings.push({
         type: 'credential_expiring_soon',
         credential_type: reqType,
-        detail: `Credential expiring soon: ${reqType} (expires ${expiringSoon[0].expiry_date})`
+        detail: `Credential expiring soon: ${label} (expires ${expiringSoon[0].expiry_date})`
       });
     }
   }

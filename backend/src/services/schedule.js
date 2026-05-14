@@ -158,6 +158,7 @@ function serializeJob(row, displayTimeZone = null, db = null) {
     required_credentials: safeJsonParse(row.required_credentials, []),
     crew_roles_required: safeJsonParse(row.crew_roles_required, []),
     site_conditions: safeJsonParse(row.site_conditions, []),
+    crane_classes_required: safeJsonParse(row.crane_classes_required, row.crane_class_required ? [row.crane_class_required] : []),
     crane_planning: loadJobCranePlanning(db, row.id),
     schedule: buildSchedulePayload({
       scheduled_start_at_utc: row.scheduled_start_at_utc,

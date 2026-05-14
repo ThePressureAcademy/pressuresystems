@@ -110,9 +110,9 @@ describe('Job brief import for assisted job creation', () => {
     assert.deepEqual(res.body.extracted.required_roles, ['crane_operator', 'dogman', 'rigger']);
     assert.deepEqual(res.body.extracted.required_credentials, [
       'white_card',
-      'high_risk_licence_crane',
-      'high_risk_licence_dogging',
-      'high_risk_licence_rigging'
+      'hrwl_c2',
+      'hrwl_dg',
+      'hrwl_ri'
     ]);
     assert.ok(res.body.extracted.task_tags.includes('franna'));
     assert.ok(res.body.extracted.task_tags.includes('critical_lift'));

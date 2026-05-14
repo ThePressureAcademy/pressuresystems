@@ -1,5 +1,10 @@
 'use strict';
 
+const {
+  HRWL_CODES,
+  normalizeCredentialType
+} = require('./intake-catalogues');
+
 const CATALOGUE_SOURCE = 'research/liftiq-job-intake-catalogue-research.md';
 const CATALOGUE_CONFIDENCE = 'medium';
 const PLANT_REQUIREMENT_CATEGORIES = new Set(['equipment', 'transport']);
@@ -29,7 +34,7 @@ function item(category, groupLabel, code, label, key, description = null, source
   };
 }
 
-const HIGH_RISK_WORK = ['CO', 'C1', 'C6', 'RA', 'RB', 'RI', 'DG', 'WP', 'LF', 'SA', 'SI']
+const HIGH_RISK_WORK = HRWL_CODES
   .map((code) => item(
     'credential',
     'High Risk Work',
@@ -38,14 +43,57 @@ const HIGH_RISK_WORK = ['CO', 'C1', 'C6', 'RA', 'RB', 'RI', 'DG', 'WP', 'LF', 'S
     `credential_hrwl_${normalizeKeyPart(code)}`
   ));
 
-const VOCS = ['CO', 'C1', 'C6', 'RA', 'RI', 'DG', 'WP', 'LF', 'SA', 'SI']
+const VOCS = [
+  ...HRWL_CODES,
+  'Excavator',
+  'Front End Loader',
+  'Telehandler',
+  'Skid Steer',
+  'Grader',
+  'Roller',
+  'Driller',
+  'Piling Rig'
+]
   .map((code) => item(
     'voc',
     'Verification of Competency',
-    `VOC-${code}`,
-    `VOC-${code}`,
+    `VOC-${String(code).toUpperCase()}`,
+    `VOC ${code}`,
     `voc_${normalizeKeyPart(code)}`
   ));
+
+const TRADE_CERTIFICATES = [
+  ['CARPENTRY', 'Trade Certificate Carpentry', 'credential_trade_certificate_carpentry'],
+  ['ELECTRICAL', 'Trade Certificate Electrical', 'credential_trade_certificate_electrical'],
+  ['PLUMBING', 'Trade Certificate Plumbing', 'credential_trade_certificate_plumbing'],
+  ['PLASTERING', 'Trade Certificate Plastering', 'credential_trade_certificate_plastering'],
+  ['BOILER_MAKER', 'Trade Certificate Boiler Maker', 'credential_trade_certificate_boiler_maker'],
+  ['SHEET_METAL_WORKER', 'Trade Certificate Sheet Metal Worker', 'credential_trade_certificate_sheet_metal_worker']
+].map(([code, label, key]) => item('credential', 'Trade Certificates', code, label, key));
+
+const QUALIFICATIONS = [
+  item('credential', 'Qualifications', 'DIPLOMA', 'Diploma', 'credential_qualification_diploma')
+];
+
+const GENERAL_SITE_CREDENTIALS = [
+  item('credential', 'General Site', 'WAH', 'Working at Height', 'credential_working_at_height_wah'),
+  item('credential', 'General Site', 'CONFINED_SPACE', 'Confined Space', 'credential_confined_space'),
+  item('credential', 'General Site', 'BA', 'Operate Breathing Apparatus', 'credential_operate_breathing_apparatus'),
+  item('credential', 'General Site', 'HSR', 'Health and Safety Representative', 'credential_health_and_safety_representative'),
+  item('credential', 'General Site', 'FIRST_AID', 'First Aid', 'credential_first_aid')
+];
+
+const CIVIL_ACCESS = [
+  item('civil', 'Civil / Access', 'EXCAVATOR', 'Excavator', 'civil_excavator'),
+  item('civil', 'Civil / Access', 'FRONT_END_LOADER', 'Front End Loader', 'civil_front_end_loader'),
+  item('civil', 'Civil / Access', 'TELEHANDLER', 'Telehandler', 'civil_telehandler'),
+  item('civil', 'Civil / Access', 'SKID_STEER', 'Skid Steer', 'civil_skid_steer'),
+  item('civil', 'Civil / Access', 'GRADER', 'Grader', 'civil_grader'),
+  item('civil', 'Civil / Access', 'ROLLER', 'Roller', 'civil_roller'),
+  item('civil', 'Civil / Access', 'DRILLER', 'Driller', 'civil_driller'),
+  item('civil', 'Civil / Access', 'PILING_RIG', 'Piling Rig', 'civil_piling_rig'),
+  item('civil', 'Civil / Access', 'FORKLIFT', 'Forklift', 'civil_forklift')
+];
 
 const MOBILE_CRANES = [
   '13T City', '16T City', '20T City', '45T', '50T', '55T', '60T', '90T', '100T', '120T',
@@ -85,14 +133,14 @@ const ARTICULATED_CRANES = ARTICULATED_CRANE_CAPACITIES.map((code) => item(
 
 const CATALOGUE_ITEMS = [
   item('credential', 'General Site', 'WHITE_CARD', 'White Card', 'credential_white_card', 'General construction induction card.', 'high'),
+  ...TRADE_CERTIFICATES,
+  ...QUALIFICATIONS,
   ...HIGH_RISK_WORK,
-  item('credential', 'Working at Height', 'WAH', 'Working at Heights', 'credential_working_at_height_wah'),
+  ...GENERAL_SITE_CREDENTIALS,
   item('credential', 'Heavy Vehicle', 'MC', 'MC Heavy Vehicle Licence', 'credential_heavy_vehicle_mc'),
   item('credential', 'Heavy Vehicle', 'HC', 'HC Heavy Vehicle Licence', 'credential_heavy_vehicle_hc'),
   item('credential', 'Heavy Vehicle', 'HR', 'HR Heavy Vehicle Licence', 'credential_heavy_vehicle_hr'),
-  item('civil', 'Civil / Access', 'EXCAVATOR', 'Excavator', 'civil_excavator'),
-  item('civil', 'Civil / Access', 'FRONT_END_LOADER', 'Front End Loader', 'civil_front_end_loader'),
-  item('civil', 'Civil / Access', 'TELEHANDLER', 'Telehandler', 'civil_telehandler'),
+  ...CIVIL_ACCESS,
   item('energy', 'Energex', 'ELECTRICAL_SPOTTER', 'Electrical Spotter', 'energy_electrical_spotter'),
   item('rail', 'Rail Industry', 'RIW', 'RIW', 'rail_riw'),
   item('rail', 'Rail Industry', 'SARC', 'SARC', 'rail_sarc'),
@@ -142,27 +190,55 @@ const LABOUR_ONLY_DEFAULT_KEYS = new Set([
 
 const LEGACY_CREDENTIAL_BY_KEY = {
   credential_white_card: 'white_card',
-  credential_hrwl_co: 'high_risk_licence_crane',
-  credential_hrwl_c1: 'high_risk_licence_crane',
-  credential_hrwl_c6: 'high_risk_licence_crane',
-  credential_hrwl_dg: 'high_risk_licence_dogging',
-  credential_hrwl_ra: 'high_risk_licence_rigging',
-  credential_hrwl_rb: 'high_risk_licence_rigging',
-  credential_hrwl_ri: 'high_risk_licence_rigging',
-  credential_hrwl_sa: 'high_risk_licence_rigging',
-  credential_hrwl_si: 'high_risk_licence_rigging',
+  credential_working_at_height_wah: 'working_at_height',
+  credential_confined_space: 'confined_space',
+  credential_operate_breathing_apparatus: 'operate_breathing_apparatus',
+  credential_health_and_safety_representative: 'health_and_safety_representative',
+  credential_first_aid: 'first_aid',
+  credential_trade_certificate_carpentry: 'trade_certificate_carpentry',
+  credential_trade_certificate_electrical: 'trade_certificate_electrical',
+  credential_trade_certificate_plumbing: 'trade_certificate_plumbing',
+  credential_trade_certificate_plastering: 'trade_certificate_plastering',
+  credential_trade_certificate_boiler_maker: 'trade_certificate_boiler_maker',
+  credential_trade_certificate_sheet_metal_worker: 'trade_certificate_sheet_metal_worker',
+  credential_qualification_diploma: 'qualification_diploma',
   credential_heavy_vehicle_mc: 'drivers_licence',
   credential_heavy_vehicle_hc: 'drivers_licence',
   credential_heavy_vehicle_hr: 'drivers_licence',
-  voc_co: 'high_risk_licence_crane',
-  voc_c1: 'high_risk_licence_crane',
-  voc_c6: 'high_risk_licence_crane',
-  voc_dg: 'high_risk_licence_dogging',
-  voc_ra: 'high_risk_licence_rigging',
-  voc_ri: 'high_risk_licence_rigging',
-  voc_sa: 'high_risk_licence_rigging',
-  voc_si: 'high_risk_licence_rigging'
+  rail_riw: 'rail_riw',
+  rail_sarc: 'rail_sarc',
+  rail_wett: 'rail_wett',
+  energy_electrical_spotter: 'electrical_spotter',
+  civil_excavator: 'machinery_excavator',
+  civil_front_end_loader: 'machinery_front_end_loader',
+  civil_telehandler: 'machinery_telehandler',
+  civil_skid_steer: 'machinery_skid_steer',
+  civil_grader: 'machinery_grader',
+  civil_roller: 'machinery_roller',
+  civil_driller: 'machinery_driller',
+  civil_piling_rig: 'machinery_piling_rig',
+  civil_forklift: 'machinery_forklift'
 };
+
+for (const code of HRWL_CODES) {
+  const key = normalizeKeyPart(code);
+  LEGACY_CREDENTIAL_BY_KEY[`credential_hrwl_${key}`] = normalizeCredentialType(`hrwl_${key}`);
+}
+
+for (const code of [
+  ...HRWL_CODES,
+  'Excavator',
+  'Front End Loader',
+  'Telehandler',
+  'Skid Steer',
+  'Grader',
+  'Roller',
+  'Driller',
+  'Piling Rig'
+]) {
+  const key = normalizeKeyPart(code);
+  LEGACY_CREDENTIAL_BY_KEY[`voc_${key}`] = normalizeCredentialType(`voc_${key}`);
+}
 
 const FRANNA_CAPACITY_MAPPERS = ARTICULATED_CRANE_CAPACITIES.map((code) => {
   const tonnes = code.replace(/[^0-9]/g, '');
@@ -174,11 +250,16 @@ const FRANNA_CAPACITY_MAPPERS = ARTICULATED_CRANE_CAPACITIES.map((code) => {
 
 const TERM_MAPPERS = [
   { pattern: /\bwhite\s+card\b/i, key: 'credential_white_card' },
+  { pattern: /\b(?:hrwl[-\s]*)?c0\b|\bhrwl[-\s]*co\b/i, key: 'credential_hrwl_c0' },
+  { pattern: /\b(?:hrwl[-\s]*)?c1\b/i, key: 'credential_hrwl_c1' },
+  { pattern: /\b(?:hrwl[-\s]*)?c2\b/i, key: 'credential_hrwl_c2' },
   { pattern: /\b(?:hrwl[-\s]*)?c6\b/i, key: 'credential_hrwl_c6' },
   { pattern: /\b(?:hrwl[-\s]*)?dg\b|\bdogman\b|\bdogging\b/i, key: 'credential_hrwl_dg' },
   { pattern: /\b(?:hrwl[-\s]*)?rb\b/i, key: 'credential_hrwl_rb' },
   { pattern: /\b(?:hrwl[-\s]*)?ri\b|\brigger\b|\brigging\b/i, key: 'credential_hrwl_ri' },
   { pattern: /\bworking\s+at\s+heights?\b|\bwah\b/i, key: 'credential_working_at_height_wah' },
+  { pattern: /\bconfined\s+space\b/i, key: 'credential_confined_space' },
+  { pattern: /\bfirst\s+aid\b/i, key: 'credential_first_aid' },
   { pattern: /\briw\b/i, key: 'rail_riw' },
   { pattern: /\blow[\s-]*loader\b/i, key: 'transport_low_loader' },
   { pattern: /\bsemi[\s-]*trailer\b/i, key: 'transport_semi_trailer' },
@@ -619,7 +700,7 @@ function mapParsedTermsToCatalogue(db, companyId, text) {
 
 function structuredRequirementsToLegacyCredentials(requirements = []) {
   return Array.from(new Set((requirements || [])
-    .filter((row) => row.catalogue_item_id && ['credential', 'voc'].includes(row.category))
+    .filter((row) => row.catalogue_item_id && ['credential', 'voc', 'civil', 'rail', 'energy'].includes(row.category))
     .map((row) => LEGACY_CREDENTIAL_BY_KEY[row.normalized_key])
     .filter(Boolean)));
 }
@@ -648,7 +729,7 @@ function applyStructuredRequirementsToJob(db, companyId, job) {
   const legacyCredentials = structuredRequirementsToLegacyCredentials(requirements);
   const taskTags = structuredRequirementsToTaskTags(requirements);
   const unmappedCredentialItems = requirements.filter((row) =>
-    ['credential', 'voc', 'rail', 'energy'].includes(row.category)
+    ['credential', 'voc', 'rail', 'energy', 'civil'].includes(row.category)
     && row.catalogue_item_id
     && !LEGACY_CREDENTIAL_BY_KEY[row.normalized_key]
   );

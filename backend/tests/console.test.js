@@ -118,12 +118,22 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Select asset \/ plant number/);
     assert.match(res.text, /Edit job/);
     assert.match(res.text, /Save job changes/);
+    assert.match(res.text, /Crew roles/);
+    assert.match(res.text, /Required credentials and VOCs/);
+    assert.match(res.text, /Crane \/ equipment classes/);
+    assert.match(res.text, /Site conditions/);
+    assert.match(res.text, /Additional job requirements \/ notes/);
+    assert.match(res.text, /Additional travel required exceeding 100km/);
+    assert.match(res.text, /Default timezone/);
+    assert.match(res.text, /option-picker/);
+    assert.match(res.text, /formatDisplayLabel/);
     assert.match(res.text, /Worker update did not return the saved worker/);
     assert.match(res.text, /Job update did not return the saved job/);
     assert.match(res.text, /Add one-off requirement/);
     assert.match(res.text, /Review required/);
     assert.match(res.text, /Counterweight transport may be required/);
     assert.match(res.text, /NHVR \/ state notice or permit check may be required/);
+    assert.equal(/Task tags:|tower_crane|night_shift/i.test(res.text), false);
     assert.equal(/\bapproved\b|compliant|legal to travel|safe to dispatch|engineered lift confirmed/i.test(res.text), false);
   });
 
