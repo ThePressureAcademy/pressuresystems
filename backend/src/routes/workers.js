@@ -311,6 +311,16 @@ router.post('/', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => 
     notes || null
   );
 
+  appendAuditEvent(db, {
+    companyId: req.user.company_id,
+    eventType: 'worker_created',
+    userId: req.user.id,
+    workerId: id,
+    payload: {
+      source: 'manual'
+    }
+  });
+
   res.status(201).json(parseWorker(db.prepare(`SELECT * FROM workers WHERE id = ?`).get(id)));
 });
 

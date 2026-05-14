@@ -830,6 +830,23 @@ ul.tag-list li {
   width: fit-content;
 }
 
+.internal-monitor-hero {
+  border-color: rgba(226, 113, 42, 0.28);
+}
+
+.pilot-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 113, 42, 0.35);
+  color: var(--text);
+  background: rgba(226, 113, 42, 0.12);
+  font-weight: 700;
+}
+
 .schedule-controls {
   margin-bottom: 16px;
 }

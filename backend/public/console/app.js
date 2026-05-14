@@ -63,6 +63,11 @@ const fmtDateOnly = (value) => {
 };
 
 const shortId = (value) => value ? String(value).slice(0, 8) : '-';
+const formatDisplayLabel = (value) => String(value || '')
+  .replace(/_/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .replace(/\b\w/g, (char) => char.toUpperCase());
 const splitCsv = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 const splitPipe = (value) => String(value || '').split('|').map((item) => item.trim()).filter(Boolean);
 const splitLocalDateTime = (value) => {
@@ -404,6 +409,25 @@ function isAdminUser() {
   return state.user?.role === 'admin';
 }
 
+function isInternalAdmin() {
+  return state.user?.is_internal_admin === true;
+}
+
+function syncInternalNav() {
+  const nav = document.getElementById('nav');
+  if (!nav) return;
+  const existing = nav.querySelector('[data-route="internal-pilot-monitor"]');
+  if (!isInternalAdmin()) {
+    if (existing) existing.remove();
+    return;
+  }
+  if (existing) return;
+  nav.appendChild(el('a', {
+    href: '#/internal-pilot-monitor',
+    'data-route': 'internal-pilot-monitor'
+  }, 'Internal Pilot Monitor'));
+}
+
 function formatPilotType(value) {
   const labels = {
     internal: 'internal',
@@ -455,6 +479,7 @@ function showLogin(message = '') {
   document.getElementById('password-change-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.add('hidden');
   document.getElementById('login-error').textContent = '';
+  syncInternalNav();
   setLoginNote(message);
 }
 
@@ -477,6 +502,7 @@ function showAccessBlocked(company = state.user?.company, message = '') {
   document.getElementById('password-change-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
   document.getElementById('user-label').textContent = formatCompanyLabel();
+  syncInternalNav();
   document.querySelectorAll('#nav a').forEach((link) => link.classList.remove('active'));
   const view = document.getElementById('view');
   const companyName = company?.display_name || company?.name || 'This company';
@@ -501,6 +527,7 @@ function showApp() {
   document.getElementById('password-change-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
   document.getElementById('user-label').textContent = formatCompanyLabel();
+  syncInternalNav();
   if (isCompanyAccessBlocked()) {
     showAccessBlocked();
     return;
@@ -637,6 +664,10 @@ function router() {
     },
     audit: () => renderAudit(renderCycle),
     metrics: () => renderMetrics(renderCycle),
+    'internal-pilot-monitor': () => {
+      if (!isInternalAdmin()) return renderDashboard(renderCycle);
+      return renderInternalPilotMonitor(renderCycle);
+    },
     'new-job': () => renderNewJob(renderCycle),
     'new-worker': renderNewWorker,
   };
@@ -3830,6 +3861,101 @@ function auditEventsTable(events) {
   }
   table.appendChild(body);
   return table;
+}
+
+function internalMonitorSummary(companies = []) {
+  return {
+    activePilots: companies.filter((company) => company.access_status === 'active').length,
+    notActivated: companies.filter((company) => company.adoption_stage === 'not activated').length,
+    activeThisWeek: companies.filter((company) => Number(company.active_days || 0) > 0).length,
+    strongAdoption: companies.filter((company) => company.adoption_stage === 'strong adoption signal').length,
+    needsFollowUp: companies.filter((company) =>
+      ['not activated', 'activated but shallow'].includes(company.adoption_stage)
+      || Number(company.days_remaining ?? 99) <= 3
+      || company.access_status === 'expired'
+    ).length
+  };
+}
+
+function renderPilotActivityTable(companies = []) {
+  if (!companies.length) {
+    return el('div', { class: 'empty' }, 'No pilot companies match the current monitor filter.');
+  }
+
+  const table = el('table');
+  table.appendChild(el('thead', {},
+    el('tr', {},
+      ['Company', 'Pilot type', 'Days left', 'Last login', 'Last activity', 'Active days', 'Workers', 'Jobs', 'SmartRank', 'Imports', 'Edits', 'Resets', 'Score', 'Stage', 'Follow-up']
+        .map((heading) => el('th', {}, heading))
+    )
+  ));
+  const tbody = el('tbody');
+  for (const company of companies) {
+    const imports = Number(company.worker_import_count || 0) + Number(company.job_brief_import_count || 0);
+    tbody.appendChild(el('tr', {},
+      el('td', {},
+        el('strong', {}, company.company_name || 'Company'),
+        el('div', { class: 'small muted' }, company.company_slug || company.company_id)
+      ),
+      el('td', {}, formatDisplayLabel(company.pilot_type)),
+      el('td', {}, company.days_remaining == null ? '-' : String(company.days_remaining)),
+      el('td', {}, fmtDate(company.last_login_at)),
+      el('td', {},
+        fmtDate(company.last_activity_at),
+        el('div', { class: 'small muted' }, company.last_activity_type ? formatDisplayLabel(company.last_activity_type) : 'No activity')
+      ),
+      el('td', {}, String(company.active_days || 0)),
+      el('td', {}, String(company.workers_count || 0)),
+      el('td', {}, String(company.jobs_count || 0)),
+      el('td', {}, String(company.smartrank_run_count || 0)),
+      el('td', {}, String(imports)),
+      el('td', {}, String(company.edit_count || 0)),
+      el('td', {}, String(company.reset_count || 0)),
+      el('td', {}, el('span', { class: 'pilot-score' }, `${company.engagement_score || 0}/100`)),
+      el('td', {}, formatDisplayLabel(company.adoption_stage)),
+      el('td', {}, company.follow_up || '-')
+    ));
+  }
+  table.appendChild(tbody);
+  return table;
+}
+
+async function renderInternalPilotMonitor(renderCycle) {
+  const view = document.getElementById('view');
+  view.innerHTML = '';
+  view.appendChild(el('div', { class: 'toolbar' },
+    el('h2', {}, 'Internal Pilot Monitor'),
+    el('p', { class: 'muted' }, 'Founder-only usage signals. Aggregates activity without exposing job, worker, client, site, contact, or note details.')
+  ));
+
+  const monitor = await api('GET', '/internal/pilot-activity?status=all&days=14');
+  if (isStaleRender(renderCycle)) return;
+
+  const companies = monitor.companies || [];
+  const summary = internalMonitorSummary(companies);
+  view.appendChild(el('div', { class: 'panel internal-monitor-hero' },
+    el('div', { class: 'small muted' }, `Generated ${fmtDate(monitor.generated_at)} | ${monitor.window_days} day window`),
+    el('div', { class: 'metrics-grid', style: 'margin-top:14px;' },
+      metricTile('Active pilots', summary.activePilots),
+      metricTile('Not activated', summary.notActivated),
+      metricTile('Active this week', summary.activeThisWeek),
+      metricTile('Strong adoption signals', summary.strongAdoption),
+      metricTile('Needs follow-up', summary.needsFollowUp)
+    )
+  ));
+
+  view.appendChild(el('div', { class: 'panel' },
+    el('h3', {}, 'Pilot activity'),
+    el('p', { class: 'small muted' },
+      'This table intentionally shows counts, dates, event categories, engagement stage, and follow-up prompts only. It does not expose operational payloads or customer job content.'
+    ),
+    renderPilotActivityTable(companies)
+  ));
+
+  view.appendChild(el('div', { class: 'panel small muted' },
+    el('strong', {}, 'Privacy boundary: '),
+    'worker names, emails, phone numbers, job descriptions, client names, site addresses, contact details, uploaded brief text, private notes, and raw audit payloads are deliberately excluded.'
+  ));
 }
 
 async function renderMetrics(renderCycle) {
