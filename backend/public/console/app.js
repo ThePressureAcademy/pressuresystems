@@ -36,6 +36,11 @@ const CREDENTIAL_OPTIONS = [
   'other'
 ];
 
+const DISPATCHTALON_ASSETS = {
+  mark: './assets/dispatchtalon/dispatchtalon-mark-transparent.png',
+  watermark: './assets/dispatchtalon/dispatchtalon-mark-watermark.png'
+};
+
 const el = (tag, attrs = {}, ...children) => {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs || {})) {
@@ -51,6 +56,47 @@ const el = (tag, attrs = {}, ...children) => {
   }
   return node;
 };
+
+function brandMark(className = 'dt-brand-mark', alt = '') {
+  const attrs = { class: className, src: DISPATCHTALON_ASSETS.mark, alt };
+  if (!alt) attrs['aria-hidden'] = 'true';
+  return el('img', attrs);
+}
+
+function brandChip(title, body = '') {
+  return el('div', { class: 'dt-brand-chip' },
+    brandMark('dt-brand-chip-mark'),
+    el('div', {},
+      el('strong', {}, title),
+      body ? el('span', { class: 'small muted' }, body) : null
+    )
+  );
+}
+
+function brandedEmptyState(title, body, options = {}) {
+  const actions = options.actions || [];
+  const className = options.inline
+    ? 'empty dt-empty-state dt-empty-state-inline'
+    : 'panel dt-empty-state';
+  return el('div', { class: className },
+    el('div', { class: 'dt-empty-mark-wrap' }, brandMark('dt-empty-mark')),
+    el('div', { class: 'dt-empty-copy' },
+      el('strong', {}, title),
+      body ? el('p', { class: 'small muted' }, body) : null,
+      actions.length ? el('div', { class: 'button-row dt-empty-actions' }, ...actions) : null
+    )
+  );
+}
+
+function brandedLoadingState() {
+  return el('div', { class: 'panel dt-empty-state dt-loading-state' },
+    el('div', { class: 'dt-empty-mark-wrap' }, brandMark('dt-empty-mark')),
+    el('div', { class: 'dt-empty-copy' },
+      el('strong', {}, 'Loading DispatchTalon'),
+      el('p', { class: 'small muted' }, 'Opening the current workspace state.')
+    )
+  );
+}
 
 const fmtDate = (value) => {
   if (!value) return '-';
@@ -480,7 +526,9 @@ function showAccessBlocked(company = state.user?.company, message = '') {
     ? 'This pilot portal is suspended. Contact Pressure Systems to restore access.'
     : 'This test portal has expired. Contact Pressure Systems to extend access.';
   view.innerHTML = '';
-  view.appendChild(el('div', { class: 'panel access-blocked' },
+  view.appendChild(el('div', { class: 'panel access-blocked dt-branded-panel' },
+    el('img', { class: 'dt-watermark', src: DISPATCHTALON_ASSETS.watermark, alt: '', 'aria-hidden': 'true' }),
+    brandChip('DispatchTalon access', 'Company workspace control'),
     el('h2', {}, status === 'suspended' ? 'Pilot access suspended' : 'Test portal expired'),
     el('p', {}, `${companyName}: ${message || defaultMessage}`),
     el('p', { class: 'muted' }, 'Company data remains isolated. Access must be restored before operational console views are available.'),
@@ -614,7 +662,8 @@ function router() {
   });
 
   const view = document.getElementById('view');
-  view.innerHTML = '<div class="empty">Loading...</div>';
+  view.innerHTML = '';
+  view.appendChild(brandedLoadingState());
 
   const routes = {
     dashboard: () => renderDashboard(renderCycle),
@@ -641,7 +690,9 @@ function router() {
   Promise.resolve(handler()).catch((err) => {
     if (isStaleRender(renderCycle)) return;
     view.innerHTML = '';
-    view.appendChild(el('div', { class: 'panel' },
+    view.appendChild(el('div', { class: 'panel dt-branded-panel' },
+      el('img', { class: 'dt-watermark', src: DISPATCHTALON_ASSETS.watermark, alt: '', 'aria-hidden': 'true' }),
+      brandChip('DispatchTalon console', 'Route recovery'),
       el('h2', {}, 'Something went wrong'),
       el('p', { class: 'error' }, err.error || String(err))
     ));
@@ -652,6 +703,27 @@ function metricTile(label, value) {
   return el('div', { class: 'metric-tile' },
     el('div', { class: 'label' }, label),
     el('div', { class: 'value' }, String(value))
+  );
+}
+
+function renderDashboardHero(setupState = {}) {
+  const counts = setupState.counts || {};
+  const modeLabel = (setupState.operating_mode || operatingMode()) === 'labour_only' ? 'Labour only' : 'Plant + labour';
+  return el('div', { class: 'panel dt-dashboard-hero dt-branded-panel' },
+    el('img', { class: 'dt-watermark', src: DISPATCHTALON_ASSETS.watermark, alt: '', 'aria-hidden': 'true' }),
+    el('div', { class: 'dt-dashboard-copy' },
+      brandChip('DispatchTalon workspace', 'by Pressure Systems'),
+      el('h3', {}, 'Structure the allocation before dispatch.'),
+      el('p', { class: 'small muted' },
+        'Workers, requirements, schedules, plant numbers, SmartRank recommendations, and audit events stay tied to one controlled dispatch workflow.'
+      )
+    ),
+    el('div', { class: 'dt-dashboard-status' },
+      el('span', { class: 'pill pill-info' }, modeLabel),
+      el('span', { class: 'pill' }, `${counts.workers || 0} worker(s)`),
+      el('span', { class: 'pill' }, `${counts.jobs || 0} job(s)`),
+      el('span', { class: 'pill' }, `${counts.assets || 0} asset(s)`)
+    )
   );
 }
 
@@ -931,7 +1003,8 @@ function renderBuildMyBusinessPanel(setupState = {}) {
   const counts = setupState.counts || {};
   const mode = setupState.operating_mode || operatingMode();
   const isPlantAndLabour = mode === 'plant_and_labour';
-  const panel = el('div', { class: 'panel build-business-panel' });
+  const panel = el('div', { class: 'panel build-business-panel dt-branded-panel' });
+  panel.appendChild(el('img', { class: 'dt-watermark', src: DISPATCHTALON_ASSETS.watermark, alt: '', 'aria-hidden': 'true' }));
   const steps = [
     {
       title: '1. Choose operating mode',
@@ -977,9 +1050,10 @@ function renderBuildMyBusinessPanel(setupState = {}) {
 
   panel.appendChild(el('div', { class: 'toolbar' },
     el('div', {},
+      brandChip('DispatchTalon setup', 'Build My Business'),
       el('h3', {}, 'Build My Business'),
       el('p', { class: 'small muted' },
-        'Start clean: choose your mode, save the requirements your company uses, then add workers, assets where applicable, and jobs.'
+        'Build your DispatchTalon workspace around how your business actually allocates labour, plant, and jobs.'
       )
     ),
     setupState.is_first_run
@@ -1022,6 +1096,7 @@ async function renderDashboard(renderCycle) {
   ));
 
   view.appendChild(buildSecurityPanel());
+  view.appendChild(renderDashboardHero(setupState));
   if (setupState.is_first_run || !setupState.catalogue_configured || (setupState.counts?.workers || 0) === 0 || (setupState.counts?.jobs || 0) === 0) {
     view.appendChild(renderBuildMyBusinessPanel(setupState));
   }
@@ -1144,7 +1219,10 @@ async function renderOurBusiness(renderCycle) {
           : 'Choose the credentials, equipment, transport, civil/access, rail, energy, and VOC requirements your company actually uses.'
       )
     ),
-    el('span', { class: 'pill pill-info' }, `${visibleCatalogue.enabled_count || 0} visible enabled`)
+    el('div', { class: 'dt-toolbar-meta' },
+      brandChip('Build My Business', 'Company setup'),
+      el('span', { class: 'pill pill-info' }, `${visibleCatalogue.enabled_count || 0} visible enabled`)
+    )
   ));
   view.appendChild(renderOperatingModePanel(profile));
 
@@ -1204,7 +1282,9 @@ async function renderOurBusiness(renderCycle) {
   if (mode === 'plant_and_labour') {
     view.appendChild(renderAssetRegister(catalogue, assetsPayload));
   } else {
-    view.appendChild(el('div', { class: 'panel' },
+    view.appendChild(el('div', { class: 'panel dt-branded-panel' },
+      el('img', { class: 'dt-watermark', src: DISPATCHTALON_ASSETS.watermark, alt: '', 'aria-hidden': 'true' }),
+      brandChip('Labour-only workspace', 'Plant register hidden'),
       el('h3', {}, 'Plant and asset register hidden'),
       el('p', { class: 'small muted' },
         'This company is configured as labour-only. Switch to Plant + labour above to manage equipment classes, transport items, and actual plant assets.'
@@ -1214,7 +1294,8 @@ async function renderOurBusiness(renderCycle) {
 }
 
 function renderAssetRegister(catalogue, assetsPayload = {}) {
-  const panel = el('div', { class: 'panel asset-register' });
+  const panel = el('div', { class: 'panel asset-register dt-branded-panel' });
+  panel.appendChild(el('img', { class: 'dt-watermark', src: DISPATCHTALON_ASSETS.watermark, alt: '', 'aria-hidden': 'true' }));
   const assets = assetsPayload.assets || [];
   const assetsByItem = assetsGroupedByCatalogueItem(assets);
   const enabledAssetItems = assetItemsFromCatalogue(catalogue);
@@ -1234,6 +1315,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
 
   panel.appendChild(el('div', { class: 'toolbar' },
     el('div', {},
+      brandChip('DispatchTalon assets', 'Plant numbers by class'),
       el('h3', {}, 'Asset Register'),
       el('div', { class: 'small muted' },
         'Register actual machines by asset number / plant number under enabled equipment and transport classes. Assets are not created automatically.'
@@ -1243,8 +1325,10 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
   ));
 
   if (registerItems.size === 0) {
-    panel.appendChild(el('div', { class: 'empty' },
-      'Select equipment or transport classes before adding plant numbers.'
+    panel.appendChild(brandedEmptyState(
+      'No asset classes enabled',
+      'Select equipment or transport classes before adding plant numbers.',
+      { inline: true }
     ));
     return panel;
   }
@@ -1522,6 +1606,19 @@ async function renderSchedule(renderCycle) {
     'Scheduled jobs are grouped by local dispatch time. Planned and confirmed allocations surface assigned workers here; double-booking is blocked or warned in SmartRank based on overlap severity.'
   ));
 
+  if ((data.jobs || []).length === 0) {
+    view.appendChild(brandedEmptyState(
+      'No scheduled jobs yet',
+      'Dispatch calendar entries appear once jobs have schedule details and allocations.',
+      {
+        actions: [
+          el('a', { href: '#/jobs/import-brief' }, el('button', {}, 'Import job brief')),
+          el('a', { href: '#/new-job' }, el('button', { class: 'secondary' }, '+ New job'))
+        ]
+      }
+    ));
+  }
+
   for (let offset = 0; offset < 7; offset += 1) {
     const day = addDaysIso(data.range.start_date, offset);
     const jobsForDay = data.jobs.filter((job) => job.schedule?.display_start_local?.startsWith(day));
@@ -1532,7 +1629,7 @@ async function renderSchedule(renderCycle) {
     ));
 
     if (jobsForDay.length === 0) {
-      panel.appendChild(el('div', { class: 'empty' }, 'No scheduled jobs'));
+      panel.appendChild(el('div', { class: 'empty' }, 'No scheduled jobs for this day.'));
     } else {
       const list = el('div', { class: 'schedule-list' });
       for (const job of jobsForDay) {
@@ -1601,7 +1698,16 @@ async function renderWorkersList(renderCycle) {
   ));
 
   if (workers.length === 0) {
-    view.appendChild(el('div', { class: 'panel empty' }, 'No workers added yet. Import a spreadsheet or add your first worker.'));
+    view.appendChild(brandedEmptyState(
+      'No workers added yet',
+      'Import a spreadsheet or add the first worker before running allocation recommendations.',
+      {
+        actions: [
+          el('a', { href: '#/workers/import' }, el('button', {}, 'Import workers')),
+          el('a', { href: '#/new-worker' }, el('button', { class: 'secondary' }, '+ New worker'))
+        ]
+      }
+    ));
     return;
   }
 
@@ -2662,7 +2768,16 @@ async function renderJobsList(renderCycle) {
   ));
 
   if (jobs.length === 0) {
-    view.appendChild(el('div', { class: 'panel empty' }, 'No jobs created yet. Import a job brief or create a job manually.'));
+    view.appendChild(brandedEmptyState(
+      'No jobs created yet',
+      'Create or import the first real job to start structuring requirements, scheduling, SmartRank, and audit.',
+      {
+        actions: [
+          el('a', { href: '#/jobs/import-brief' }, el('button', {}, 'Import job brief')),
+          el('a', { href: '#/new-job' }, el('button', { class: 'secondary' }, '+ New job'))
+        ]
+      }
+    ));
     return;
   }
 
@@ -3407,7 +3522,13 @@ function auditEventPill(eventType) {
 }
 
 function auditEventsTable(events) {
-  if (!events || events.length === 0) return el('div', { class: 'empty' }, 'No audit events.');
+  if (!events || events.length === 0) {
+    return brandedEmptyState(
+      'No audit events yet',
+      'The audit trail appears after setup, imports, jobs, allocations, or account actions occur.',
+      { inline: true }
+    );
+  }
 
   const table = el('table');
   table.appendChild(el('thead', {}, el('tr', {},
@@ -3496,8 +3617,9 @@ async function renderMetrics(renderCycle) {
   ));
 
   if (metricsEmpty) {
-    view.appendChild(el('div', { class: 'panel empty' },
-      'Metrics will appear after workers, jobs, allocations, and audit events are created.'
+    view.appendChild(brandedEmptyState(
+      'Metrics will appear once the workflow starts',
+      'Workers, jobs, allocations, and audit events create the operational signal for this page.'
     ));
   }
 

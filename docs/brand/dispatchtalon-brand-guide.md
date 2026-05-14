@@ -41,6 +41,16 @@ Manifest:
 
 - `assets/logos/dispatchtalon/dispatchtalon-brand-manifest.json`
 
+Portal-local runtime copies:
+
+- `backend/public/console/assets/dispatchtalon/dispatchtalon-logo-lockup.png`
+- `backend/public/console/assets/dispatchtalon/dispatchtalon-logo-lockup-small.png`
+- `backend/public/console/assets/dispatchtalon/dispatchtalon-mark-transparent.png`
+- `backend/public/console/assets/dispatchtalon/dispatchtalon-mark-watermark.png`
+- `backend/public/console/assets/dispatchtalon/dispatchtalon-app-icon.png`
+- `backend/public/console/assets/dispatchtalon/dispatchtalon-favicon-32.png`
+- `backend/public/console/assets/dispatchtalon/dispatchtalon-favicon-192.png`
+
 ## Colour Palette
 
 | Colour | Hex | Use |
@@ -94,6 +104,8 @@ The current approved source is a raster board. This pass exports locked-board PN
 ## Background Status
 
 The exported PNGs preserve the locked board appearance on a dark charcoal background. Transparent-background assets should be produced later from true vector artwork or designer-approved separated source files to avoid rough edge extraction.
+
+The portal uses a raster-derived transparent mark and low-opacity watermark only for small UI reinforcement. These are runtime assets, not replacement brand masters.
 
 ## Transition Note
 

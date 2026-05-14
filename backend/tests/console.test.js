@@ -40,8 +40,19 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /id="app-shell"/);
     assert.match(res.text, /\.\/app\.js/);
     assert.match(res.text, /\.\/styles\.css/);
-    assert.match(res.text, /Pilot portal access is invite-only/i);
-    assert.equal(/seed password|seeded admin|compromised|admin@example\.com|changeme123|bootstrap/i.test(res.text), false);
+    assert.match(res.text, /DispatchTalon portal access is invite-only/i);
+    assert.match(res.text, /assets\/dispatchtalon\/dispatchtalon-logo-lockup\.png/);
+    assert.match(res.text, /assets\/dispatchtalon\/dispatchtalon-logo-lockup-small\.png/);
+    assert.match(res.text, /assets\/dispatchtalon\/dispatchtalon-favicon-32\.png/);
+    const forbiddenLoginCopy = new RegExp([
+      'seed\\s+password',
+      'seeded\\s+admin',
+      'compromis(?:ed|e)',
+      'admin@' + 'example\\.com',
+      'change\\s*me\\s*123',
+      'bootstrap'
+    ].join('|'), 'i');
+    assert.equal(forbiddenLoginCopy.test(res.text), false);
     assert.match(res.text, /href="#\/workers\/import"/);
     assert.match(res.text, />Import workers</);
     assert.match(res.text, /href="#\/schedule"/);
@@ -105,10 +116,15 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /No plant numbers added yet/);
     assert.match(res.text, /Select equipment or transport classes before adding plant numbers\./);
     assert.match(res.text, /Build My Business/);
+    assert.match(res.text, /DispatchTalon workspace/);
+    assert.match(res.text, /DispatchTalon setup/);
+    assert.match(res.text, /dt-brand-chip/);
     assert.match(res.text, /No company requirements selected yet/);
-    assert.match(res.text, /No workers added yet\. Import a spreadsheet or add your first worker\./);
-    assert.match(res.text, /No jobs created yet\. Import a job brief or create a job manually\./);
-    assert.match(res.text, /Metrics will appear after workers, jobs, allocations, and audit events are created\./);
+    assert.match(res.text, /No workers added yet/);
+    assert.match(res.text, /Import a spreadsheet or add the first worker/);
+    assert.match(res.text, /No jobs created yet/);
+    assert.match(res.text, /Create or import the first real job/);
+    assert.match(res.text, /Metrics will appear once the workflow starts/);
     assert.match(res.text, /Collapse reminder/);
     assert.match(res.text, /liftiq\.passwordReminderDismissed/);
     assert.match(res.text, /refreshAuthenticatedUser/);
@@ -118,7 +134,14 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Review required/);
     assert.match(res.text, /Counterweight transport may be required/);
     assert.match(res.text, /NHVR \/ state notice or permit check may be required/);
-    assert.equal(/\bapproved\b|compliant|legal to travel|safe to dispatch|engineered lift confirmed/i.test(res.text), false);
+    const overclaimPattern = new RegExp([
+      '\\bapproved\\b',
+      'compliant',
+      'legal\\s+to\\s+travel',
+      'safe\\s+to\\s+dispatch',
+      'engineered\\s+lift\\s+confirmed'
+    ].join('|'), 'i');
+    assert.equal(overclaimPattern.test(res.text), false);
   });
 
   test('GET /samples exposes the employee onboarding sample files', async () => {
