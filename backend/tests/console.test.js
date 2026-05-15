@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const supertest = require('supertest');
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('node:child_process');
 
 const { createTestDb, seedCompanyAndUser } = require('./helpers/db');
 const { setDb } = require('../src/db');
@@ -140,6 +141,14 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /NHVR \/ state notice or permit check may be required/);
     assert.equal(/Task tags:|tower_crane|night_shift/i.test(res.text), false);
     assert.equal(/\bapproved\b|compliant|legal to travel|safe to dispatch|engineered lift confirmed/i.test(res.text), false);
+  });
+
+  test('console app bundle parses as JavaScript', () => {
+    const appPath = path.join(__dirname, '../public/console/app.js');
+    const result = spawnSync(process.execPath, ['--check', appPath], {
+      encoding: 'utf8'
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
   });
 
   test('GET /samples exposes the employee onboarding sample files', async () => {

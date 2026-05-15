@@ -111,11 +111,6 @@ const fmtDateOnly = (value) => {
 };
 
 const shortId = (value) => value ? String(value).slice(0, 8) : '-';
-const formatDisplayLabel = (value) => String(value || '')
-  .replace(/_/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim()
-  .replace(/\b\w/g, (char) => char.toUpperCase());
 const splitCsv = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 const splitPipe = (value) => String(value || '').split('|').map((item) => item.trim()).filter(Boolean);
 function keyify(value) {
