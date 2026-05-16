@@ -310,6 +310,16 @@ let companySetupStateCache = null;
 let intakeOptionsCache = null;
 
 const LABOUR_ONLY_CATALOGUE_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
+const REQUIREMENT_GROUP_ORDER = [
+  'High Risk Work',
+  'VOC',
+  'Working at Height',
+  'Safety / Site',
+  'Heavy Vehicle',
+  'Rail',
+  'Energy / Electrical',
+  'Civil / Plant'
+];
 
 async function loadCraneModels() {
   if (craneModelsCache) return craneModelsCache;
@@ -875,7 +885,13 @@ function flattenCatalogueGroups(grouped = {}) {
       groups.push({ category, groupLabel, items });
     }
   }
-  return groups;
+  return groups.sort((a, b) => {
+    const aIndex = REQUIREMENT_GROUP_ORDER.indexOf(a.groupLabel);
+    const bIndex = REQUIREMENT_GROUP_ORDER.indexOf(b.groupLabel);
+    const aOrder = aIndex === -1 ? REQUIREMENT_GROUP_ORDER.length : aIndex;
+    const bOrder = bIndex === -1 ? REQUIREMENT_GROUP_ORDER.length : bIndex;
+    return aOrder - bOrder || a.groupLabel.localeCompare(b.groupLabel) || a.category.localeCompare(b.category);
+  });
 }
 
 function groupCatalogueItems(items = []) {

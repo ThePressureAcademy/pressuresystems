@@ -117,6 +117,9 @@ describe('Job intake requirement catalogue', () => {
     assert.ok(keys.includes('credential_hrwl_dg'));
     assert.ok(keys.includes('credential_hrwl_rb'));
     assert.ok(keys.includes('credential_white_card'));
+    assert.ok(keys.includes('credential_working_at_height_wah'));
+    assert.ok(keys.includes('credential_site_induction'));
+    assert.ok(keys.includes('credential_client_induction'));
     assert.ok(keys.includes('equipment_mobile_crane_100t'));
     assert.ok(keys.includes('equipment_crawler_crane_1650t'));
     assert.ok(keys.includes('equipment_articulated_crane_40t'));
@@ -133,6 +136,49 @@ describe('Job intake requirement catalogue', () => {
       WHERE normalized_key = 'equipment_franna_pick_and_carry'
     `).get();
     assert.equal(Boolean(legacyFranna?.is_active), false);
+  });
+
+  test('credential catalogue classifies HRWL and non-HRW credentials into one clean group taxonomy', async () => {
+    const res = await request.get('/api/catalogue/requirements').set(auth());
+    assert.equal(res.status, 200);
+
+    const credentialGroups = res.body.grouped.credential || {};
+    assert.deepEqual(Object.keys(credentialGroups).filter((group) => group === 'High Risk Work'), ['High Risk Work']);
+    assert.ok((credentialGroups['High Risk Work'] || []).length > 0);
+    assert.ok((credentialGroups['High Risk Work'] || []).every((item) => item.normalized_key.startsWith('credential_hrwl_')));
+
+    const nonHrwExpectations = [
+      ['credential_working_at_height_wah', 'Working at Height'],
+      ['credential_first_aid', 'Safety / Site'],
+      ['credential_white_card', 'Safety / Site'],
+      ['credential_site_induction', 'Safety / Site'],
+      ['credential_client_induction', 'Safety / Site'],
+      ['credential_heavy_vehicle_mc', 'Heavy Vehicle'],
+      ['credential_heavy_vehicle_hc', 'Heavy Vehicle'],
+      ['credential_heavy_vehicle_hr', 'Heavy Vehicle']
+    ];
+
+    for (const [key, groupLabel] of nonHrwExpectations) {
+      const catalogueItem = res.body.items.find((item) => item.normalized_key === key);
+      assert.ok(catalogueItem, `missing ${key}`);
+      assert.equal(catalogueItem.group_label, groupLabel);
+      assert.notEqual(catalogueItem.group_label, 'High Risk Work');
+    }
+
+    for (const [key, groupLabel] of [
+      ['rail_riw', 'Rail'],
+      ['rail_sarc', 'Rail'],
+      ['rail_wett', 'Rail'],
+      ['energy_electrical_spotter', 'Energy / Electrical'],
+      ['civil_excavator', 'Civil / Plant'],
+      ['civil_front_end_loader', 'Civil / Plant'],
+      ['civil_telehandler', 'Civil / Plant'],
+      ['voc_c6', 'VOC']
+    ]) {
+      const catalogueItem = res.body.items.find((item) => item.normalized_key === key);
+      assert.ok(catalogueItem, `missing ${key}`);
+      assert.equal(catalogueItem.group_label, groupLabel);
+    }
   });
 
   test('company setup enables selected items and stays tenant scoped', async () => {
@@ -570,7 +616,16 @@ describe('Job intake requirement catalogue', () => {
         'Requirements:',
         'White Card',
         'C6',
-        'RIW'
+        'VOC-C6',
+        'Working at Heights',
+        'RIW',
+        'SARC',
+        'WETT',
+        'MC',
+        'HC',
+        'HR',
+        'Electrical Spotter',
+        'Front End Loader'
       ].join('\n')
     });
     assert.equal(preview.status, 200);
@@ -581,8 +636,17 @@ describe('Job intake requirement catalogue', () => {
     assert.ok(selected.includes('equipment_mobile_crane_100t'));
     assert.ok(selected.includes('transport_low_loader'));
     assert.ok(selected.includes('civil_telehandler'));
+    assert.ok(suggested.includes('voc_c6'));
+    assert.ok(suggested.includes('credential_working_at_height_wah'));
     assert.ok(suggested.includes('credential_white_card'));
     assert.ok(suggested.includes('rail_riw'));
+    assert.ok(suggested.includes('rail_sarc'));
+    assert.ok(suggested.includes('rail_wett'));
+    assert.ok(suggested.includes('credential_heavy_vehicle_mc'));
+    assert.ok(suggested.includes('credential_heavy_vehicle_hc'));
+    assert.ok(suggested.includes('credential_heavy_vehicle_hr'));
+    assert.ok(suggested.includes('energy_electrical_spotter'));
+    assert.ok(suggested.includes('civil_front_end_loader'));
     assert.ok(preview.body.warnings.some((warning) => /not enabled in your company setup/i.test(warning)));
   });
 

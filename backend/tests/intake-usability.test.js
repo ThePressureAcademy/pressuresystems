@@ -62,6 +62,13 @@ function flatOptions(groups) {
   return (groups || []).flatMap((group) => group.options || []);
 }
 
+function optionValuesByGroup(groups = []) {
+  return Object.fromEntries((groups || []).map((group) => [
+    group.group,
+    (group.options || []).map((option) => option.value)
+  ]));
+}
+
 describe('intake catalogue and display labels', () => {
   test('intake options expose structured roles credentials site conditions and timezones', async () => {
     const res = await request.get('/api/company/intake-options').set(auth());
@@ -76,8 +83,26 @@ describe('intake catalogue and display labels', () => {
 
     const credentialOptions = flatOptions(res.body.credential_groups);
     const credentialValues = credentialOptions.map((option) => option.value);
+    const credentialGroups = optionValuesByGroup(res.body.credential_groups);
+    assert.equal(res.body.credential_groups.filter((group) => group.group === 'High Risk Work').length, 1);
     for (const code of ['sb', 'si', 'sa', 'dg', 'rb', 'ri', 'ra', 'ct', 'cs', 'cd', 'cp', 'c2', 'c6', 'c1', 'c0', 'cb', 'cv', 'cn', 'lf', 'lo', 'es', 'ea', 'ai', 'pb', 'rs', 'wp']) {
       assert.ok(credentialValues.includes(`hrwl_${code}`), `missing HRWL ${code}`);
+    }
+    assert.ok(credentialGroups['High Risk Work'].every((value) => value.startsWith('hrwl_')));
+    assert.ok(credentialGroups['Working at Height'].includes('working_at_height'));
+    assert.ok(credentialGroups['Safety / Site'].includes('white_card'));
+    assert.ok(credentialGroups['Safety / Site'].includes('first_aid'));
+    assert.ok(credentialGroups['Heavy Vehicle'].includes('heavy_vehicle_mc'));
+    assert.ok(credentialGroups.Rail.includes('rail_riw'));
+    assert.ok(credentialGroups['Energy / Electrical'].includes('electrical_spotter'));
+    assert.ok(credentialGroups['Civil / Plant'].includes('machinery_telehandler'));
+    assert.ok(credentialGroups.VOC.includes('voc_c6'));
+    for (const nonHrw of ['working_at_height', 'first_aid', 'white_card', 'rail_riw', 'rail_sarc', 'rail_wett', 'heavy_vehicle_mc', 'electrical_spotter', 'machinery_telehandler', 'voc_c6']) {
+      assert.equal(credentialGroups['High Risk Work'].includes(nonHrw), false, `${nonHrw} must not appear under High Risk Work`);
+    }
+    for (const group of res.body.credential_groups) {
+      assert.doesNotMatch(group.group, /_/);
+      for (const option of group.options || []) assert.doesNotMatch(option.label, /_/);
     }
     assert.ok(credentialValues.includes('trade_certificate_carpentry'));
     assert.ok(credentialValues.includes('trade_certificate_electrical'));
@@ -197,6 +222,16 @@ describe('worker role and credential intake', () => {
       new Date('2026-05-15T00:00:00Z')
     );
     assert.equal(reverseLegacyStatus.blocks.length, 0);
+
+    const reclassifiedStatus = computeCredentialStatus(
+      [
+        { id: 'wah', type: 'working_at_height', expiry_date: '2029-01-01', status: 'valid' },
+        { id: 'riw', type: 'rail_riw', expiry_date: '2029-01-01', status: 'valid' }
+      ],
+      ['working_at_height', 'rail_riw'],
+      new Date('2026-05-15T00:00:00Z')
+    );
+    assert.equal(reclassifiedStatus.blocks.length, 0);
   });
 });
 
