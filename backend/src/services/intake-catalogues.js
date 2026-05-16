@@ -163,6 +163,24 @@ const VOC_CODES = [
   'Piling Rig'
 ];
 
+const CREDENTIAL_GROUP_ORDER = [
+  'High Risk Work',
+  'VOC',
+  'Working at Height',
+  'Safety / Site',
+  'Heavy Vehicle',
+  'Rail',
+  'Energy / Electrical',
+  'Civil / Plant',
+  'Trade certificates',
+  'Qualifications'
+];
+
+function credentialGroupOrder(groupName) {
+  const index = CREDENTIAL_GROUP_ORDER.indexOf(groupName);
+  return index === -1 ? CREDENTIAL_GROUP_ORDER.length : index;
+}
+
 const CREDENTIAL_GROUPS = [
   {
     group: 'Trade certificates',
@@ -182,22 +200,26 @@ const CREDENTIAL_GROUPS = [
     ]
   },
   {
-    group: 'High Risk Work classes',
+    group: 'High Risk Work',
     options: HRWL_CODES.map((code) => [`hrwl_${code.toLowerCase().replace('c0', 'c0')}`, code])
   },
   {
-    group: 'Rail industry',
+    group: 'VOC',
+    options: VOC_CODES.map((code) => {
+      const key = `voc_${keyify(code === 'C0' ? 'c0' : code)}`;
+      return [key, `VOC ${code}`];
+    })
+  },
+  {
+    group: 'Working at Height',
     options: [
-      ['rail_riw', 'RIW'],
-      ['rail_sarc', 'SARC'],
-      ['rail_wett', 'WETT']
+      ['working_at_height', 'Working at Height']
     ]
   },
   {
-    group: 'General / site safety',
+    group: 'Safety / Site',
     options: [
       ['white_card', 'White Card'],
-      ['working_at_height', 'Working at Height'],
       ['confined_space', 'Confined Space'],
       ['operate_breathing_apparatus', 'Operate Breathing Apparatus'],
       ['health_and_safety_representative', 'Health and Safety Representative'],
@@ -211,20 +233,29 @@ const CREDENTIAL_GROUPS = [
     ]
   },
   {
-    group: 'Energy / electrical',
+    group: 'Heavy Vehicle',
+    options: [
+      ['heavy_vehicle_mc', 'MC Heavy Vehicle Licence'],
+      ['heavy_vehicle_hc', 'HC Heavy Vehicle Licence'],
+      ['heavy_vehicle_hr', 'HR Heavy Vehicle Licence']
+    ]
+  },
+  {
+    group: 'Rail',
+    options: [
+      ['rail_riw', 'RIW'],
+      ['rail_sarc', 'SARC'],
+      ['rail_wett', 'WETT']
+    ]
+  },
+  {
+    group: 'Energy / Electrical',
     options: [
       ['electrical_spotter', 'Electrical Spotter']
     ]
   },
   {
-    group: 'VOC credentials',
-    options: VOC_CODES.map((code) => {
-      const key = `voc_${keyify(code === 'C0' ? 'c0' : code)}`;
-      return [key, `VOC ${code}`];
-    })
-  },
-  {
-    group: 'Civil machinery credentials',
+    group: 'Civil / Plant',
     options: [
       ['machinery_excavator', 'Excavator'],
       ['machinery_front_end_loader', 'Front End Loader'],
@@ -274,6 +305,12 @@ const CREDENTIAL_ALIASES = {
   civil_excavator: 'machinery_excavator',
   civil_front_end_loader: 'machinery_front_end_loader',
   civil_telehandler: 'machinery_telehandler',
+  credential_heavy_vehicle_mc: 'heavy_vehicle_mc',
+  credential_heavy_vehicle_hc: 'heavy_vehicle_hc',
+  credential_heavy_vehicle_hr: 'heavy_vehicle_hr',
+  mc: 'heavy_vehicle_mc',
+  hc: 'heavy_vehicle_hc',
+  hr: 'heavy_vehicle_hr',
   forklift: 'machinery_forklift',
   lf: 'hrwl_lf',
   dg: 'hrwl_dg',
@@ -493,7 +530,8 @@ const LEGACY_CREDENTIAL_COMPATIBILITY = {
     'hrwl_cp', 'hrwl_cs', 'hrwl_ct', 'hrwl_cv'
   ]),
   high_risk_licence_dogging: new Set(['hrwl_dg']),
-  high_risk_licence_rigging: new Set(['hrwl_ra', 'hrwl_rb', 'hrwl_ri'])
+  high_risk_licence_rigging: new Set(['hrwl_ra', 'hrwl_rb', 'hrwl_ri']),
+  drivers_licence: new Set(['heavy_vehicle_mc', 'heavy_vehicle_hc', 'heavy_vehicle_hr'])
 };
 
 function credentialMatchesRequirement(workerType, requiredType) {
@@ -535,6 +573,8 @@ function intakeOptionsPayload() {
     })),
     credential_groups: CREDENTIAL_GROUPS
       .filter((group) => group.group !== 'Legacy records')
+      .slice()
+      .sort((a, b) => credentialGroupOrder(a.group) - credentialGroupOrder(b.group) || a.group.localeCompare(b.group))
       .map((group) => ({
         group: group.group,
         options: group.options.map(([value, label]) => ({ value, label }))

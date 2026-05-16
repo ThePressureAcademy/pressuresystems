@@ -10,6 +10,16 @@ const CATALOGUE_CONFIDENCE = 'medium';
 const PLANT_REQUIREMENT_CATEGORIES = new Set(['equipment', 'transport']);
 const LABOUR_REQUIREMENT_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
 const INACTIVE_CATALOGUE_KEYS = new Set(['equipment_franna_pick_and_carry']);
+const REQUIREMENT_GROUP_ORDER = [
+  'High Risk Work',
+  'VOC',
+  'Working at Height',
+  'Safety / Site',
+  'Heavy Vehicle',
+  'Rail',
+  'Energy / Electrical',
+  'Civil / Plant'
+];
 
 function normalizeKeyPart(value) {
   return String(value || '')
@@ -34,6 +44,15 @@ function item(category, groupLabel, code, label, key, description = null, source
   };
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function requirementGroupOrder(groupLabel) {
+  const index = REQUIREMENT_GROUP_ORDER.indexOf(groupLabel);
+  return index === -1 ? REQUIREMENT_GROUP_ORDER.length : index;
+}
+
 const HIGH_RISK_WORK = HRWL_CODES
   .map((code) => item(
     'credential',
@@ -56,7 +75,7 @@ const VOCS = [
 ]
   .map((code) => item(
     'voc',
-    'Verification of Competency',
+    'VOC',
     `VOC-${String(code).toUpperCase()}`,
     `VOC ${code}`,
     `voc_${normalizeKeyPart(code)}`
@@ -75,24 +94,29 @@ const QUALIFICATIONS = [
   item('credential', 'Qualifications', 'DIPLOMA', 'Diploma', 'credential_qualification_diploma')
 ];
 
-const GENERAL_SITE_CREDENTIALS = [
-  item('credential', 'General Site', 'WAH', 'Working at Height', 'credential_working_at_height_wah'),
-  item('credential', 'General Site', 'CONFINED_SPACE', 'Confined Space', 'credential_confined_space'),
-  item('credential', 'General Site', 'BA', 'Operate Breathing Apparatus', 'credential_operate_breathing_apparatus'),
-  item('credential', 'General Site', 'HSR', 'Health and Safety Representative', 'credential_health_and_safety_representative'),
-  item('credential', 'General Site', 'FIRST_AID', 'First Aid', 'credential_first_aid')
+const WORKING_AT_HEIGHT = [
+  item('credential', 'Working at Height', 'WAH', 'Working at Height', 'credential_working_at_height_wah')
+];
+
+const SAFETY_SITE_CREDENTIALS = [
+  item('credential', 'Safety / Site', 'CONFINED_SPACE', 'Confined Space', 'credential_confined_space'),
+  item('credential', 'Safety / Site', 'BA', 'Operate Breathing Apparatus', 'credential_operate_breathing_apparatus'),
+  item('credential', 'Safety / Site', 'HSR', 'Health and Safety Representative', 'credential_health_and_safety_representative'),
+  item('credential', 'Safety / Site', 'FIRST_AID', 'First Aid', 'credential_first_aid'),
+  item('credential', 'Safety / Site', 'SITE_INDUCTION', 'Site Induction', 'credential_site_induction'),
+  item('credential', 'Safety / Site', 'CLIENT_INDUCTION', 'Client Induction', 'credential_client_induction')
 ];
 
 const CIVIL_ACCESS = [
-  item('civil', 'Civil / Access', 'EXCAVATOR', 'Excavator', 'civil_excavator'),
-  item('civil', 'Civil / Access', 'FRONT_END_LOADER', 'Front End Loader', 'civil_front_end_loader'),
-  item('civil', 'Civil / Access', 'TELEHANDLER', 'Telehandler', 'civil_telehandler'),
-  item('civil', 'Civil / Access', 'SKID_STEER', 'Skid Steer', 'civil_skid_steer'),
-  item('civil', 'Civil / Access', 'GRADER', 'Grader', 'civil_grader'),
-  item('civil', 'Civil / Access', 'ROLLER', 'Roller', 'civil_roller'),
-  item('civil', 'Civil / Access', 'DRILLER', 'Driller', 'civil_driller'),
-  item('civil', 'Civil / Access', 'PILING_RIG', 'Piling Rig', 'civil_piling_rig'),
-  item('civil', 'Civil / Access', 'FORKLIFT', 'Forklift', 'civil_forklift')
+  item('civil', 'Civil / Plant', 'EXCAVATOR', 'Excavator', 'civil_excavator'),
+  item('civil', 'Civil / Plant', 'FRONT_END_LOADER', 'Front End Loader', 'civil_front_end_loader'),
+  item('civil', 'Civil / Plant', 'TELEHANDLER', 'Telehandler', 'civil_telehandler'),
+  item('civil', 'Civil / Plant', 'SKID_STEER', 'Skid Steer', 'civil_skid_steer'),
+  item('civil', 'Civil / Plant', 'GRADER', 'Grader', 'civil_grader'),
+  item('civil', 'Civil / Plant', 'ROLLER', 'Roller', 'civil_roller'),
+  item('civil', 'Civil / Plant', 'DRILLER', 'Driller', 'civil_driller'),
+  item('civil', 'Civil / Plant', 'PILING_RIG', 'Piling Rig', 'civil_piling_rig'),
+  item('civil', 'Civil / Plant', 'FORKLIFT', 'Forklift', 'civil_forklift')
 ];
 
 const MOBILE_CRANES = [
@@ -132,19 +156,20 @@ const ARTICULATED_CRANES = ARTICULATED_CRANE_CAPACITIES.map((code) => item(
 ));
 
 const CATALOGUE_ITEMS = [
-  item('credential', 'General Site', 'WHITE_CARD', 'White Card', 'credential_white_card', 'General construction induction card.', 'high'),
+  item('credential', 'Safety / Site', 'WHITE_CARD', 'White Card', 'credential_white_card', 'General construction induction card.', 'high'),
   ...TRADE_CERTIFICATES,
   ...QUALIFICATIONS,
   ...HIGH_RISK_WORK,
-  ...GENERAL_SITE_CREDENTIALS,
+  ...WORKING_AT_HEIGHT,
+  ...SAFETY_SITE_CREDENTIALS,
   item('credential', 'Heavy Vehicle', 'MC', 'MC Heavy Vehicle Licence', 'credential_heavy_vehicle_mc'),
   item('credential', 'Heavy Vehicle', 'HC', 'HC Heavy Vehicle Licence', 'credential_heavy_vehicle_hc'),
   item('credential', 'Heavy Vehicle', 'HR', 'HR Heavy Vehicle Licence', 'credential_heavy_vehicle_hr'),
   ...CIVIL_ACCESS,
-  item('energy', 'Energex', 'ELECTRICAL_SPOTTER', 'Electrical Spotter', 'energy_electrical_spotter'),
-  item('rail', 'Rail Industry', 'RIW', 'RIW', 'rail_riw'),
-  item('rail', 'Rail Industry', 'SARC', 'SARC', 'rail_sarc'),
-  item('rail', 'Rail Industry', 'WETT', 'WETT', 'rail_wett'),
+  item('energy', 'Energy / Electrical', 'ELECTRICAL_SPOTTER', 'Electrical Spotter', 'energy_electrical_spotter'),
+  item('rail', 'Rail', 'RIW', 'RIW', 'rail_riw'),
+  item('rail', 'Rail', 'SARC', 'SARC', 'rail_sarc'),
+  item('rail', 'Rail', 'WETT', 'WETT', 'rail_wett'),
   ...VOCS,
   ...MOBILE_CRANES,
   ...CRAWLER_CRANES,
@@ -195,6 +220,8 @@ const LEGACY_CREDENTIAL_BY_KEY = {
   credential_operate_breathing_apparatus: 'operate_breathing_apparatus',
   credential_health_and_safety_representative: 'health_and_safety_representative',
   credential_first_aid: 'first_aid',
+  credential_site_induction: 'site_induction',
+  credential_client_induction: 'client_induction',
   credential_trade_certificate_carpentry: 'trade_certificate_carpentry',
   credential_trade_certificate_electrical: 'trade_certificate_electrical',
   credential_trade_certificate_plumbing: 'trade_certificate_plumbing',
@@ -240,6 +267,22 @@ for (const code of [
   LEGACY_CREDENTIAL_BY_KEY[`voc_${key}`] = normalizeCredentialType(`voc_${key}`);
 }
 
+const VOC_TERM_MAPPERS = [
+  ...HRWL_CODES.map((code) => ({
+    pattern: new RegExp(`\\bvoc[-\\s]*${escapeRegExp(code)}\\b`, 'i'),
+    key: `voc_${normalizeKeyPart(code)}`
+  })),
+  { pattern: /\bvoc[-\s]*co\b/i, key: 'voc_c0' },
+  { pattern: /\bvoc[-\s]*(?:front[\s-]*end[\s-]*loader|loader)\b/i, key: 'voc_front_end_loader' },
+  { pattern: /\bvoc[-\s]*excavator\b/i, key: 'voc_excavator' },
+  { pattern: /\bvoc[-\s]*telehandler\b/i, key: 'voc_telehandler' },
+  { pattern: /\bvoc[-\s]*skid[\s-]*steer\b/i, key: 'voc_skid_steer' },
+  { pattern: /\bvoc[-\s]*grader\b/i, key: 'voc_grader' },
+  { pattern: /\bvoc[-\s]*roller\b/i, key: 'voc_roller' },
+  { pattern: /\bvoc[-\s]*driller\b/i, key: 'voc_driller' },
+  { pattern: /\bvoc[-\s]*piling[\s-]*rig\b/i, key: 'voc_piling_rig' }
+];
+
 const FRANNA_CAPACITY_MAPPERS = ARTICULATED_CRANE_CAPACITIES.map((code) => {
   const tonnes = code.replace(/[^0-9]/g, '');
   return {
@@ -249,24 +292,39 @@ const FRANNA_CAPACITY_MAPPERS = ARTICULATED_CRANE_CAPACITIES.map((code) => {
 });
 
 const TERM_MAPPERS = [
+  ...VOC_TERM_MAPPERS,
   { pattern: /\bwhite\s+card\b/i, key: 'credential_white_card' },
-  { pattern: /\b(?:hrwl[-\s]*)?c0\b|\bhrwl[-\s]*co\b/i, key: 'credential_hrwl_c0' },
-  { pattern: /\b(?:hrwl[-\s]*)?c1\b/i, key: 'credential_hrwl_c1' },
-  { pattern: /\b(?:hrwl[-\s]*)?c2\b/i, key: 'credential_hrwl_c2' },
-  { pattern: /\b(?:hrwl[-\s]*)?c6\b/i, key: 'credential_hrwl_c6' },
-  { pattern: /\b(?:hrwl[-\s]*)?dg\b|\bdogman\b|\bdogging\b/i, key: 'credential_hrwl_dg' },
-  { pattern: /\b(?:hrwl[-\s]*)?rb\b/i, key: 'credential_hrwl_rb' },
-  { pattern: /\b(?:hrwl[-\s]*)?ri\b|\brigger\b|\brigging\b/i, key: 'credential_hrwl_ri' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?c0\b|(?<!voc[-\s])\b(?:hrwl[-\s]*)?co\b/i, key: 'credential_hrwl_c0' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?c1\b/i, key: 'credential_hrwl_c1' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?c2\b/i, key: 'credential_hrwl_c2' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?c6\b/i, key: 'credential_hrwl_c6' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?cn\b/i, key: 'credential_hrwl_cn' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?dg\b|\bdogman\b|\bdogging\b/i, key: 'credential_hrwl_dg' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?rb\b/i, key: 'credential_hrwl_rb' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?ri\b|\brigger\b|\brigging\b/i, key: 'credential_hrwl_ri' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?ra\b/i, key: 'credential_hrwl_ra' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?wp\b/i, key: 'credential_hrwl_wp' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?lf\b/i, key: 'credential_hrwl_lf' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?sa\b/i, key: 'credential_hrwl_sa' },
+  { pattern: /(?<!voc[-\s])\b(?:hrwl[-\s]*)?si\b/i, key: 'credential_hrwl_si' },
   { pattern: /\bworking\s+at\s+heights?\b|\bwah\b/i, key: 'credential_working_at_height_wah' },
   { pattern: /\bconfined\s+space\b/i, key: 'credential_confined_space' },
   { pattern: /\bfirst\s+aid\b/i, key: 'credential_first_aid' },
+  { pattern: /\bsite\s+induction\b/i, key: 'credential_site_induction' },
+  { pattern: /\bclient\s+induction\b/i, key: 'credential_client_induction' },
   { pattern: /\briw\b/i, key: 'rail_riw' },
+  { pattern: /\bsarc\b/i, key: 'rail_sarc' },
+  { pattern: /\bwett\b/i, key: 'rail_wett' },
+  { pattern: /\bmc\b/i, key: 'credential_heavy_vehicle_mc' },
+  { pattern: /\bhc\b/i, key: 'credential_heavy_vehicle_hc' },
+  { pattern: /\bhr\b/i, key: 'credential_heavy_vehicle_hr' },
   { pattern: /\blow[\s-]*loader\b/i, key: 'transport_low_loader' },
   { pattern: /\bsemi[\s-]*trailer\b/i, key: 'transport_semi_trailer' },
   { pattern: /\b100\s*t(?:onne)?\s+(?:mobile\s+)?crane\b/i, key: 'equipment_mobile_crane_100t' },
   { pattern: /\b50\s*t(?:onne)?\s+(?:mobile\s+)?crane\b/i, key: 'equipment_mobile_crane_50t' },
   ...FRANNA_CAPACITY_MAPPERS,
   { pattern: /\btelehandler\b/i, key: 'civil_telehandler' },
+  { pattern: /\bfront[\s-]*end[\s-]*loader\b/i, key: 'civil_front_end_loader' },
   { pattern: /\bexcavator\b/i, key: 'civil_excavator' },
   { pattern: /\benergex\s+spotter\b|\belectrical\s+spotter\b/i, key: 'energy_electrical_spotter' },
   { pattern: /\bspider\s+crane\b|\bmini\s+crane\b/i, key: 'equipment_mini_spider_crane' },
@@ -308,7 +366,12 @@ function serializeItem(row, enabled = undefined) {
 
 function groupItems(items) {
   const grouped = {};
-  for (const itemRow of items || []) {
+  const sortedItems = [...(items || [])].sort((a, b) =>
+    requirementGroupOrder(a.group_label) - requirementGroupOrder(b.group_label)
+    || String(a.group_label || '').localeCompare(String(b.group_label || ''))
+    || String(a.category || '').localeCompare(String(b.category || ''))
+  );
+  for (const itemRow of sortedItems) {
     grouped[itemRow.category] = grouped[itemRow.category] || {};
     grouped[itemRow.category][itemRow.group_label] = grouped[itemRow.category][itemRow.group_label] || [];
     grouped[itemRow.category][itemRow.group_label].push(itemRow);
