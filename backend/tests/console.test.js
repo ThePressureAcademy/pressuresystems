@@ -50,6 +50,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /href="#\/jobs"/);
     assert.match(res.text, /href="#\/our-business"/);
     assert.match(res.text, />Our Business</);
+    assert.match(res.text, /href="#\/exports"/);
+    assert.match(res.text, />Exports</);
   });
 
   test('GET /console/styles.css returns CSS', async () => {
@@ -142,6 +144,10 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /does not send SMS automatically/);
     assert.match(res.text, /\/jobs\/\$\{jobId\}\/allocation-notifications\/preview/);
     assert.match(res.text, /\/jobs\/\$\{jobId\}\/allocation-notifications\/publish-manual/);
+    assert.match(res.text, /Reports & Exports/);
+    assert.match(res.text, /Download payroll-prep CSV/);
+    assert.match(res.text, /Exports are prepared for office review/);
+    assert.match(res.text, /\/api\/exports\/\$\{encodeURIComponent\(type\)\}\.csv/);
     assert.match(res.text, /Add one-off requirement/);
     assert.match(res.text, /Review required/);
     assert.match(res.text, /Counterweight transport may be required/);
@@ -220,7 +226,9 @@ describe('Pilot console — static asset serving', () => {
       'openAllocationPublishModal', // controlled allocation publish preview
       'renderAudit',         // audit log
       'renderMetrics',       // pilot metrics
+      'renderExports',       // CSV export centre
       'renderInternalPilotMonitor', // internal privacy-safe pilot activity monitor
+      'downloadExportCsv',   // authenticated CSV downloads
       'buildCredentialForm', // credential entry
       'buildFatigueForm',    // fatigue entry
       'buildSecurityPanel',  // account security panel + optional password rotation
