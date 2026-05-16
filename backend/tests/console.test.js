@@ -127,6 +127,11 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Edit job/);
     assert.match(res.text, /Save job changes/);
     assert.match(res.text, /Crew roles/);
+    assert.match(res.text, /Set count and separation rules for selected crew roles/);
+    assert.match(res.text, /Separate worker only/);
+    assert.match(res.text, /Role coverage suggestion/);
+    assert.match(res.text, /Role coverage to confirm for this worker/);
+    assert.match(res.text, /Combined-role allocation is decision support only/);
     assert.match(res.text, /Required credentials and VOCs/);
     assert.match(res.text, /Crane \/ equipment classes/);
     assert.match(res.text, /Site conditions/);

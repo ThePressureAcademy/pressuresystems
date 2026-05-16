@@ -9,6 +9,10 @@ const {
   normalizeWorkerRoles,
   siteConditionReviewLabels
 } = require('./intake-catalogues');
+const {
+  buildRoleCoveragePlan,
+  evaluateWorkerRoleCoverage
+} = require('./role-coverage');
 
 const WEIGHTS = {
   credential_match: 0.25,
@@ -199,7 +203,7 @@ function rankWorkersForJob(
     preferencesByWorker = {};
   }
 
-  const { now = new Date() } = options;
+  const { now = new Date(), roleCompatibilityRules = null } = options;
   const requiredCredentials = Array.isArray(job.required_credentials)
     ? job.required_credentials
     : JSON.parse(job.required_credentials || '[]');
@@ -259,6 +263,15 @@ function rankWorkersForJob(
       continue;
     }
     workerWarnings.push(...scheduleConflict.warnings);
+
+    const roleCoverage = evaluateWorkerRoleCoverage(worker, job, credentials, { roleCompatibilityRules });
+    if (!roleCoverage.can_cover_required_role) {
+      workerWarnings.push({
+        type: 'role_coverage_review',
+        detail: 'Worker does not cover any selected required crew role. Confirm whether role coverage is still acceptable.'
+      });
+    }
+    workerWarnings.push(...roleCoverage.warnings);
 
     const siteConditionLabels = siteConditionReviewLabels(job.site_conditions || []);
     if (siteConditionLabels.length > 0) {
@@ -348,6 +361,7 @@ function rankWorkersForJob(
       score: Math.round(totalScore * 10) / 10,
       score_breakdown: scoreBreakdown,
       warnings: workerWarnings,
+      role_coverage: roleCoverage,
       preference_signals: taskPreference.signals
     });
   }
@@ -357,7 +371,11 @@ function rankWorkersForJob(
     entry.rank = index + 1;
   });
 
-  return { ranked, blocked };
+  return {
+    ranked,
+    blocked,
+    role_coverage_plan: buildRoleCoveragePlan(ranked, job)
+  };
 }
 
 module.exports = { rankWorkersForJob, WEIGHTS };

@@ -1185,6 +1185,149 @@ function renderGroupedCheckboxPicker(name, groups = [], options = {}) {
   return root;
 }
 
+function roleOptionLabel(groups = [], value) {
+  for (const group of groups || []) {
+    const option = (group.options || []).find((item) => String(item.value) === String(value));
+    if (option) return option.label;
+  }
+  return formatDisplayLabel(value);
+}
+
+function roleRequirementMap(requirements = []) {
+  const map = new Map();
+  for (const requirement of requirements || []) {
+    const role = requirement.role_key || requirement.role || requirement.value;
+    if (!role) continue;
+    map.set(String(role), requirement);
+  }
+  return map;
+}
+
+function renderRoleRequirementsEditor(crewInputName, groups = [], selectedRequirements = []) {
+  const panel = el('div', { class: 'role-requirements-panel' });
+  panel.appendChild(el('div', { class: 'small muted' },
+    'Set count and separation rules for selected crew roles. Combined-role coverage remains review-gated by SmartRank and dispatcher confirmation.'
+  ));
+  const host = el('div', { class: 'role-requirement-grid' });
+  const existing = roleRequirementMap(selectedRequirements);
+
+  panel.refresh = (form) => {
+    host.innerHTML = '';
+    const selectedRoles = selectedCheckboxValues(form, crewInputName);
+    if (selectedRoles.length === 0) {
+      host.appendChild(el('div', { class: 'empty' }, 'Select crew roles above to set counts and separation rules.'));
+      return;
+    }
+    for (const role of selectedRoles) {
+      const requirement = existing.get(String(role)) || {};
+      const count = Math.max(1, Number(requirement.required_count || 1));
+      const distinct = Boolean(requirement.requires_distinct_worker);
+      host.appendChild(el('div', { class: 'role-requirement-row', 'data-role': role },
+        el('strong', {}, roleOptionLabel(groups, role)),
+        buildFieldWrapper('Count', el('input', {
+          type: 'number',
+          min: '1',
+          max: '20',
+          step: '1',
+          name: `role_required_count_${role}`,
+          value: String(count)
+        })),
+        el('label', { class: 'checkbox-row' },
+          el('input', {
+            type: 'checkbox',
+            name: `role_requires_distinct_${role}`,
+            checked: distinct ? 'checked' : null
+          }),
+          'Separate worker only'
+        ),
+        buildInput(`role_notes_${role}`, 'Role note', {
+          value: requirement.notes || '',
+          placeholder: 'Optional dispatcher note'
+        })
+      ));
+    }
+  };
+
+  panel.appendChild(host);
+  return panel;
+}
+
+function cssEscapeValue(value) {
+  const text = String(value || '');
+  if (globalThis.CSS && typeof globalThis.CSS.escape === 'function') {
+    return globalThis.CSS.escape(text);
+  }
+  return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function roleRequirementsFromForm(form, crewInputName = 'crew_roles_required') {
+  return selectedCheckboxValues(form, crewInputName).map((role) => {
+    const escapedRole = cssEscapeValue(role);
+    const countInput = form.querySelector(`input[name="role_required_count_${escapedRole}"]`);
+    const distinctInput = form.querySelector(`input[name="role_requires_distinct_${escapedRole}"]`);
+    const notesInput = form.querySelector(`input[name="role_notes_${escapedRole}"]`);
+    return {
+      role_key: role,
+      required_count: Math.max(1, Number(countInput?.value || 1)),
+      requires_distinct_worker: Boolean(distinctInput?.checked),
+      notes: String(notesInput?.value || '').trim() || null
+    };
+  });
+}
+
+function renderRoleRequirementsSummary(requirements = []) {
+  const normalized = requirements || [];
+  if (normalized.length === 0) return el('span', { class: 'muted' }, '-');
+  return el('div', { class: 'chip-list' }, ...normalized.map((requirement) => {
+    const parts = [
+      roleOptionLabel([], requirement.role_label || requirement.role_key),
+      `x${requirement.required_count || 1}`
+    ];
+    if (requirement.requires_distinct_worker) parts.push('separate worker only');
+    return el('span', { class: 'chip' }, parts.join(' | '));
+  }));
+}
+
+function renderRoleCoveragePlan(plan) {
+  if (!plan) return null;
+  const panel = el('div', { class: 'panel role-coverage-plan' });
+  panel.appendChild(el('div', { class: 'toolbar' },
+    el('h3', {}, 'Role coverage suggestion'),
+    el('span', { class: 'pill pill-info' }, `Minimum ${plan.suggested_minimum_headcount || 0} / conservative ${plan.conservative_headcount || 0}`)
+  ));
+  panel.appendChild(el('p', { class: 'small muted' },
+    plan.boundary || 'Role coverage is decision support only. Dispatcher confirmation is required.'
+  ));
+  if (!plan.assignments || plan.assignments.length === 0) {
+    panel.appendChild(el('div', { class: 'empty' }, 'No coverage suggestion available yet.'));
+  } else {
+    for (const assignment of plan.assignments) {
+      panel.appendChild(el('div', { class: 'role-coverage-row' },
+        el('strong', {}, assignment.worker_name),
+        renderChipList(assignment.roles_covered || assignment.role_labels || [], null, '-'),
+        assignment.review_required ? el('span', { class: 'pill pill-warn' }, 'Review required') : el('span', { class: 'pill pill-ok' }, 'Compatible')
+      ));
+    }
+  }
+  if (plan.unfilled_roles?.length) {
+    panel.appendChild(el('div', { class: 'alerts' },
+      el('strong', {}, 'Unfilled role slots: '),
+      plan.unfilled_roles.map((item) => `${item.role_label || formatDisplayLabel(item.role_key)} x${item.remaining_count}`).join(', ')
+    ));
+  }
+  return panel;
+}
+
+function renderRoleCoverageSummary(coverage = {}) {
+  const roles = coverage.suggested_roles || coverage.roles_covered || [];
+  if (!roles.length) return el('span', { class: 'small muted' }, 'No matching required roles');
+  return el('div', { class: 'role-coverage-summary' },
+    el('div', { class: 'small muted' }, 'Suggested role coverage'),
+    renderChipList(roles, null, '-'),
+    coverage.review_required ? el('span', { class: 'pill pill-warn' }, 'Review required') : el('span', { class: 'pill pill-ok' }, 'Compatible')
+  );
+}
+
 function selectedRequirementIdsFromForm(form) {
   return Array.from(form.querySelectorAll('input[name="requirement_item_ids"]:checked'))
     .map((node) => Number(node.value))
@@ -3350,13 +3493,19 @@ async function renderNewJob(renderCycle) {
   ));
 
   const enabledCompanyCatalogue = filterCatalogueForOperatingMode(enabledCatalogueOnly(companyCatalogue), mode);
+  const roleRequirementsEditor = renderRoleRequirementsEditor('crew_roles_required', intakeOptions.worker_role_groups || []);
   form.appendChild(el('div', { class: 'panel sub-panel' },
     el('h3', {}, 'Crew roles'),
     renderGroupedCheckboxPicker('crew_roles_required', intakeOptions.worker_role_groups || [], {
       helpText: 'Select the crew roles the job needs. Roles help filtering; credentials remain the hard allocation gate.',
       searchPlaceholder: 'Search crew roles...'
-    })
+    }),
+    roleRequirementsEditor
   ));
+  roleRequirementsEditor.refresh(form);
+  form.querySelectorAll('input[name="crew_roles_required"]').forEach((checkbox) => {
+    checkbox.addEventListener('change', () => roleRequirementsEditor.refresh(form));
+  });
   form.appendChild(el('div', { class: 'panel sub-panel' },
     el('h3', {}, 'Required credentials and VOCs'),
     renderGroupedCheckboxPicker('required_credentials', intakeOptions.credential_groups || [], {
@@ -3504,6 +3653,7 @@ async function renderNewJob(renderCycle) {
       crane_classes_required: selectedCheckboxValues(form, 'crane_classes_required'),
       task_tags: [],
       crew_roles_required: selectedCheckboxValues(form, 'crew_roles_required'),
+      role_requirements: roleRequirementsFromForm(form),
       required_credentials: selectedCheckboxValues(form, 'required_credentials'),
       site_conditions: selectedCheckboxValues(form, 'site_conditions'),
       lift_risk_level: fd.get('lift_risk_level'),
@@ -3633,14 +3783,24 @@ function buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, c
     ...(intakeOptions.timezones || COMMON_TIMEZONES).map((item) => el('option', { value: item }, item))
   ));
   const enabledCompanyCatalogue = filterCatalogueForOperatingMode(enabledCatalogueOnly(companyCatalogue), mode);
+  const editRoleRequirementsEditor = renderRoleRequirementsEditor(
+    'crew_roles_required',
+    intakeOptions.worker_role_groups || [],
+    job.role_requirements || []
+  );
   form.appendChild(el('div', { class: 'panel sub-panel' },
     el('h3', {}, 'Crew roles'),
     renderGroupedCheckboxPicker('crew_roles_required', intakeOptions.worker_role_groups || [], {
       selectedValues: job.crew_roles_required || [],
       helpText: 'Select the crew roles this job needs.',
       searchPlaceholder: 'Search crew roles...'
-    })
+    }),
+    editRoleRequirementsEditor
   ));
+  editRoleRequirementsEditor.refresh(form);
+  form.querySelectorAll('input[name="crew_roles_required"]').forEach((checkbox) => {
+    checkbox.addEventListener('change', () => editRoleRequirementsEditor.refresh(form));
+  });
   form.appendChild(el('div', { class: 'panel sub-panel' },
     el('h3', {}, 'Required credentials and VOCs'),
     renderGroupedCheckboxPicker('required_credentials', intakeOptions.credential_groups || [], {
@@ -3748,6 +3908,7 @@ function buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, c
       job_description: fd.get('job_description') || null,
       task_tags: job.task_tags || [],
       crew_roles_required: selectedCheckboxValues(form, 'crew_roles_required'),
+      role_requirements: roleRequirementsFromForm(form),
       required_credentials: selectedCheckboxValues(form, 'required_credentials'),
       site_conditions: selectedCheckboxValues(form, 'site_conditions'),
       lift_risk_level: fd.get('lift_risk_level'),
@@ -3839,6 +4000,7 @@ async function renderJobDetail(jobId, renderCycle) {
   addKv('Job description', job.job_description || '-');
   addKv('Task context', renderTagList(job.task_tags, 'none'));
   addKv('Crew roles', renderChipList(job.crew_roles_required || [], null, '-'));
+  addKv('Role requirements', renderRoleRequirementsSummary(job.role_requirements || []));
   addKv('Required credentials', renderChipList(job.required_credentials || [], null, 'none'));
   addKv('Site conditions', renderChipList(job.site_conditions || [], null, '-'));
   addKv('Risk level', riskPill(job.lift_risk_level));
@@ -3902,6 +4064,15 @@ function renderAllocationCard(jobId, allocation, notifications = []) {
         : 'Notification status: Draft. Worker has not been notified.'
     )
   ));
+  if (allocation.role_coverages?.length) {
+    card.appendChild(el('div', { class: 'role-coverage-summary' },
+      el('div', { class: 'small muted' }, 'Assigned role coverage'),
+      renderChipList(allocation.role_coverages.map((coverage) => coverage.role_key), null, '-'),
+      allocation.role_coverages.some((coverage) => coverage.review_required)
+        ? el('span', { class: 'pill pill-warn' }, 'Review recorded')
+        : el('span', { class: 'pill pill-ok' }, 'Coverage recorded')
+    ));
+  }
   if (allocation.override_reason) {
     card.appendChild(el('div', { class: 'alerts' },
       el('strong', {}, 'Override reason: '),
@@ -4104,8 +4275,17 @@ async function renderSmartRank(jobId, renderCycle) {
     el('div', { class: 'small', style: 'margin-top:8px;' },
       el('strong', {}, 'Required credentials: '),
       labelsFromValues(result.job.required_credentials || [], null).join(', ') || 'none'
+    ),
+    el('div', { class: 'small', style: 'margin-top:8px;' },
+      el('strong', {}, 'Role requirements: '),
+      (result.job.role_requirements || [])
+        .map((requirement) => `${formatDisplayLabel(requirement.role_label || requirement.role_key)} x${requirement.required_count || 1}${requirement.requires_distinct_worker ? ' (separate worker only)' : ''}`)
+        .join(', ') || 'none'
     )
   ));
+
+  const coveragePlan = renderRoleCoveragePlan(result.role_coverage_plan);
+  if (coveragePlan) view.appendChild(coveragePlan);
 
   if (result.ranked.length === 0) {
     view.appendChild(el('div', { class: 'panel empty' }, 'No eligible workers for this job.'));
@@ -4154,6 +4334,8 @@ function renderRankCard(jobId, ranked, isTop) {
     el('div', { class: 'small muted' }, 'Preference signals'),
     renderPreferenceSignals(ranked.preference_signals)
   ));
+
+  card.appendChild(renderRoleCoverageSummary(ranked.role_coverage));
 
   card.appendChild(el('details', {},
     el('summary', {}, 'Factor details'),
@@ -4264,8 +4446,20 @@ async function renderAllocate(jobId, workerId, renderCycle) {
     el('div', { class: 'small muted' }, 'Preference signals that affected this ranking'),
     renderPreferenceSignals(ranked.preference_signals)
   ));
+  const coverageRoles = ranked.role_coverage?.suggested_roles || [];
+  panel.appendChild(el('div', { class: 'preference-section role-coverage-select' },
+    el('div', { class: 'small muted' }, 'Role coverage to confirm for this worker'),
+    coverageRoles.length
+      ? el('div', { class: 'option-grid compact-grid' }, ...coverageRoles.map((role) =>
+          el('label', { class: 'option-row' },
+            el('input', { type: 'checkbox', name: 'role_coverage', value: role, checked: 'checked' }),
+            el('span', {}, formatDisplayLabel(role))
+          )
+        ))
+      : el('div', { class: 'empty' }, 'No selected required roles are covered by this worker.')
+  ));
   panel.appendChild(el('div', { class: 'small muted', style: 'margin-top:10px;' },
-    'A confirmed allocation updates learned preference signals for matching task tags, but the dispatcher remains the final decision-maker.'
+    'Combined-role allocation is decision support only. Confirm job, site, client, company procedure, credentials, schedule, and fatigue context before confirming.'
   ));
 
   if (requiresReason) {
@@ -4287,6 +4481,7 @@ async function renderAllocate(jobId, workerId, renderCycle) {
     errBox.textContent = '';
     const fd = new FormData(form);
     const body = { worker_id: workerId };
+    body.role_coverage = selectedCheckboxValues(form, 'role_coverage');
     if (requiresReason) body.override_reason = fd.get('override_reason');
     try {
       const allocation = await api('POST', `/jobs/${jobId}/allocations`, body);
@@ -4297,6 +4492,7 @@ async function renderAllocate(jobId, workerId, renderCycle) {
       successBox.appendChild(el('div', { class: 'kv' },
         el('div', {}, 'Allocation ID'), el('div', { class: 'mono' }, allocation.id),
         el('div', {}, 'Worker'), el('div', {}, ranked.worker.name),
+        el('div', {}, 'Role coverage'), el('div', {}, (allocation.role_coverages || []).map((coverage) => formatDisplayLabel(coverage.role_key)).join(' / ') || '-'),
         el('div', {}, 'SmartRank position'), el('div', {}, `#${allocation.smartrank_position} (score ${allocation.smartrank_score})`),
         el('div', {}, 'Allocated at'), el('div', {}, fmtDate(allocation.allocated_at))
       ));
@@ -4355,6 +4551,10 @@ async function renderAudit(renderCycle) {
     'allocation_changed',
     'allocation_publish_previewed',
     'allocation_published_manual',
+    'role_coverage_suggested',
+    'role_coverage_confirmed',
+    'role_coverage_review_required',
+    'role_coverage_override_recorded',
     'warning_acknowledged',
     'non_top_ranked_selected',
     'job_created',
@@ -4441,13 +4641,13 @@ function auditEventPill(eventType) {
   if (['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied'].includes(eventType)) {
     return 'pill-bad';
   }
-  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed', 'job_schedule_changed', 'job_brief_import_previewed', 'allocation_publish_previewed'].includes(eventType)) {
+  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed', 'job_schedule_changed', 'job_brief_import_previewed', 'allocation_publish_previewed', 'role_coverage_review_required', 'role_coverage_override_recorded'].includes(eventType)) {
     return 'pill-warn';
   }
   if (['job_counterweight_transport_assessed', 'transport_requirement_created'].includes(eventType)) {
     return 'pill-warn';
   }
-  if (['allocation_confirmed', 'allocation_published_manual', 'job_created', 'job_created_from_brief', 'worker_imported', 'preference_signal_created'].includes(eventType)) {
+  if (['allocation_confirmed', 'allocation_published_manual', 'role_coverage_confirmed', 'role_coverage_suggested', 'job_created', 'job_created_from_brief', 'worker_imported', 'preference_signal_created'].includes(eventType)) {
     return 'pill-ok';
   }
   return 'pill-info';

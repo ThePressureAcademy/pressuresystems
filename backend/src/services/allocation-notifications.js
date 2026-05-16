@@ -2,7 +2,7 @@
 
 const { randomUUID } = require('crypto');
 const { appendAuditEvent } = require('./audit');
-const { formatDisplayLabel, normalizeWorkerRoles } = require('./intake-catalogues');
+const { formatDisplayLabel, normalizeWorkerRoles, workerRoleLabel } = require('./intake-catalogues');
 
 function trimText(value) {
   const normalized = String(value || '').trim();
@@ -47,6 +47,10 @@ function allocationTimeWindow(context) {
 }
 
 function roleForMessage(context) {
+  const roleCoverage = parseJsonArray(context.role_coverage_keys);
+  if (roleCoverage.length > 0) {
+    return roleCoverage.map(workerRoleLabel).join(' / ');
+  }
   const requiredRoles = parseJsonArray(context.crew_roles_required);
   const workerRoles = normalizeWorkerRoles(context.worker_roles || context.worker_role);
   const matched = requiredRoles.find((role) => workerRoles.includes(role));
@@ -113,7 +117,14 @@ function getAllocationContext(db, { companyId, jobId, allocationId, workerId }) 
       w.name AS worker_name,
       w.contact_number AS worker_phone,
       w.role AS worker_role,
-      w.roles AS worker_roles
+      w.roles AS worker_roles,
+      (
+        SELECT json_group_array(role_key)
+        FROM allocation_role_coverages arc
+        WHERE arc.company_id = a.company_id
+          AND arc.job_id = a.job_id
+          AND arc.allocation_id = a.id
+      ) AS role_coverage_keys
     FROM allocations a
     JOIN jobs j ON j.id = a.job_id AND j.company_id = a.company_id
     JOIN workers w ON w.id = a.worker_id AND w.company_id = a.company_id
