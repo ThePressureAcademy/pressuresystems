@@ -39,6 +39,73 @@ const CREDENTIAL_OPTIONS = [
   'other'
 ];
 
+const EXPORT_SECTIONS = [
+  {
+    title: 'Operational exports',
+    cards: [
+      {
+        type: 'workers',
+        title: 'Workers CSV',
+        button: 'Download workers CSV',
+        includes: 'Worker IDs, names, contact fields, roles, status, credentials, and timestamps.',
+        excludes: 'Does not include passwords, login tokens, or system secrets.'
+      },
+      {
+        type: 'jobs',
+        title: 'Jobs CSV',
+        button: 'Download jobs CSV',
+        includes: 'Job details, schedule fields, crew requirements, credential requirements, equipment requirements, site conditions, and notes.',
+        excludes: 'Does not post to accounting systems or calculate financial totals.'
+      },
+      {
+        type: 'allocations',
+        title: 'Allocations CSV',
+        button: 'Download allocation CSV',
+        includes: 'Allocation IDs, job and worker references, status, publish status, schedule fields, and override reason.',
+        excludes: 'Does not notify workers or change allocation state.'
+      }
+    ]
+  },
+  {
+    title: 'Office handoff exports',
+    cards: [
+      {
+        type: 'payroll-prep',
+        title: 'Payroll-prep CSV',
+        button: 'Download payroll-prep CSV',
+        includes: 'Scheduled allocation hours, worker, role, job, site, and review notes for office handoff.',
+        excludes: 'Does not calculate payroll, award rates, allowances, overtime, tax, super, or entitlements.'
+      },
+      {
+        type: 'invoice-prep',
+        title: 'Invoice-prep CSV',
+        button: 'Download invoice-prep CSV',
+        includes: 'Job activity, scheduled window, allocated workers, selected equipment, asset numbers, and review notes.',
+        excludes: 'Does not calculate invoice totals, GST, rates, or accounting-system postings.'
+      }
+    ]
+  },
+  {
+    title: 'Review exports',
+    cards: [
+      {
+        type: 'audit',
+        title: 'Audit CSV',
+        button: 'Download audit CSV',
+        includes: 'Decision-trail event IDs, event types, references, actor IDs, timestamps, and safe summaries.',
+        excludes: 'Does not include raw audit payloads, secrets, or provider payloads.'
+      },
+      {
+        type: 'metrics',
+        title: 'Metrics CSV',
+        button: 'Download metrics CSV',
+        includes: 'Period counts for jobs, workers, allocations, warnings, blocks, overrides, and manual notifications.',
+        excludes: 'Does not expose worker names, job notes, or operational payloads.'
+      }
+    ]
+  }
+];
+
 const DISPLAY_LABEL_OVERRIDES = {
   crane_operator: 'Crane Operator',
   heavy_lift_crane_operator: 'Heavy Lift Crane Operator',
@@ -299,6 +366,68 @@ async function api(method, path, body) {
     throw { status: res.status, error: friendlyErrorMessage((data && data.error) || `HTTP ${res.status}`), data };
   }
   return data;
+}
+
+function exportFilterQuery() {
+  const form = document.getElementById('export-filter-form');
+  const params = new URLSearchParams();
+  if (!form) return params;
+  const fd = new FormData(form);
+  for (const key of ['start_date', 'end_date', 'timezone']) {
+    const value = String(fd.get(key) || '').trim();
+    if (value) params.set(key, value);
+  }
+  if (fd.get('include_archived') === 'on') params.set('include_archived', 'true');
+  return params;
+}
+
+function filenameFromDisposition(value, fallback) {
+  const match = String(value || '').match(/filename="?([^";]+)"?/i);
+  return match ? match[1] : fallback;
+}
+
+async function downloadExportCsv(type, button) {
+  const idleLabel = button?.textContent || 'Download CSV';
+  setButtonBusy(button, true, idleLabel, 'Preparing CSV...');
+  try {
+    const query = exportFilterQuery();
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    const headers = {};
+    if (state.token) headers.Authorization = `Bearer ${state.token}`;
+    const res = await fetch(`/api/exports/${encodeURIComponent(type)}.csv${suffix}`, { headers });
+    const text = await res.text();
+    if (res.status === 401 && state.token) {
+      logout();
+      throw new Error('Session expired. Please sign in again.');
+    }
+    if (!res.ok) {
+      let message = text || `HTTP ${res.status}`;
+      try {
+        const data = JSON.parse(text);
+        message = data.error || message;
+        if (res.status === 403 && data.must_change_password) showPasswordChange();
+      } catch {
+        // Keep the plain-text error.
+      }
+      throw new Error(friendlyErrorMessage(message));
+    }
+    const filename = filenameFromDisposition(
+      res.headers.get('content-disposition'),
+      `dispatchtalon-${type}-export.csv`
+    );
+    const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = el('a', { href: url, download: filename });
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast('CSV export prepared for office review', 'success');
+  } catch (err) {
+    toast(err.message || 'CSV export failed', 'error');
+  } finally {
+    setButtonBusy(button, false, idleLabel, 'Preparing CSV...');
+  }
 }
 
 let craneModelsCache = null;
@@ -788,6 +917,7 @@ function router() {
     },
     audit: () => renderAudit(renderCycle),
     metrics: () => renderMetrics(renderCycle),
+    exports: () => renderExports(renderCycle),
     'internal-pilot-monitor': () => {
       if (!isInternalAdmin()) return renderDashboard(renderCycle);
       return renderInternalPilotMonitor(renderCycle);
@@ -4455,6 +4585,60 @@ async function renderInternalPilotMonitor(renderCycle) {
     el('strong', {}, 'Privacy boundary: '),
     'worker names, emails, phone numbers, job descriptions, client names, site addresses, contact details, uploaded brief text, private notes, and raw audit payloads are deliberately excluded.'
   ));
+}
+
+function renderExportCard(card) {
+  const button = el('button', {
+    type: 'button',
+    onclick: (event) => downloadExportCsv(card.type, event.currentTarget)
+  }, card.button);
+
+  return el('article', { class: 'export-card' },
+    el('h4', {}, card.title),
+    el('p', { class: 'small' }, card.includes),
+    el('p', { class: 'small muted' }, card.excludes),
+    button
+  );
+}
+
+async function renderExports(renderCycle) {
+  const view = document.getElementById('view');
+  view.innerHTML = '';
+
+  const profile = await loadCompanyProfile();
+  if (isStaleRender(renderCycle)) return;
+
+  view.appendChild(el('div', { class: 'toolbar' },
+    el('h2', {}, 'Reports & Exports'),
+    el('p', { class: 'muted' }, 'CSV handoff for office review, spreadsheet workflows, and later accounting-system mapping.')
+  ));
+
+  const form = el('form', { id: 'export-filter-form', class: 'panel export-filter-panel' },
+    el('h3', {}, 'Export filters'),
+    el('div', { class: 'form-grid' },
+      buildInput('start_date', 'Start date', { type: 'date' }),
+      buildInput('end_date', 'End date', { type: 'date' }),
+      buildSelect('timezone', 'Timezone', COMMON_TIMEZONES, { value: profile?.timezone || 'Australia/Brisbane' })
+    ),
+    buildFieldWrapper('Include archived workers/jobs', el('input', { type: 'checkbox', name: 'include_archived' })),
+    el('p', { class: 'small muted' },
+      'Date filters apply to each export where a matching operational date exists. Downloaded CSV files remain tenant-scoped to this company.'
+    )
+  );
+  view.appendChild(form);
+
+  view.appendChild(el('div', { class: 'panel warning-panel' },
+    el('strong', {}, 'Accounting boundary: '),
+    'Exports are prepared for office review. DispatchTalon does not calculate payroll, tax, super, award rates, or invoice totals. ',
+    'Direct Xero/MYOB integration is future roadmap work after the export schema is proven.'
+  ));
+
+  for (const section of EXPORT_SECTIONS) {
+    view.appendChild(el('section', { class: 'panel export-section' },
+      el('h3', {}, section.title),
+      el('div', { class: 'export-grid' }, ...section.cards.map(renderExportCard))
+    ));
+  }
 }
 
 async function renderMetrics(renderCycle) {
