@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DispatchTalon Module Status | Current pilot-backed modules and boundaries</title>
-  <meta name="description" content="See current DispatchTalon pilot-backed modules and future boundaries, including Build My Business, worker and job intake, corrected credential taxonomy, publish allocation, Export Centre, audit, and metrics." />
+  <meta name="description" content="See current DispatchTalon pilot-backed modules and future boundaries, including Build My Business, worker and job intake, corrected credential taxonomy, multi-role allocation coverage, publish allocation, Export Centre, audit, and metrics." />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://pressuresystems.au/liftiq/modules/" />
   <meta property="og:title" content="DispatchTalon Module Status" />
-  <meta property="og:description" content="See current DispatchTalon pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, corrected credentials, publish allocation, Export Centre, audit, and metrics." />
+  <meta property="og:description" content="See current DispatchTalon pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, corrected credentials, multi-role allocation coverage, publish allocation, Export Centre, audit, and metrics." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pressuresystems.au/liftiq/modules/" />
   <meta property="og:image" content="https://pressuresystems.au/assets/social/DispatchTalon_System_OG_1200x630.png" />
@@ -16,7 +16,7 @@
   <meta property="og:site_name" content="DispatchTalon by Pressure Systems" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="DispatchTalon Module Status" />
-  <meta name="twitter:description" content="See current DispatchTalon pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, corrected credentials, publish allocation, Export Centre, audit, and metrics." />
+  <meta name="twitter:description" content="See current DispatchTalon pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, corrected credentials, multi-role allocation coverage, publish allocation, Export Centre, audit, and metrics." />
   <meta name="twitter:image" content="https://pressuresystems.au/assets/social/DispatchTalon_System_OG_1200x630.png" />
   <meta name="twitter:image:alt" content="DispatchTalon module status social card showing current pilot-backed capability and clearly separated future layers." />
   <meta name="theme-color" content="#08111D" />
@@ -109,9 +109,15 @@
                 <td>Not payroll, OCR/PDF parsing, inbox ingestion, or autonomous job creation.</td>
               </tr>
               <tr>
+                <td><strong>Multi-role allocation coverage</strong></td>
+                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
+                <td>Required roles can carry counts and separate-worker-only flags. SmartRank can show conservative headcount, suggested minimum headcount, role coverage per worker, and review warnings.</td>
+                <td>Decision support only. It does not approve role combinations or silently collapse staffing needs.</td>
+              </tr>
+              <tr>
                 <td><strong>SmartRank + gates</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Explainable SmartRank uses CredentialGate, FatigueGuard, availability, schedule, and preference signals before allocation.</td>
+                <td>Explainable SmartRank uses role coverage, CredentialGate, FatigueGuard, availability, schedule, and preference signals before allocation.</td>
                 <td>Decision support only. The dispatcher remains the decision-maker.</td>
               </tr>
               <tr>
@@ -187,7 +193,7 @@
               <li>Live founding-partner pilot console with tenant-isolated pilot access.</li>
               <li>Labour-only and plant + labour operating modes.</li>
               <li>Clean Build My Business setup, filtered job intake, corrected credential taxonomy, one-off requirements, and asset register / plant numbers.</li>
-              <li>Worker import, worker detail save persistence, Job Brief Import, scheduling, SmartRank, CredentialGate, FatigueGuard, publish allocation, audit, metrics, and Export Centre.</li>
+              <li>Worker import, worker detail save persistence, Job Brief Import, role counts, separate-worker-only, multi-role coverage, scheduling, SmartRank, CredentialGate, FatigueGuard, publish allocation, audit, metrics, and Export Centre.</li>
             </ul>
           </article>
           <article class="lq-truth-card truth-not-yet">
