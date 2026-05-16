@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>How DispatchTalon Works | Pilot-stage dispatch workflow for labour and lifting operations</title>
-  <meta name="description" content="See how DispatchTalon structures labour-only and plant + labour allocation workflows before dispatch, from job intake and requirements through SmartRank, review flags, allocation, audit, and metrics." />
+  <meta name="description" content="See how DispatchTalon structures labour-only and plant + labour allocation workflows before dispatch, from Build My Business through workers, jobs, SmartRank, publish allocation, audit, and exports." />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://pressuresystems.au/liftiq/how-it-works/" />
   <meta property="og:title" content="How DispatchTalon Works" />
-  <meta property="og:description" content="See how DispatchTalon structures labour-only and plant + labour allocation workflows before dispatch, from job intake and requirements through SmartRank, review flags, allocation, audit, and metrics." />
+  <meta property="og:description" content="See how DispatchTalon structures labour-only and plant + labour allocation workflows before dispatch, from Build My Business through workers, jobs, SmartRank, publish allocation, audit, and exports." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pressuresystems.au/liftiq/how-it-works/" />
   <meta property="og:image" content="https://pressuresystems.au/assets/social/DispatchTalon_System_OG_1200x630.png" />
@@ -16,7 +16,7 @@
   <meta property="og:site_name" content="DispatchTalon by Pressure Systems" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="How DispatchTalon Works" />
-  <meta name="twitter:description" content="See how DispatchTalon structures labour-only and plant + labour allocation workflows before dispatch, from job intake and requirements through SmartRank, review flags, allocation, audit, and metrics." />
+  <meta name="twitter:description" content="See how DispatchTalon structures labour-only and plant + labour allocation workflows before dispatch, from Build My Business through workers, jobs, SmartRank, publish allocation, audit, and exports." />
   <meta name="twitter:image" content="https://pressuresystems.au/assets/social/DispatchTalon_System_OG_1200x630.png" />
   <meta name="twitter:image:alt" content="DispatchTalon by Pressure Systems social card explaining the pilot-stage dispatch workflow and visible recommendation logic." />
   <meta name="theme-color" content="#08111D" />
@@ -60,7 +60,7 @@
         <div>
           <span class="lq-eyebrow"><span class="lq-eyebrow-dot"></span>Founding-partner pilot workflow</span>
           <h1 class="lq-page-title">DispatchTalon structures the decision before dispatch.</h1>
-          <p class="lq-lead">The live pilot supports two workflows: labour-only allocation and plant + labour allocation. Both keep requirements, schedule, worker fit, warnings, override reasons, and audit proof visible before a dispatcher confirms the job.</p>
+          <p class="lq-lead">The live pilot supports two workflows: labour-only allocation and plant + labour allocation. Both follow the same controlled path: Build My Business, workers, jobs, SmartRank, publish allocation, audit, and exports.</p>
           <div class="lq-page-links" style="margin-top:24px;">
             <a href="/liftiq/modules/">Module status</a>
             <a href="https://liftiq-pilot.fly.dev/console/">Pilot portal access</a>
@@ -75,15 +75,15 @@
       <div class="lq-shell">
         <div class="lq-section-head">
           <span class="lq-kicker">Current logic path</span>
-          <h2>Current workflow in plain terms.</h2>
-          <p>DispatchTalon turns rough job information into a reviewable allocation path. The dispatcher reviews the data, warnings, ranking, and audit context before confirming the allocation.</p>
+          <h2>Build My Business to office handoff.</h2>
+          <p>DispatchTalon turns rough job information into a reviewable allocation path. The dispatcher reviews the data, warnings, ranking, publish state, and audit context before the office uses export data downstream.</p>
         </div>
         <div class="lq-timeline">
           <article class="lq-step">
             <div class="lq-step-num">1</div>
             <div>
-              <h3>Set up the company workflow</h3>
-              <p>Choose labour-only or plant + labour mode, then enable the credentials, VOCs, equipment, transport, civil, rail, energy, and asset options the company actually uses.</p>
+              <h3>Build My Business</h3>
+              <p>Choose labour-only or plant + labour mode, default timezone, and the requirements, credentials, VOCs, site conditions, equipment, transport, civil, rail, energy, and asset options the company actually uses.</p>
             </div>
           </article>
           <article class="lq-step">
@@ -124,15 +124,29 @@
           <article class="lq-step">
             <div class="lq-step-num">7</div>
             <div>
-              <h3>Confirm or record an override</h3>
+              <h3>Confirm internally or record an override</h3>
               <p>The dispatcher remains the decision-maker and records an override reason where the choice needs explanation.</p>
             </div>
           </article>
           <article class="lq-step">
             <div class="lq-step-num">8</div>
             <div>
+              <h3>Publish only when ready</h3>
+              <p>Worker selection stays internal until the dispatcher previews the SMS, copies the message, and marks the allocation as manually published.</p>
+            </div>
+          </article>
+          <article class="lq-step">
+            <div class="lq-step-num">9</div>
+            <div>
               <h3>Review audit trail and metrics</h3>
-              <p>Imports, requirements, asset selections, SmartRank, allocations, overrides, and review events feed the audit trail and pilot metrics.</p>
+              <p>Imports, requirements, asset selections, SmartRank, allocations, publish previews, manual publish events, overrides, and review events feed audit and metrics.</p>
+            </div>
+          </article>
+          <article class="lq-step">
+            <div class="lq-step-num">10</div>
+            <div>
+              <h3>Export clean office handoff CSVs</h3>
+              <p>Workers, jobs, allocations, payroll-prep, invoice-prep, audit, and metrics exports support office review without payroll or invoice calculation.</p>
             </div>
           </article>
         </div>
