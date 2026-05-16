@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const { seedCraneModelCatalog } = require('./services/crane-model-catalog');
 const { seedRequirementCatalogue } = require('./services/job-requirement-catalogue');
+const { seedRoleCompatibilityRules } = require('./services/role-coverage');
 
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 const AUDIT_EVENT_TYPES = [
@@ -24,6 +25,11 @@ const AUDIT_EVENT_TYPES = [
   'allocation_rejected',
   'allocation_publish_previewed',
   'allocation_published_manual',
+  'role_coverage_suggested',
+  'role_coverage_confirmed',
+  'role_coverage_review_required',
+  'role_coverage_override_recorded',
+  'role_compatibility_rule_updated',
   'warning_acknowledged',
   'non_top_ranked_selected',
   'credential_expiry_alert',
@@ -190,6 +196,50 @@ CREATE TABLE IF NOT EXISTS allocation_notifications (
   created_by_user_id    TEXT REFERENCES users(id),
   created_at            TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
+const ROLE_COVERAGE_SQL = `
+CREATE TABLE IF NOT EXISTS role_compatibility_rules (
+  id                         INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id                 TEXT REFERENCES companies(id),
+  role_a                     TEXT NOT NULL,
+  role_b                     TEXT NOT NULL,
+  compatibility_status       TEXT NOT NULL
+                               CHECK (compatibility_status IN ('compatible', 'review_required', 'discouraged', 'disallowed')),
+  reason                     TEXT,
+  requires_credentials_json  TEXT NOT NULL DEFAULT '[]',
+  is_active                  INTEGER NOT NULL DEFAULT 1,
+  created_at                 TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at                 TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(company_id, role_a, role_b)
+);
+
+CREATE TABLE IF NOT EXISTS job_role_requirements (
+  id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id               TEXT NOT NULL REFERENCES companies(id),
+  job_id                   TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  role_key                 TEXT NOT NULL,
+  role_label               TEXT NOT NULL,
+  required_count           INTEGER NOT NULL DEFAULT 1,
+  requires_distinct_worker INTEGER NOT NULL DEFAULT 0,
+  notes                    TEXT,
+  created_at               TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(company_id, job_id, role_key)
+);
+
+CREATE TABLE IF NOT EXISTS allocation_role_coverages (
+  id              TEXT PRIMARY KEY,
+  company_id      TEXT NOT NULL REFERENCES companies(id),
+  job_id          TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  allocation_id   TEXT REFERENCES allocations(id) ON DELETE CASCADE,
+  worker_id       TEXT NOT NULL REFERENCES workers(id),
+  role_key        TEXT NOT NULL,
+  source          TEXT NOT NULL
+                  CHECK (source IN ('manual', 'smartrank_suggested', 'dispatcher_confirmed')),
+  review_required INTEGER NOT NULL DEFAULT 0,
+  review_reason   TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `;
 
@@ -406,6 +456,16 @@ CREATE INDEX IF NOT EXISTS idx_allocation_notifications_worker
   ON allocation_notifications(company_id, worker_id);
 CREATE INDEX IF NOT EXISTS idx_allocation_notifications_status
   ON allocation_notifications(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_role_compatibility_company
+  ON role_compatibility_rules(company_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_job_role_requirements_job
+  ON job_role_requirements(company_id, job_id);
+CREATE INDEX IF NOT EXISTS idx_allocation_role_coverages_job
+  ON allocation_role_coverages(company_id, job_id);
+CREATE INDEX IF NOT EXISTS idx_allocation_role_coverages_alloc
+  ON allocation_role_coverages(company_id, allocation_id);
+CREATE INDEX IF NOT EXISTS idx_allocation_role_coverages_worker
+  ON allocation_role_coverages(company_id, worker_id);
 CREATE INDEX IF NOT EXISTS idx_job_imports_company
   ON job_imports(company_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_job_imports_status
@@ -570,6 +630,7 @@ function runMigrations(db) {
   ensureColumn(db, 'workers', `roles TEXT NOT NULL DEFAULT '[]'`, 'roles');
   ensureColumn(db, 'jobs', `task_tags TEXT NOT NULL DEFAULT '[]'`, 'task_tags');
   ensureColumn(db, 'jobs', `crane_classes_required TEXT NOT NULL DEFAULT '[]'`, 'crane_classes_required');
+  ensureColumn(db, 'jobs', `role_requirements TEXT NOT NULL DEFAULT '[]'`, 'role_requirements');
   ensureColumn(db, 'jobs', `scheduled_start_at_utc TEXT`, 'scheduled_start_at_utc');
   ensureColumn(db, 'jobs', `scheduled_end_at_utc TEXT`, 'scheduled_end_at_utc');
   ensureColumn(db, 'jobs', `job_timezone TEXT NOT NULL DEFAULT 'Australia/Brisbane'`, 'job_timezone');
@@ -609,6 +670,7 @@ function runMigrations(db) {
   db.exec(WORKER_TASK_PREFERENCES_SQL);
   db.exec(JOB_IMPORTS_SQL);
   db.exec(ALLOCATION_NOTIFICATIONS_SQL);
+  db.exec(ROLE_COVERAGE_SQL);
   db.exec(CRANE_MODELS_SQL);
   db.exec(CRANE_MODEL_TRAVEL_STATES_SQL);
   db.exec(JOB_CRANE_REQUIREMENTS_SQL);
@@ -618,6 +680,7 @@ function runMigrations(db) {
   migrateCredentials(db);
   migrateAuditEvents(db);
   db.exec(POST_MIGRATION_INDEX_SQL);
+  seedRoleCompatibilityRules(db);
   seedCraneModelCatalog(db);
   seedRequirementCatalogue(db);
 }

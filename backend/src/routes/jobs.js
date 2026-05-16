@@ -59,6 +59,12 @@ const {
   normalizeWorkerRoles,
   siteConditionReviewLabels
 } = require('../services/intake-catalogues');
+const {
+  insertAllocationRoleCoverages,
+  listRoleCompatibilityRules,
+  normalizeRoleRequirements,
+  validateRequestedRoleCoverage
+} = require('../services/role-coverage');
 
 const router = express.Router();
 
@@ -89,6 +95,31 @@ function normalizeTextList(value) {
 
 function normalizeCraneClasses(value) {
   return normalizeTextList(value);
+}
+
+function persistJobRoleRequirements(db, user, jobId, roleRequirements) {
+  const requirements = normalizeRoleRequirements(roleRequirements);
+  db.prepare(`DELETE FROM job_role_requirements WHERE company_id = ? AND job_id = ?`)
+    .run(user.company_id, jobId);
+
+  const stmt = db.prepare(`
+    INSERT INTO job_role_requirements (
+      company_id, job_id, role_key, role_label, required_count,
+      requires_distinct_worker, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  for (const requirement of requirements) {
+    stmt.run(
+      user.company_id,
+      jobId,
+      requirement.role_key,
+      requirement.role_label,
+      requirement.required_count,
+      requirement.requires_distinct_worker ? 1 : 0,
+      requirement.notes || null
+    );
+  }
+  return requirements;
 }
 
 function storedLocalTime(localDateTime) {
@@ -668,6 +699,8 @@ function buildCreateJobPayload(input, companyTimeZone) {
   const craneClassesRequired = normalizeCraneClasses(
     input.crane_classes_required || input.crane_class_required || input.crane_class
   );
+  const crewRolesRequired = normalizeWorkerRoles(input.crew_roles_required);
+  const roleRequirements = normalizeRoleRequirements(input.role_requirements, crewRolesRequired);
 
   const persistedDate = input.date || scheduleFields.scheduled_start_local?.slice(0, 10) || currentLocalDate(companyTimeZone);
 
@@ -686,7 +719,8 @@ function buildCreateJobPayload(input, companyTimeZone) {
     crane_classes_required: craneClassesRequired,
     job_description: trimText(input.job_description),
     task_tags: normalizeTextList(input.task_tags),
-    crew_roles_required: normalizeWorkerRoles(input.crew_roles_required),
+    crew_roles_required: crewRolesRequired,
+    role_requirements: roleRequirements,
     required_credentials: normalizeCredentialTypes(input.required_credentials),
     site_conditions: normalizeSiteConditions(input.site_conditions),
     lift_risk_level: liftRiskLevel,
@@ -714,12 +748,12 @@ function insertJob(db, user, payload) {
       id, company_id, reference, client_name, site_name, site_location,
       contact_name, contact_phone, date, shift_start_time, shift_type,
       estimated_duration_hours, crane_class_required, crane_classes_required, job_description, task_tags,
-      crew_roles_required, required_credentials, site_conditions, lift_risk_level,
+      crew_roles_required, role_requirements, required_credentials, site_conditions, lift_risk_level,
       scheduled_start_at_utc, scheduled_end_at_utc, job_timezone, scheduled_start_local,
       scheduled_end_local, schedule_status, risk_notes, travel_required,
       travel_hours_estimated, travel_notes, source_note, notes, status,
       created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(
     jobId,
     user.company_id,
@@ -738,6 +772,7 @@ function insertJob(db, user, payload) {
     payload.job_description,
     JSON.stringify(payload.task_tags || []),
     JSON.stringify(payload.crew_roles_required || []),
+    JSON.stringify(payload.role_requirements || []),
     JSON.stringify(payload.required_credentials || []),
     JSON.stringify(payload.site_conditions || []),
     payload.lift_risk_level,
@@ -758,6 +793,8 @@ function insertJob(db, user, payload) {
     now
   );
 
+  persistJobRoleRequirements(db, user, jobId, payload.role_requirements);
+
   appendAuditEvent(db, {
     companyId: user.company_id,
     eventType: 'job_created',
@@ -768,6 +805,7 @@ function insertJob(db, user, payload) {
       site_name: payload.site_name,
       date: payload.date,
       shift_type: payload.shift_type,
+      role_requirements: payload.role_requirements,
       source: payload.source_note ? 'job_brief_import' : 'manual_console',
       ...scheduleAuditPayload(payload)
     }
@@ -852,6 +890,8 @@ function normalizeBriefCreatePayload(input) {
   const jobDescription = trimText(input.job_description);
   const riskNotes = trimText(input.risk_notes);
   const travelNotes = trimText(input.travel_notes);
+  const crewRolesRequired = normalizeWorkerRoles(input.required_roles);
+  const roleRequirements = normalizeRoleRequirements(input.role_requirements, crewRolesRequired);
 
   return {
     reference: trimText(input.reference),
@@ -870,7 +910,8 @@ function normalizeBriefCreatePayload(input) {
     crane_classes_required: normalizeCraneClasses(input.crane_classes_required || input.crane_class),
     job_description: jobDescription,
     task_tags: taskTags,
-    crew_roles_required: normalizeWorkerRoles(input.required_roles),
+    crew_roles_required: crewRolesRequired,
+    role_requirements: roleRequirements,
     required_credentials: normalizeCredentialTypes(input.required_credentials),
     site_conditions: normalizeSiteConditions([
       ...parseJsonArray(input.site_conditions),
@@ -1090,6 +1131,7 @@ router.post('/import-brief/preview', requireAuth, requireRole('admin', 'dispatch
         scheduled_date: parsed.extracted.scheduled_date,
         timezone: parsed.extracted.timezone,
         required_roles: parsed.extracted.required_roles,
+        role_requirements: parsed.extracted.role_requirements,
         required_credentials: parsed.extracted.required_credentials,
         task_tags: parsed.extracted.task_tags
       },
@@ -1279,6 +1321,7 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
   const updates = [];
   const params = [];
   const changedFields = [];
+  let nextRoleRequirementsForSave = null;
 
   function queueUpdate(column, value, existingValue = existing[column]) {
     const current = existingValue === undefined ? null : existingValue;
@@ -1315,7 +1358,20 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
   }
   if (hasOwn(req.body, 'job_description')) queueUpdate('job_description', trimText(req.body.job_description), existing.job_description || null);
   if (hasOwn(req.body, 'task_tags')) queueUpdate('task_tags', JSON.stringify(normalizeTextList(req.body.task_tags)), existing.task_tags);
-  if (hasOwn(req.body, 'crew_roles_required')) queueUpdate('crew_roles_required', JSON.stringify(normalizeWorkerRoles(req.body.crew_roles_required)), existing.crew_roles_required);
+  if (hasOwn(req.body, 'crew_roles_required') || hasOwn(req.body, 'role_requirements')) {
+    const baseCrewRoles = hasOwn(req.body, 'crew_roles_required')
+      ? normalizeWorkerRoles(req.body.crew_roles_required)
+      : normalizeWorkerRoles(existing.crew_roles_required);
+    nextRoleRequirementsForSave = normalizeRoleRequirements(
+      hasOwn(req.body, 'role_requirements') ? req.body.role_requirements : existing.role_requirements,
+      baseCrewRoles
+    );
+    const nextCrewRoles = hasOwn(req.body, 'crew_roles_required')
+      ? baseCrewRoles
+      : nextRoleRequirementsForSave.map((requirement) => requirement.role_key);
+    queueUpdate('crew_roles_required', JSON.stringify(nextCrewRoles), existing.crew_roles_required);
+    queueUpdate('role_requirements', JSON.stringify(nextRoleRequirementsForSave), existing.role_requirements || '[]');
+  }
   if (hasOwn(req.body, 'required_credentials')) queueUpdate('required_credentials', JSON.stringify(normalizeCredentialTypes(req.body.required_credentials)), existing.required_credentials);
   if (hasOwn(req.body, 'site_conditions')) queueUpdate('site_conditions', JSON.stringify(normalizeSiteConditions(req.body.site_conditions)), existing.site_conditions);
   if (hasOwn(req.body, 'lift_risk_level')) queueUpdate('lift_risk_level', req.body.lift_risk_level);
@@ -1350,6 +1406,9 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
     persistJobCraneAssessment(db, req.user, req.params.id, req.body);
     persistJobRequirementPayload(db, req.user, req.params.id, req.body, 'catalogue');
     persistJobAssetPayload(db, req.user, req.params.id, req.body, 'manual', { auditEmpty: true });
+    if (nextRoleRequirementsForSave) {
+      persistJobRoleRequirements(db, req.user, req.params.id, nextRoleRequirementsForSave);
+    }
 
     const saved = db.prepare(`SELECT * FROM jobs WHERE id = ? AND company_id = ?`).get(req.params.id, req.user.company_id);
     if (changedFields.length > 0) {
@@ -1365,14 +1424,17 @@ router.patch('/:id', requireAuth, requireRole('admin', 'dispatcher'), (req, res)
       });
     }
 
-    if (changedFields.includes('crew_roles_required')) {
+    if (changedFields.includes('crew_roles_required') || changedFields.includes('role_requirements')) {
       appendAuditEvent(db, {
         companyId: req.user.company_id,
         eventType: 'job_required_roles_updated',
         userId: req.user.id,
         jobId: req.params.id,
         payload: {
-          roles: normalizeWorkerRoles(req.body.crew_roles_required)
+          roles: nextRoleRequirementsForSave
+            ? nextRoleRequirementsForSave.map((requirement) => requirement.role_key)
+            : normalizeWorkerRoles(req.body.crew_roles_required),
+          role_requirements: nextRoleRequirementsForSave || []
         }
       });
     }
@@ -1477,24 +1539,50 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
     workers = workers.filter((worker) => worker.role === req.query.role);
   }
 
-  const { ranked, blocked } = rankWorkersForJob(
+  const roleCompatibilityRules = listRoleCompatibilityRules(db, req.user.company_id);
+  const { ranked, blocked, role_coverage_plan } = rankWorkersForJob(
     workers,
     job,
     credsByWorker,
     fatigueByWorker,
     allocsByWorker,
-    preferencesByWorker
+    preferencesByWorker,
+    { roleCompatibilityRules }
   );
 
-  const result = { job, ranked, blocked, generated_at: new Date().toISOString() };
+  const result = { job, ranked, blocked, role_coverage_plan, generated_at: new Date().toISOString() };
 
   appendAuditEvent(db, {
     companyId: req.user.company_id,
     eventType: 'smartrank_generated',
     userId: req.user.id,
     jobId: job.id,
-    payload: { ranked_count: ranked.length, blocked_count: blocked.length }
+    payload: {
+      ranked_count: ranked.length,
+      blocked_count: blocked.length,
+      role_coverage_suggested_minimum_headcount: role_coverage_plan.suggested_minimum_headcount,
+      role_coverage_review_required: role_coverage_plan.review_required
+    }
   });
+
+  if (role_coverage_plan.assignments.length > 0) {
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'role_coverage_suggested',
+      userId: req.user.id,
+      jobId: job.id,
+      payload: {
+        suggested_minimum_headcount: role_coverage_plan.suggested_minimum_headcount,
+        conservative_headcount: role_coverage_plan.conservative_headcount,
+        assignments: role_coverage_plan.assignments.map((assignment) => ({
+          worker_id: assignment.worker_id,
+          roles_covered: assignment.roles_covered,
+          review_required: assignment.review_required
+        })),
+        unfilled_roles: role_coverage_plan.unfilled_roles
+      }
+    });
+  }
 
   const learnedSignals = ranked.flatMap((entry) =>
     (entry.preference_signals || [])
@@ -1624,7 +1712,7 @@ router.get('/:id/allocations', requireAuth, (req, res) => {
     ORDER BY a.allocated_at DESC
   `).all(req.params.id, req.user.company_id);
 
-  res.json(allocations.map((allocation) => serializeAllocation(allocation)));
+  res.json(allocations.map((allocation) => serializeAllocation(allocation, null, db)));
 });
 
 router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
@@ -1672,13 +1760,15 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     preferencesByWorker
   } = fetchSmartRankData(db, req.user.company_id);
 
-  const { ranked, blocked } = rankWorkersForJob(
+  const roleCompatibilityRules = listRoleCompatibilityRules(db, req.user.company_id);
+  const { ranked, blocked, role_coverage_plan } = rankWorkersForJob(
     workers,
     job,
     credsByWorker,
     fatigueByWorker,
     allocsByWorker,
-    preferencesByWorker
+    preferencesByWorker,
+    { roleCompatibilityRules }
   );
 
   const blockedEntry = blocked.find((entry) => entry.worker.id === worker_id);
@@ -1703,13 +1793,38 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
   }
 
   const { rank, score, score_breakdown, warnings, preference_signals } = rankedEntry;
-  const overrideRequired = warnings.length > 0 || rank > 1;
+  let confirmedRoleCoverage;
+  try {
+    confirmedRoleCoverage = validateRequestedRoleCoverage(
+      worker,
+      job,
+      credsByWorker[worker_id] || [],
+      req.body.role_coverage || req.body.roles_covered || rankedEntry.role_coverage?.suggested_roles || [],
+      { roleCompatibilityRules }
+    );
+  } catch (error) {
+    return res.status(error.status || 400).json({
+      error: error.message,
+      invalid_roles: error.invalid_roles || []
+    });
+  }
+
+  const effectiveWarnings = Array.from(
+    new Map(
+      [
+        ...(warnings || []),
+        ...(confirmedRoleCoverage.warnings || [])
+      ].map((warning) => [JSON.stringify(warning), warning])
+    ).values()
+  );
+
+  const overrideRequired = effectiveWarnings.length > 0 || rank > 1;
   if (overrideRequired && !override_reason) {
     return res.status(422).json({
-      error: warnings.length > 0
+      error: effectiveWarnings.length > 0
         ? 'Worker has active warnings. Provide override_reason to confirm this allocation.'
         : 'Selected worker is not top-ranked. Provide override_reason to confirm this allocation.',
-      warnings,
+      warnings: effectiveWarnings,
       rank
     });
   }
@@ -1721,6 +1836,8 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     total_ranked: ranked.length,
     total_blocked: blocked.length,
     score_breakdown,
+    role_coverage: confirmedRoleCoverage,
+    role_coverage_plan,
     preference_signals,
     schedule: job.schedule,
     ranking_summary: ranked.map((entry) => ({
@@ -1758,7 +1875,7 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
       rank,
       score,
       JSON.stringify(snapshot),
-      JSON.stringify(warnings),
+      JSON.stringify(effectiveWarnings),
       JSON.stringify(blockedSummary),
       override_reason || null,
       job.scheduled_start_at_utc || null,
@@ -1772,6 +1889,17 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     db.prepare(`UPDATE jobs SET status = 'allocated', updated_at = ? WHERE id = ?`)
       .run(now, job.id);
 
+    insertAllocationRoleCoverages(db, {
+      companyId: req.user.company_id,
+      jobId: job.id,
+      allocationId,
+      workerId: worker_id,
+      roles: confirmedRoleCoverage.suggested_roles,
+      source: 'dispatcher_confirmed',
+      reviewRequired: confirmedRoleCoverage.review_required,
+      reviewReason: confirmedRoleCoverage.review_required ? (override_reason || null) : null
+    });
+
     appendAuditEvent(db, {
       companyId: req.user.company_id,
       eventType: 'allocation_confirmed',
@@ -1782,12 +1910,60 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
       payload: {
         smartrank_position: rank,
         score,
-        warnings_count: warnings.length,
+        warnings_count: effectiveWarnings.length,
+        role_coverage: confirmedRoleCoverage.suggested_roles,
+        role_coverage_review_required: confirmedRoleCoverage.review_required,
         schedule: job.schedule
       }
     });
 
-    if (warnings.length > 0 && override_reason) {
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'role_coverage_confirmed',
+      userId: req.user.id,
+      workerId: worker_id,
+      jobId: job.id,
+      allocationId,
+      payload: {
+        roles_covered: confirmedRoleCoverage.suggested_roles,
+        role_labels: confirmedRoleCoverage.suggested_role_labels,
+        review_required: confirmedRoleCoverage.review_required,
+        reason: override_reason || null
+      }
+    });
+
+    if (confirmedRoleCoverage.review_required) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'role_coverage_review_required',
+        userId: req.user.id,
+        workerId: worker_id,
+        jobId: job.id,
+        allocationId,
+        payload: {
+          roles_covered: confirmedRoleCoverage.suggested_roles,
+          warnings: confirmedRoleCoverage.warnings,
+          review_reason: override_reason || null
+        }
+      });
+    }
+
+    if (confirmedRoleCoverage.review_required && override_reason) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'role_coverage_override_recorded',
+        userId: req.user.id,
+        workerId: worker_id,
+        jobId: job.id,
+        allocationId,
+        payload: {
+          roles_covered: confirmedRoleCoverage.suggested_roles,
+          override_reason
+        }
+      });
+    }
+
+    if (effectiveWarnings.length > 0 && override_reason) {
       appendAuditEvent(db, {
         companyId: req.user.company_id,
         eventType: 'warning_acknowledged',
@@ -1796,7 +1972,7 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
         jobId: job.id,
         allocationId,
         payload: {
-          warnings,
+          warnings: effectiveWarnings,
           override_reason,
           schedule: job.schedule
         }
@@ -1849,7 +2025,7 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     WHERE a.id = ?
   `).get(allocationId);
 
-  res.status(201).json(serializeAllocation(allocationRow));
+  res.status(201).json(serializeAllocation(allocationRow, null, db));
 });
 
 router.patch('/:jobId/allocations/:allocationId', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
@@ -1914,7 +2090,7 @@ router.patch('/:jobId/allocations/:allocationId', requireAuth, requireRole('admi
     WHERE a.id = ?
   `).get(req.params.allocationId);
 
-  res.json(serializeAllocation(updated));
+  res.json(serializeAllocation(updated, null, db));
 });
 
 module.exports = router;

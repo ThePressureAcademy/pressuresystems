@@ -190,6 +190,35 @@ describe('Job brief import for assisted job creation', () => {
     assert.ok(defaulted.body.warnings.some((warning) => /defaulted to Australia\/Brisbane/i.test(warning)));
   });
 
+  test('preview maps combined role wording and role counts for coverage review', async () => {
+    const res = await request.post('/api/jobs/import-brief/preview').set(auth()).send({
+      source_type: 'pasted_text',
+      content: [
+        'Client: Coverage Test',
+        'Site: Test Yard',
+        'Required crew:',
+        'Need dogman/rigger and 2 truck drivers. Electrical spotter and EWP operator also required.',
+        'Timing:',
+        'Friday 22 May 2026',
+        'Start: 7:00 AM',
+        'Finish: 3:00 PM'
+      ].join('\n')
+    });
+
+    assert.equal(res.status, 200);
+    assert.ok(res.body.extracted.required_roles.includes('dogman'));
+    assert.ok(res.body.extracted.required_roles.includes('rigger'));
+    assert.ok(res.body.extracted.required_roles.includes('truck_driver'));
+    assert.ok(res.body.extracted.required_roles.includes('electrical_spotter'));
+    assert.ok(res.body.extracted.required_roles.includes('ewp_operator'));
+
+    const byRole = Object.fromEntries(res.body.extracted.role_requirements.map((item) => [item.role_key, item]));
+    assert.equal(byRole.truck_driver.required_count, 2);
+    assert.equal(byRole.truck_driver.requires_distinct_worker, false);
+    assert.match(byRole.dogman.notes, /combined-role/i);
+    assert.ok(res.body.warnings.some((warning) => /Dogman\/Rigger combined wording/i.test(warning)));
+  });
+
   test('create-job-from-import uses edited fields, does not auto-allocate, appears in jobs and schedule, and supports SmartRank', async () => {
     const workerId = seedWorker(db, companyId, {
       name: 'Import Ready Operator',

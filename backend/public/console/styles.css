@@ -101,6 +101,44 @@ label > span {
   padding: 0;
 }
 
+.role-requirements-panel {
+  margin-top: 14px;
+}
+
+.role-requirement-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.role-requirement-row,
+.role-coverage-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(90px, 0.7fr) minmax(170px, 1fr) minmax(190px, 1.4fr);
+  gap: 10px;
+  align-items: end;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.role-coverage-row {
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, 2fr) auto;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.role-coverage-summary {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.role-coverage-select .option-grid {
+  margin-top: 8px;
+}
+
 /* ─── Login ─── */
 .login-shell {
   min-height: 100vh;
@@ -1067,6 +1105,11 @@ ul.tag-list li {
   }
 
   .kv {
+    grid-template-columns: 1fr;
+  }
+
+  .role-requirement-row,
+  .role-coverage-row {
     grid-template-columns: 1fr;
   }
 

@@ -130,11 +130,11 @@ function seedJob(db, companyId, userId, overrides = {}) {
   db.prepare(`
     INSERT INTO jobs (
       id, company_id, client_name, site_name, site_location, date, shift_type,
-      crane_class_required, crane_classes_required, task_tags, required_credentials, crew_roles_required, site_conditions,
+      crane_class_required, crane_classes_required, task_tags, required_credentials, crew_roles_required, role_requirements, site_conditions,
       lift_risk_level, scheduled_start_at_utc, scheduled_end_at_utc, job_timezone,
       scheduled_start_local, scheduled_end_local, schedule_status,
       shift_start_time, status, created_by_user_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
   `).run(
     id, companyId,
     overrides.client_name           || 'Test Client',
@@ -147,6 +147,7 @@ function seedJob(db, companyId, userId, overrides = {}) {
     JSON.stringify(overrides.task_tags || []),
     JSON.stringify(overrides.required_credentials || []),
     JSON.stringify(overrides.crew_roles_required  || []),
+    JSON.stringify(overrides.role_requirements || (overrides.crew_roles_required || []).map((role) => ({ role_key: role, required_count: 1 }))),
     JSON.stringify(overrides.site_conditions      || []),
     overrides.lift_risk_level       || 'routine',
     overrides.scheduled_start_at_utc || null,

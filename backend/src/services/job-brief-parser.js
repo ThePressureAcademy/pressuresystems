@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeTaskTag } = require('./preferences');
+const { normalizeWorkerRoles, workerRoleLabel } = require('./intake-catalogues');
 const {
   DEFAULT_TIMEZONE,
   isValidTimeZone,
@@ -53,14 +54,15 @@ const CRANE_CLASS_MATCHERS = [
 ];
 
 const ROLE_MATCHERS = [
-  { pattern: /\blift supervisor\b/i, value: 'supervisor' },
-  { pattern: /\boperator\b/i, value: 'crane_operator' },
   { pattern: /\bcrane operator\b/i, value: 'crane_operator' },
+  { pattern: /\blift supervisor\b/i, value: 'lift_supervisor' },
   { pattern: /\bdogman\b/i, value: 'dogman' },
   { pattern: /\brigger\b/i, value: 'rigger' },
   { pattern: /\bsupervisor\b/i, value: 'supervisor' },
-  { pattern: /\btruck driver\b/i, value: 'truck_driver' },
+  { pattern: /\btruck drivers?\b|\bdrivers?\b/i, value: 'truck_driver' },
   { pattern: /\belectrical spotter\b/i, value: 'electrical_spotter' },
+  { pattern: /\bspotter\b/i, value: 'electrical_spotter' },
+  { pattern: /\bewp operator\b|\belevating work platform operator\b/i, value: 'ewp_operator' },
   { pattern: /\btraffic controller\b/i, value: 'traffic_controller' },
   { pattern: /\blabou?rer\b/i, value: 'labourer' }
 ];
@@ -282,6 +284,65 @@ function detectValuesByMatchers(text, matchers) {
   return unique(matches);
 }
 
+function numberWord(value) {
+  const normalized = String(value || '').toLowerCase();
+  const words = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6
+  };
+  return words[normalized] || Number(normalized) || 1;
+}
+
+function detectRoleRequirements(text, warnings) {
+  const body = String(text || '');
+  const roles = new Set(detectValuesByMatchers(body, ROLE_MATCHERS));
+  if (/\boperator\b/i.test(body) && !/\b(?:ewp|forklift|excavator|skid steer|grader|roller)\s+operator\b/i.test(body)) {
+    roles.add('crane_operator');
+  }
+
+  const requirements = new Map();
+  const ensureRequirement = (role, count = 1, notes = null) => {
+    const normalized = normalizeWorkerRoles([role])[0];
+    if (!normalized) return;
+    const existing = requirements.get(normalized);
+    const nextCount = Math.max(existing?.required_count || 1, count);
+    requirements.set(normalized, {
+      role_key: normalized,
+      role_label: workerRoleLabel(normalized),
+      required_count: nextCount,
+      requires_distinct_worker: false,
+      notes: notes || existing?.notes || null
+    });
+  };
+
+  for (const role of roles) ensureRequirement(role);
+
+  const driverCount = body.match(/\b(\d+|one|two|three|four|five|six)\s+(?:truck\s+)?drivers?\b/i);
+  if (driverCount) {
+    ensureRequirement('truck_driver', numberWord(driverCount[1]), 'Multiple driver slots require distinct workers for the driver role.');
+  }
+
+  if (/\btwo\s+trucks?\s+required\b|\b2\s+trucks?\s+required\b/i.test(body)) {
+    ensureRequirement('truck_driver', 2, 'Two truck requirements normally need two distinct truck driver slots.');
+    warnings.push('Two truck requirement detected. Dispatcher should confirm driver count and whether drivers can cover other roles.');
+  }
+
+  if (/\bdogman\s*\/\s*rigger\b|\brigger\s*\/\s*dogman\b/i.test(body)) {
+    ensureRequirement('dogman', 1, 'Brief suggests Dogman/Rigger may be a combined-role requirement if credentialed.');
+    ensureRequirement('rigger', 1, 'Brief suggests Dogman/Rigger may be a combined-role requirement if credentialed.');
+    warnings.push('Dogman/Rigger combined wording detected. Dispatcher must confirm whether one worker can cover both roles for this job.');
+  }
+
+  return {
+    roles: Array.from(new Set(Array.from(requirements.keys()))),
+    requirements: Array.from(requirements.values())
+  };
+}
+
 function inferShiftType(startTime, taskTags, text) {
   if ((taskTags || []).includes('night_shift') || /\bnight shift\b/i.test(text || '')) {
     return 'night';
@@ -486,6 +547,7 @@ function parseJobBrief(text, options = {}) {
     required_capacity_tonnes: 'low',
     counterweight_required_tonnes: 'low',
     required_roles: 'low',
+    role_requirements: 'low',
     required_credentials: 'low',
     task_tags: 'low',
     risk_notes: 'low',
@@ -544,9 +606,12 @@ function parseJobBrief(text, options = {}) {
   confidence.timezone = timezone.confidence;
 
   const crewText = extractSectionText(lines, ['required crew', 'crew']) || String(text || '');
-  const requiredRoles = detectValuesByMatchers(crewText, ROLE_MATCHERS);
+  const roleDetection = detectRoleRequirements(crewText, warnings);
+  const requiredRoles = roleDetection.roles;
+  const roleRequirements = roleDetection.requirements;
   if (requiredRoles.length > 0) {
     confidence.required_roles = /required crew|crew/i.test(crewText) ? 'high' : 'medium';
+    confidence.role_requirements = confidence.required_roles;
   }
 
   const requirementsText = extractSectionText(lines, ['requirements']) || String(text || '');
@@ -645,6 +710,7 @@ function parseJobBrief(text, options = {}) {
     height_m: null,
     counterweight_required_tonnes: counterweightRequirement.value,
     required_roles: requiredRoles,
+    role_requirements: roleRequirements,
     required_credentials: requiredCredentials,
     task_tags: taskTags,
     risk_notes: riskNotes,

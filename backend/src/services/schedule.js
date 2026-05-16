@@ -8,6 +8,10 @@ const { buildPlanningMessages } = require('./crane-transport-planning');
 const { normalizeConfidence } = require('./crane-model-catalog');
 const { applyStructuredRequirementsToJob } = require('./job-requirement-catalogue');
 const { applyAssetAssignmentsToJob } = require('./company-assets');
+const {
+  listAllocationRoleCoverages,
+  normalizeRoleRequirements
+} = require('./role-coverage');
 
 function safeJsonParse(value, fallback = []) {
   try {
@@ -157,6 +161,7 @@ function serializeJob(row, displayTimeZone = null, db = null) {
     task_tags: safeJsonParse(row.task_tags, []),
     required_credentials: safeJsonParse(row.required_credentials, []),
     crew_roles_required: safeJsonParse(row.crew_roles_required, []),
+    role_requirements: normalizeRoleRequirements(safeJsonParse(row.role_requirements, []), safeJsonParse(row.crew_roles_required, [])),
     site_conditions: safeJsonParse(row.site_conditions, []),
     crane_classes_required: safeJsonParse(row.crane_classes_required, row.crane_class_required ? [row.crane_class_required] : []),
     crane_planning: loadJobCranePlanning(db, row.id),
@@ -178,9 +183,9 @@ function serializeJob(row, displayTimeZone = null, db = null) {
   );
 }
 
-function serializeAllocation(row, displayTimeZone = null) {
+function serializeAllocation(row, displayTimeZone = null, db = null) {
   if (!row) return null;
-  return {
+  const serialized = {
     ...row,
     smartrank_snapshot: safeJsonParse(row.smartrank_snapshot, {}),
     active_warnings: safeJsonParse(row.active_warnings, []),
@@ -194,6 +199,14 @@ function serializeAllocation(row, displayTimeZone = null) {
       schedule_status: row.allocation_status || row.job_schedule_status || 'planned'
     }, displayTimeZone)
   };
+  if (db) {
+    serialized.role_coverages = listAllocationRoleCoverages(db, {
+      companyId: row.company_id,
+      jobId: row.job_id,
+      allocationId: row.id
+    });
+  }
+  return serialized;
 }
 
 module.exports = {
