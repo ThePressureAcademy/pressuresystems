@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DispatchTalon Module Status | Current pilot-backed modules and boundaries</title>
-  <meta name="description" content="See current DispatchTalon pilot-backed modules and future boundaries, including operating modes, requirement catalogues, asset register, job intake, SmartRank, CredentialGate, FatigueGuard, audit, and metrics." />
+  <meta name="description" content="See current DispatchTalon pilot-backed modules and future boundaries, including Build My Business, worker and job intake, corrected credential taxonomy, publish allocation, Export Centre, audit, and metrics." />
   <meta name="robots" content="index,follow" />
   <link rel="canonical" href="https://pressuresystems.au/liftiq/modules/" />
   <meta property="og:title" content="DispatchTalon Module Status" />
-  <meta property="og:description" content="See current DispatchTalon pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, requirement catalogues, asset register, job intake, SmartRank, audit, and metrics." />
+  <meta property="og:description" content="See current DispatchTalon pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, corrected credentials, publish allocation, Export Centre, audit, and metrics." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pressuresystems.au/liftiq/modules/" />
   <meta property="og:image" content="https://pressuresystems.au/assets/social/DispatchTalon_System_OG_1200x630.png" />
@@ -16,7 +16,7 @@
   <meta property="og:site_name" content="DispatchTalon by Pressure Systems" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="DispatchTalon Module Status" />
-  <meta name="twitter:description" content="See current DispatchTalon pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, requirement catalogues, asset register, job intake, SmartRank, audit, and metrics." />
+  <meta name="twitter:description" content="See current DispatchTalon pilot-backed modules and future boundaries, including labour-only mode, plant + labour mode, corrected credentials, publish allocation, Export Centre, audit, and metrics." />
   <meta name="twitter:image" content="https://pressuresystems.au/assets/social/DispatchTalon_System_OG_1200x630.png" />
   <meta name="twitter:image:alt" content="DispatchTalon module status social card showing current pilot-backed capability and clearly separated future layers." />
   <meta name="theme-color" content="#08111D" />
@@ -60,7 +60,7 @@
         <div>
           <span class="lq-eyebrow"><span class="lq-eyebrow-dot"></span>Current pilot-backed modules</span>
           <h1 class="lq-page-title">Current capability stays separate from future ideas.</h1>
-          <p class="lq-lead">DispatchTalon is pilot-stage software. These modules are backed by the current workflow; deferred ERP, finance, route, permit, OCR, inbox, calendar, and telematics ideas stay out of the headline.</p>
+          <p class="lq-lead">DispatchTalon is pilot-stage software. These modules are backed by the current workflow; deferred ERP, direct accounting integration, route, permit, OCR, inbox, calendar, and telematics ideas stay out of the headline.</p>
         </div>
       </div>
     </section>
@@ -87,8 +87,14 @@
               <tr>
                 <td><strong>Our Business setup</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Company-specific requirement catalogues filter credentials, VOCs, civil, rail, energy, equipment, and transport options.</td>
-                <td>One-off requirements stay job-scoped unless promoted later.</td>
+                <td>Clean Build My Business setup controls operating mode, default timezone, requirement catalogue, assets, and workspace reset controls.</td>
+                <td>No default workers, default jobs, or fake assets are seeded into new tenants.</td>
+              </tr>
+              <tr>
+                <td><strong>Credential taxonomy</strong></td>
+                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
+                <td>Create Job now separates High Risk Work, VOC, Working at Height, Safety / Site, Heavy Vehicle, Rail, Energy / Electrical, and Civil / Plant credentials.</td>
+                <td>Category labels support review; they are not legal or compliance advice.</td>
               </tr>
               <tr>
                 <td><strong>Asset Register</strong></td>
@@ -99,7 +105,7 @@
               <tr>
                 <td><strong>Worker and job intake</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
-                <td>Worker import, safe archive, job brief import, scheduled jobs, and timezone-aware windows are live in pilot scope.</td>
+                <td>Worker import, worker detail edit/save, multi-role workers, job brief import, multi-role job requirements, site conditions, additional notes, travel over 100km, scheduled jobs, and timezone-aware windows are live in pilot scope.</td>
                 <td>Not payroll, OCR/PDF parsing, inbox ingestion, or autonomous job creation.</td>
               </tr>
               <tr>
@@ -121,6 +127,18 @@
                 <td>Not external regulatory reporting or advanced analytics.</td>
               </tr>
               <tr>
+                <td><strong>Publish allocation</strong></td>
+                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
+                <td>Worker selection remains internal until the dispatcher opens the preview, copies the operational SMS, and marks the allocation as manually published.</td>
+                <td>No external SMS provider is active yet and no worker notification is sent automatically on selection.</td>
+              </tr>
+              <tr>
+                <td><strong>Export Centre</strong></td>
+                <td><span class="lq-status demonstrated">Pilot-backed</span></td>
+                <td>Workers, jobs, allocations, payroll-prep, invoice-prep, audit, and metrics CSV exports are available for authenticated tenant users.</td>
+                <td>No direct Xero/MYOB integration, payroll calculation, invoice totals, tax, super, awards, allowances, overtime, entitlements, or GST calculation.</td>
+              </tr>
+              <tr>
                 <td><strong>Multi-company pilot access</strong></td>
                 <td><span class="lq-status demonstrated">Pilot-backed</span></td>
                   <td>Tenant-isolated pilot workspaces support company login, data separation, access status, and first-login rotation.</td>
@@ -129,7 +147,7 @@
               <tr>
                 <td><strong>Future / not-yet modules</strong></td>
                 <td><span class="lq-status deferred">Separated</span></td>
-                <td>ERP replacement, payroll, invoicing, quote builder, permit automation, GPS, telematics, OCR, inbox ingestion, and external calendar sync are outside current scope.</td>
+                <td>ERP replacement, direct Xero/MYOB sync, payroll, invoicing, quote builder, permit automation, GPS, telematics, OCR, inbox ingestion, and external calendar sync are outside current scope.</td>
                 <td>Do not promote until real product surface exists.</td>
               </tr>
              </tbody>
@@ -168,8 +186,8 @@
             <ul class="lq-list">
               <li>Live founding-partner pilot console with tenant-isolated pilot access.</li>
               <li>Labour-only and plant + labour operating modes.</li>
-              <li>Our Business setup, filtered job intake, one-off requirements, and asset register / plant numbers.</li>
-              <li>Worker import, Job Brief Import, scheduling, SmartRank, CredentialGate, FatigueGuard, crane/counterweight/transport review, audit, and metrics.</li>
+              <li>Clean Build My Business setup, filtered job intake, corrected credential taxonomy, one-off requirements, and asset register / plant numbers.</li>
+              <li>Worker import, worker detail save persistence, Job Brief Import, scheduling, SmartRank, CredentialGate, FatigueGuard, publish allocation, audit, metrics, and Export Centre.</li>
             </ul>
           </article>
           <article class="lq-truth-card truth-not-yet">
@@ -177,7 +195,7 @@
             <ul class="lq-list">
               <li>No payroll, invoicing, quote builder, maintenance, billing, or Fleet Cost & Care replacement claim.</li>
               <li>No autonomous dispatch, black-box allocation, permit automation, route optimisation, or lift engineering claim.</li>
-              <li>No live Xero, MYOB, external calendar, GPS / telematics, email inbox ingestion, OCR, or PDF parsing claim.</li>
+              <li>No live Xero, MYOB, payroll, invoice calculation, external calendar, GPS / telematics, email inbox ingestion, OCR, or PDF parsing claim.</li>
               <li>No public self-serve signup or company switcher claim.</li>
             </ul>
           </article>
