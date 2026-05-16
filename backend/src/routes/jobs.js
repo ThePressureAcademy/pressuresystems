@@ -40,6 +40,11 @@ const {
   serializeJob
 } = require('../services/schedule');
 const {
+  createPreviewNotification,
+  listAllocationNotifications,
+  publishManualNotification
+} = require('../services/allocation-notifications');
+const {
   hasAssetPayload,
   listJobAssetAssignments,
   mapAssetReferencesFromText,
@@ -1520,6 +1525,81 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
   res.json(result);
 });
 
+router.get('/:id/allocation-notifications', requireAuth, (req, res) => {
+  const db = getDb();
+  const job = db.prepare(`SELECT id FROM jobs WHERE id = ? AND company_id = ?`)
+    .get(req.params.id, req.user.company_id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  return res.json({
+    notifications: listAllocationNotifications(db, {
+      companyId: req.user.company_id,
+      jobId: req.params.id
+    })
+  });
+});
+
+router.post('/:id/allocation-notifications/preview', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
+  const db = getDb();
+  const job = db.prepare(`SELECT id FROM jobs WHERE id = ? AND company_id = ?`)
+    .get(req.params.id, req.user.company_id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  try {
+    const preview = createPreviewNotification(db, {
+      user: req.user,
+      jobId: req.params.id,
+      allocationId: req.body.allocation_id || null,
+      workerId: req.body.worker_id || null
+    });
+    return res.status(201).json(preview);
+  } catch (error) {
+    return res.status(error.status || 400).json({
+      error: error.message,
+      warning: error.warning || null
+    });
+  }
+});
+
+router.post('/:id/allocation-notifications/publish-manual', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
+  const db = getDb();
+  const job = db.prepare(`SELECT id FROM jobs WHERE id = ? AND company_id = ?`)
+    .get(req.params.id, req.user.company_id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  try {
+    const result = publishManualNotification(db, {
+      user: req.user,
+      jobId: req.params.id,
+      allocationId: req.body.allocation_id || null,
+      workerId: req.body.worker_id || null,
+      notificationId: req.body.notification_id || null,
+      manualContactAcknowledged: Boolean(req.body.manual_contact_acknowledged)
+    });
+    return res.json(result);
+  } catch (error) {
+    return res.status(error.status || 400).json({
+      error: error.message,
+      warning: error.warning || null
+    });
+  }
+});
+
+router.post('/:id/allocation-notifications/send-sms', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {
+  const db = getDb();
+  const job = db.prepare(`SELECT id FROM jobs WHERE id = ? AND company_id = ?`)
+    .get(req.params.id, req.user.company_id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  const enabled = String(process.env.SMS_PROVIDER_ENABLED || '').toLowerCase() === 'true';
+  return res.status(501).json({
+    error: enabled
+      ? 'SMS provider sending is not implemented in this release.'
+      : 'SMS provider sending is disabled. Use manual SMS preview and publish for this release.',
+    provider_enabled: enabled
+  });
+});
+
 router.get('/:id/allocations', requireAuth, (req, res) => {
   const db = getDb();
   const job = db.prepare(`SELECT id FROM jobs WHERE id = ? AND company_id = ?`)
@@ -1534,9 +1614,12 @@ router.get('/:id/allocations', requireAuth, (req, res) => {
       j.scheduled_start_at_utc AS job_scheduled_start_at_utc,
       j.scheduled_end_at_utc AS job_scheduled_end_at_utc,
       j.scheduled_start_local,
-      j.scheduled_end_local
+      j.scheduled_end_local,
+      w.name AS worker_name,
+      w.contact_number AS worker_phone
     FROM allocations a
     JOIN jobs j ON a.job_id = j.id
+    JOIN workers w ON a.worker_id = w.id AND w.company_id = a.company_id
     WHERE a.job_id = ? AND a.company_id = ?
     ORDER BY a.allocated_at DESC
   `).all(req.params.id, req.user.company_id);
@@ -1757,9 +1840,12 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
       j.scheduled_start_at_utc AS job_scheduled_start_at_utc,
       j.scheduled_end_at_utc AS job_scheduled_end_at_utc,
       j.scheduled_start_local,
-      j.scheduled_end_local
+      j.scheduled_end_local,
+      w.name AS worker_name,
+      w.contact_number AS worker_phone
     FROM allocations a
     JOIN jobs j ON a.job_id = j.id
+    JOIN workers w ON a.worker_id = w.id AND w.company_id = a.company_id
     WHERE a.id = ?
   `).get(allocationId);
 
@@ -1819,9 +1905,12 @@ router.patch('/:jobId/allocations/:allocationId', requireAuth, requireRole('admi
       j.scheduled_start_at_utc AS job_scheduled_start_at_utc,
       j.scheduled_end_at_utc AS job_scheduled_end_at_utc,
       j.scheduled_start_local,
-      j.scheduled_end_local
+      j.scheduled_end_local,
+      w.name AS worker_name,
+      w.contact_number AS worker_phone
     FROM allocations a
     JOIN jobs j ON a.job_id = j.id
+    JOIN workers w ON a.worker_id = w.id AND w.company_id = a.company_id
     WHERE a.id = ?
   `).get(req.params.allocationId);
 
