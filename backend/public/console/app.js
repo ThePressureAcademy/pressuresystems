@@ -1511,6 +1511,7 @@ function renderResetCountList(counts = {}) {
     ['fatigue_records', 'fatigue records'],
     ['company_assets', 'active assets'],
     ['active_allocations', 'active allocations'],
+    ['allocation_notifications', 'allocation notifications'],
     ['job_imports', 'job imports'],
     ['catalogue_selections', 'setup selections'],
     ['audit_events', 'audit events'],
@@ -3652,9 +3653,10 @@ async function renderJobDetail(jobId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [job, allocations, companyProfile, craneModels, companyCatalogue, companyAssets, intakeOptions] = await Promise.all([
+  const [job, allocations, notificationData, companyProfile, craneModels, companyCatalogue, companyAssets, intakeOptions] = await Promise.all([
     api('GET', `/jobs/${jobId}`),
     api('GET', `/jobs/${jobId}/allocations`),
+    api('GET', `/jobs/${jobId}/allocation-notifications`),
     loadCompanyProfile(),
     loadCraneModels(),
     loadCompanyCatalogue(),
@@ -3714,19 +3716,44 @@ async function renderJobDetail(jobId, renderCycle) {
       el('a', { href: `#/jobs/${jobId}/smartrank` }, 'Run SmartRank to allocate.')
     ));
   } else {
+    const notifications = notificationData?.notifications || [];
     for (const allocation of allocations) {
-      allocPanel.appendChild(renderAllocationCard(allocation));
+      allocPanel.appendChild(renderAllocationCard(jobId, allocation, notifications));
     }
   }
   view.appendChild(allocPanel);
 }
 
-function renderAllocationCard(allocation) {
+function latestNotificationForAllocation(notifications, allocationId) {
+  return (notifications || [])
+    .filter((notification) => notification.allocation_id === allocationId)
+    .sort((a, b) => String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')))[0] || null;
+}
+
+function notificationStatusPill(notification) {
+  if (!notification) return el('span', { class: 'pill pill-muted' }, 'Draft');
+  const status = notification.status || 'draft';
+  const cls = status === 'published_manual'
+    ? 'pill-ok'
+    : (status === 'previewed' ? 'pill-warn' : 'pill-muted');
+  return el('span', { class: `pill ${cls}` }, formatDisplayLabel(status));
+}
+
+function renderAllocationCard(jobId, allocation, notifications = []) {
+  const latestNotification = latestNotificationForAllocation(notifications, allocation.id);
   const card = el('div', { class: 'rank-card' });
   card.appendChild(el('div', { class: 'rank-head' },
     el('div', {},
-      el('div', { class: 'rank-name' }, `Rank #${allocation.smartrank_position} (score ${allocation.smartrank_score})`),
+      el('div', { class: 'rank-name' }, `${allocation.worker_name || 'Allocated worker'} - rank #${allocation.smartrank_position} (score ${allocation.smartrank_score})`),
       el('div', { class: 'rank-meta' }, `Allocated ${fmtDate(allocation.allocated_at)} · Status: ${formatDisplayLabel(allocation.status)}`)
+    )
+  ));
+  card.appendChild(el('div', { class: 'button-row', style: 'margin-top:8px;' },
+    notificationStatusPill(latestNotification),
+    el('span', { class: 'small muted' },
+      latestNotification
+        ? `Notification ${formatDisplayLabel(latestNotification.status)} ${latestNotification.updated_at ? `- ${fmtDate(latestNotification.updated_at)}` : ''}`
+        : 'Notification status: Draft. Worker has not been notified.'
     )
   ));
   if (allocation.override_reason) {
@@ -3749,11 +3776,134 @@ function renderAllocationCard(allocation) {
       list
     ));
   }
+  card.appendChild(el('div', { class: 'button-row', style: 'margin-top:12px;' },
+    el('button', {
+      type: 'button',
+      onclick: () => openAllocationPublishModal(jobId, allocation, latestNotification)
+    }, latestNotification?.status === 'published_manual' ? 'View / republish message' : 'Publish allocation')
+  ));
+  if (latestNotification?.message_body_snapshot) {
+    card.appendChild(el('details', { class: 'notification-snapshot' },
+      el('summary', {}, 'Last notification message'),
+      el('pre', { class: 'mono sms-preview' }, latestNotification.message_body_snapshot)
+    ));
+  }
   card.appendChild(el('details', {},
     el('summary', {}, 'Snapshot'),
     el('pre', { class: 'mono' }, JSON.stringify(allocation.smartrank_snapshot, null, 2))
   ));
   return card;
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = el('textarea', { class: 'clipboard-fallback', readonly: 'readonly' }, text);
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand('copy');
+  area.remove();
+}
+
+function closeModal(modal) {
+  if (modal) modal.remove();
+}
+
+async function openAllocationPublishModal(jobId, allocation, existingNotification = null) {
+  const modal = el('div', { class: 'modal-backdrop' });
+  const dialog = el('div', { class: 'modal-card', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Publish allocation' });
+  modal.appendChild(dialog);
+  document.body.appendChild(modal);
+
+  const content = el('div', { class: 'modal-content' }, el('p', { class: 'muted' }, 'Generating SMS preview...'));
+  dialog.appendChild(el('div', { class: 'toolbar' },
+    el('h3', {}, 'Publish allocation'),
+    el('button', { type: 'button', class: 'secondary', onclick: () => closeModal(modal) }, 'Close')
+  ));
+  dialog.appendChild(content);
+
+  try {
+    const preview = await api('POST', `/jobs/${jobId}/allocation-notifications/preview`, {
+      allocation_id: allocation.id
+    });
+    const notification = preview.notification || existingNotification;
+    const warning = preview.warning || null;
+    const message = preview.sms_preview || notification?.message_body_snapshot || '';
+    content.innerHTML = '';
+
+    const ackId = `manual-contact-${allocation.id}`;
+    const ackRow = warning
+      ? el('label', { class: 'checkbox-row manual-contact-ack' },
+          el('input', { type: 'checkbox', id: ackId }),
+          'Worker mobile is missing. I will use manual contact and update the worker profile.'
+        )
+      : null;
+    const publishButton = el('button', { type: 'button' }, 'Mark as manually published');
+    const copyButton = el('button', { type: 'button', class: 'secondary' }, 'Copy SMS');
+    const errBox = el('div', { class: 'error' });
+
+    copyButton.addEventListener('click', async () => {
+      if (warning && !content.querySelector(`#${ackId}`)?.checked) {
+        toast('Acknowledge manual contact before copying without a mobile number.', 'error');
+        return;
+      }
+      try {
+        await copyTextToClipboard(message);
+        toast('SMS preview copied', 'success');
+      } catch {
+        toast('Copy failed. Select the preview text manually.', 'error');
+      }
+    });
+
+    publishButton.addEventListener('click', async () => {
+      errBox.textContent = '';
+      const acknowledged = warning ? Boolean(content.querySelector(`#${ackId}`)?.checked) : false;
+      setButtonBusy(publishButton, true, 'Mark as manually published', 'Publishing...');
+      try {
+        await api('POST', `/jobs/${jobId}/allocation-notifications/publish-manual`, {
+          allocation_id: allocation.id,
+          notification_id: notification?.id || null,
+          manual_contact_acknowledged: acknowledged
+        });
+        toast('Allocation marked as manually published', 'success');
+        closeModal(modal);
+        router();
+      } catch (err) {
+        errBox.textContent = err.error || 'Could not publish allocation';
+      } finally {
+        setButtonBusy(publishButton, false, 'Mark as manually published', 'Publishing...');
+      }
+    });
+
+    content.appendChild(el('div', { class: 'kv notification-preview-kv' },
+      el('div', {}, 'Worker'), el('div', {}, allocation.worker_name || preview.allocation?.worker_name || allocation.worker_id),
+      el('div', {}, 'Mobile'), el('div', {}, notification?.recipient_phone || allocation.worker_phone || '-'),
+      el('div', {}, 'Allocation'), el('div', { class: 'mono' }, allocation.id),
+      el('div', {}, 'Status'), el('div', {}, notificationStatusPill(notification))
+    ));
+    content.appendChild(el('p', { class: 'small muted' },
+      'Phase 1 does not send SMS automatically. Copy this message, send it through your company channel, then mark the allocation as manually published.'
+    ));
+    if (warning) {
+      content.appendChild(el('div', { class: 'alerts notification-warning' },
+        el('strong', {}, 'Warning: '),
+        warning
+      ));
+    }
+    content.appendChild(buildFieldWrapper('SMS preview', el('textarea', {
+      readonly: 'readonly',
+      class: 'sms-preview-textarea',
+      rows: '6'
+    }, message)));
+    if (ackRow) content.appendChild(ackRow);
+    content.appendChild(errBox);
+    content.appendChild(el('div', { class: 'button-row' }, copyButton, publishButton));
+  } catch (err) {
+    content.innerHTML = '';
+    content.appendChild(el('div', { class: 'error' }, err.error || 'Could not generate allocation preview'));
+  }
 }
 
 async function renderSmartRank(jobId, renderCycle) {
@@ -4057,6 +4207,8 @@ async function renderAudit(renderCycle) {
     'allocation_confirmed',
     'allocation_rejected',
     'allocation_changed',
+    'allocation_publish_previewed',
+    'allocation_published_manual',
     'warning_acknowledged',
     'non_top_ranked_selected',
     'job_created',
@@ -4108,6 +4260,7 @@ function auditEventReason(event) {
   if (payload.reason) return friendlyErrorMessage(payload.reason);
   if (payload.from && payload.to) return `${formatDisplayLabel(payload.from)} -> ${formatDisplayLabel(payload.to)}`;
   if (payload.selected_rank) return `Selected rank #${payload.selected_rank}`;
+  if (payload.notification_id) return `Notification ${shortId(payload.notification_id)}`;
   if (payload.import_id) return `Import ${shortId(payload.import_id)}`;
   if (payload.transport_type) return formatDisplayLabel(payload.transport_type);
   if (payload.client_name || payload.site_name) return [payload.client_name, payload.site_name].filter(Boolean).join(' / ');
@@ -4142,13 +4295,13 @@ function auditEventPill(eventType) {
   if (['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied'].includes(eventType)) {
     return 'pill-bad';
   }
-  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed', 'job_schedule_changed', 'job_brief_import_previewed'].includes(eventType)) {
+  if (['warning_acknowledged', 'fatigue_warning_triggered', 'non_top_ranked_selected', 'credential_expiry_alert', 'learned_preference_applied', 'worker_removed', 'job_schedule_changed', 'job_brief_import_previewed', 'allocation_publish_previewed'].includes(eventType)) {
     return 'pill-warn';
   }
   if (['job_counterweight_transport_assessed', 'transport_requirement_created'].includes(eventType)) {
     return 'pill-warn';
   }
-  if (['allocation_confirmed', 'job_created', 'job_created_from_brief', 'worker_imported', 'preference_signal_created'].includes(eventType)) {
+  if (['allocation_confirmed', 'allocation_published_manual', 'job_created', 'job_created_from_brief', 'worker_imported', 'preference_signal_created'].includes(eventType)) {
     return 'pill-ok';
   }
   return 'pill-info';

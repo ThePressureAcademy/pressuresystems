@@ -43,6 +43,7 @@ function getCompanyResetPreview(db, companyId, scope) {
     fatigue_records: count(db, `SELECT COUNT(*) AS n FROM fatigue_records WHERE company_id = ?`, companyId),
     worker_preferences: count(db, `SELECT COUNT(*) AS n FROM worker_task_preferences WHERE company_id = ?`, companyId),
     active_allocations: count(db, `SELECT COUNT(*) AS n FROM allocations WHERE company_id = ? AND status != 'cancelled'`, companyId),
+    allocation_notifications: count(db, `SELECT COUNT(*) AS n FROM allocation_notifications WHERE company_id = ? AND status != 'cancelled'`, companyId),
     job_imports: count(db, `SELECT COUNT(*) AS n FROM job_imports WHERE company_id = ?`, companyId),
     job_requirement_items: count(db, `SELECT COUNT(*) AS n FROM job_requirement_items WHERE company_id = ?`, companyId),
     job_custom_requirements: count(db, `SELECT COUNT(*) AS n FROM job_custom_requirements WHERE company_id = ?`, companyId),
@@ -57,12 +58,14 @@ function getCompanyResetPreview(db, companyId, scope) {
     jobs: [
       'Archives active jobs and marks them cancelled.',
       'Cancels allocations linked to this company.',
+      'Cancels allocation notification records linked to this company.',
       'Clears job requirements, job imports, transport planning rows, and job asset assignments.',
       'Keeps workers, users, company profile, global catalogues, and audit events.'
     ],
     workers: [
       'Archives active workers and marks them inactive.',
       'Cancels allocations linked to this company.',
+      'Cancels allocation notification records linked to this company.',
       'Clears worker credentials, fatigue records, and task preferences.',
       'Keeps jobs unallocated, users, company profile, global catalogues, and audit events.'
     ],
@@ -74,7 +77,7 @@ function getCompanyResetPreview(db, companyId, scope) {
     ],
     all: [
       'Archives active jobs and workers.',
-      'Cancels allocations and clears imports, requirements, credentials, fatigue records, preferences, assets, and setup selections.',
+      'Cancels allocations and allocation notifications, then clears imports, requirements, credentials, fatigue records, preferences, assets, and setup selections.',
       'Keeps users, company profile, global catalogues, crane model catalogue, and audit reset events.',
       'This is not a backup or restore system.'
     ]
@@ -97,6 +100,12 @@ function cancelCompanyAllocations(db, companyId, now) {
         override_reason = COALESCE(override_reason, 'Cancelled by company data reset'),
         updated_at = ?
     WHERE company_id = ? AND status != 'cancelled'
+  `).run(now, companyId);
+  db.prepare(`
+    UPDATE allocation_notifications
+    SET status = 'cancelled',
+        updated_at = ?
+    WHERE company_id = ? AND status NOT IN ('cancelled', 'failed')
   `).run(now, companyId);
 }
 

@@ -135,6 +135,13 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /formatDisplayLabel/);
     assert.match(res.text, /Worker update did not return the saved worker/);
     assert.match(res.text, /Job update did not return the saved job/);
+    assert.match(res.text, /Publish allocation/);
+    assert.match(res.text, /SMS preview/);
+    assert.match(res.text, /Copy SMS/);
+    assert.match(res.text, /Mark as manually published/);
+    assert.match(res.text, /does not send SMS automatically/);
+    assert.match(res.text, /\/jobs\/\$\{jobId\}\/allocation-notifications\/preview/);
+    assert.match(res.text, /\/jobs\/\$\{jobId\}\/allocation-notifications\/publish-manual/);
     assert.match(res.text, /Add one-off requirement/);
     assert.match(res.text, /Review required/);
     assert.match(res.text, /Counterweight transport may be required/);
@@ -210,6 +217,7 @@ describe('Pilot console — static asset serving', () => {
       'renderJobDetail',     // job detail
       'renderSmartRank',     // smartrank
       'renderAllocate',      // allocation confirmation
+      'openAllocationPublishModal', // controlled allocation publish preview
       'renderAudit',         // audit log
       'renderMetrics',       // pilot metrics
       'renderInternalPilotMonitor', // internal privacy-safe pilot activity monitor

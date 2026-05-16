@@ -399,6 +399,52 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .rank-card .alerts { margin-top: 10px; font-size: 12px; }
 .rank-card .alerts ul { margin: 4px 0 0 18px; padding: 0; }
 .rank-card .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.notification-snapshot { margin-top: 10px; }
+.sms-preview {
+  white-space: pre-wrap;
+}
+.sms-preview-textarea {
+  min-height: 128px;
+}
+.notification-warning {
+  margin: 12px 0;
+}
+.manual-contact-ack {
+  margin: 10px 0;
+}
+.clipboard-fallback {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 8, 12, 0.74);
+  backdrop-filter: blur(10px);
+}
+
+.modal-card {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  padding: 20px;
+}
+
+.modal-content {
+  margin-top: 14px;
+}
 
 .job-brief-warnings {
   background: rgba(255, 180, 84, 0.08);

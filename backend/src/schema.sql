@@ -203,6 +203,32 @@ CREATE TABLE IF NOT EXISTS allocations (
   updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS allocation_notifications (
+  id                    TEXT PRIMARY KEY,
+  company_id            TEXT NOT NULL REFERENCES companies(id),
+  allocation_id         TEXT REFERENCES allocations(id),
+  job_id                TEXT NOT NULL REFERENCES jobs(id),
+  worker_id             TEXT NOT NULL REFERENCES workers(id),
+  channel               TEXT NOT NULL DEFAULT 'sms',
+  status                TEXT NOT NULL DEFAULT 'draft'
+                        CHECK (status IN (
+                          'draft', 'previewed', 'published_manual',
+                          'queued', 'sent', 'delivered', 'failed',
+                          'acknowledged', 'declined', 'cancelled'
+                        )),
+  recipient_phone       TEXT,
+  message_body_snapshot TEXT NOT NULL,
+  provider              TEXT,
+  provider_message_id   TEXT,
+  sent_at               TEXT,
+  delivered_at          TEXT,
+  responded_at          TEXT,
+  response_text         TEXT,
+  created_by_user_id    TEXT REFERENCES users(id),
+  created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Worker Task Preference
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -438,6 +464,8 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'allocation_confirmed',
                   'allocation_changed',
                   'allocation_rejected',
+                  'allocation_publish_previewed',
+                  'allocation_published_manual',
                   'warning_acknowledged',
                   'non_top_ranked_selected',
                   'credential_expiry_alert',
@@ -519,6 +547,10 @@ CREATE INDEX IF NOT EXISTS idx_jobs_company         ON jobs(company_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_job      ON allocations(job_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_worker   ON allocations(worker_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_company  ON allocations(company_id, allocated_at);
+CREATE INDEX IF NOT EXISTS idx_allocation_notifications_company ON allocation_notifications(company_id);
+CREATE INDEX IF NOT EXISTS idx_allocation_notifications_job     ON allocation_notifications(company_id, job_id);
+CREATE INDEX IF NOT EXISTS idx_allocation_notifications_worker  ON allocation_notifications(company_id, worker_id);
+CREATE INDEX IF NOT EXISTS idx_allocation_notifications_status  ON allocation_notifications(company_id, status);
 CREATE INDEX IF NOT EXISTS idx_job_imports_company  ON job_imports(company_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_job_imports_status   ON job_imports(company_id, status);
 CREATE INDEX IF NOT EXISTS idx_preferences_worker   ON worker_task_preferences(worker_id);
