@@ -40,25 +40,28 @@ Their stated performance claims: +10% technician productivity; +5% asset utilisa
 
 ## 2. What LIFTIQ Actually Is Today
 
-LIFTIQ is a governed concept demo positioned as a decision-support overlay for crane dispatch operations. It exists as a static marketing and qualification site, not a live product.
+LIFTIQ has a live Phase 1 backend deployed on Fly.io (Sydney region). This is no longer a concept demo. The public marketing site and the operator console are distinct layers.
 
-What is demonstrable (seeded, deterministic, fictional data):
-- SmartRank — crew-fit ranking with weighted scoring and score breakdown
-- FatigueGuard — rest hour tracking with hard blocks and monitor thresholds
-- CredentialGate — credential hard-blocks before dispatch
-- SwapEngine — replacement crew ranking on last-minute changes
-- FairLift — fairness weighting to prevent repeated over-allocation
-- AuditIQ — event log (preview only, not persisted)
+**What is live and production-deployed (Phase 1 — May 2026):**
+- Node.js/Express API + SQLite with a persistent Fly.io volume
+- JWT authentication with role-based access and full company isolation (multi-tenant by design)
+- SmartRank — 7-factor weighted crew-fit ranking (credential match 25%, crane experience 20%, fatigue risk 20%, availability 15%, site familiarity 10%, fairness 5%, travel 5%) with per-factor score breakdown
+- CredentialGate — hard blocks on missing or expired credentials; 30-day pre-expiry warnings
+- FatigueGuard — hard blocks on <10h rest between shifts or ≥48h/week; graduated warnings at 44h+, consecutive days, night-to-day transitions, and self-declared fatigue
+- AuditIQ — append-only audit event log enforced at the database trigger level; cannot be edited or deleted in the application layer
+- Pilot metrics endpoint (allocations, fatigue blocks, credential blocks, override rates)
+- Operator console SPA (vanilla JS) served at `/console/` — 66 passing tests
+- GitHub Actions CI/deploy pipeline (test on every push, auto-deploy to Fly.io on merge to main)
 
-What does not exist yet:
-- No backend or database
-- No live data integration
-- No authentication or multi-tenant architecture
-- No payroll, invoicing, quoting, or maintenance modules
-- No mobile application
-- No compliance reporting or immutable audit trail
+**What does not exist yet:**
+- No payroll, invoicing, or quoting
+- No mobile application (PWA not yet built)
+- No formal compliance reporting or audit export
+- No crane/counterweight/transport planning module (research complete, implementation not started)
+- No schedule view, asset register, or export centre
+- No integration with external licensing registries
 
-**Honest maturity score:** 4/10. The messaging and positioning are 9/10. The product behind the messaging is 2/10.
+**Honest maturity score:** 6/10. The dispatch intelligence core is real, tested, and deployed. The surrounding operational modules (payroll, quoting, mobile, compliance exports) that FCC owns are not built. The messaging is aligned with the product for the first time.
 
 ---
 
@@ -66,18 +69,20 @@ What does not exist yet:
 
 | Dimension | FCC | LIFTIQ Now | Gap |
 |-----------|-----|------------|-----|
-| Data persistence | Full operational database | None | Critical |
-| Authentication | Multi-user, role-based | None | Critical |
-| Dispatch management | Full lifecycle | Demo concept | Large |
-| Crew fatigue management | Not present | Demonstrable concept | **LIFTIQ advantage** |
-| Crew-fit intelligence | Basic scheduling | Weighted ranking with explainability | **LIFTIQ advantage** |
+| Data persistence | Full operational database | Live SQLite on Fly.io, persistent volume | Closed at Phase 1 scale |
+| Authentication | Multi-user, role-based | JWT, role-based, company-isolated | Closed at Phase 1 scope |
+| Dispatch management | Full lifecycle | Allocation workflow with SmartRank + override audit | Moderate |
+| Crew fatigue management | Not present | FatigueGuard: hard blocks + graduated warnings, production-deployed | **LIFTIQ advantage** |
+| Crew-fit intelligence | Basic scheduling | SmartRank 7-factor with per-factor breakdown and explainability | **LIFTIQ advantage** |
+| Credential management | Certification tracking | CredentialGate: expiry-aware hard blocks and pre-expiry warnings | **LIFTIQ advantage** |
+| Audit trail | Safety checklists, electronic forms | AuditIQ: append-only, trigger-enforced per-allocation decision record | **LIFTIQ advantage** |
 | Payroll | Award-aware, automated | Not present | Large |
 | Invoicing | Full quoting → invoice | Not present | Large |
 | Maintenance | Full scheduling + WOs | Not present | Large |
 | Mobile access | Atom app, real-time sync | Not present | Large |
-| Australian compliance | Partial (award pay, WHS forms) | Not present | Large |
+| Australian compliance reporting | Partial (award pay, WHS forms) | Not present (audit trail exists; export/reporting not built) | Moderate |
 | UI/UX quality | Aged, described as legacy | Modern, operator-grade | **LIFTIQ advantage** |
-| Implementation burden | Heavy, database setup + training | Lightweight concept | Potential advantage if managed well |
+| Implementation burden | Heavy, database setup + training | Fly.io deploy, no migration project | **LIFTIQ advantage** |
 | Domain depth | 30 years | < 1 year | Large but narrowable |
 
 ---
@@ -110,14 +115,14 @@ This is the classic platform wedge: enter where the incumbent is weakest, prove 
 ### Phase 1 — Prove Value (Months 1–12)
 **Goal:** Land 1–2 paying design-partner pilots. Produce evidence that LIFTIQ changes operational outcomes.
 
-**Step 1.1 — Build a real backend (Months 1–3)**
-- Deploy a minimal Postgres database + API layer (Node/Python, hosted)
-- Implement authentication (role-based: dispatcher, manager, admin)
-- Move the seeded demo data to a real data model that can accept live input
-- Priority entities: operators, jobs, credentials, fatigue records, allocations
-- Do not build payroll or invoicing. Build only what the dispatch decision layer needs.
+**Step 1.1 — Build a real backend (Months 1–3) — COMPLETE**
+- ~~Deploy a minimal Postgres database + API layer~~ — Delivered: Node.js/Express + SQLite on Fly.io (Sydney), persistent volume, production-deployed
+- ~~Implement authentication~~ — Delivered: JWT authentication, role-based access, full company isolation
+- ~~Move the seeded demo data to a real data model~~ — Delivered: Company, Worker, Credential, FatigueRecord, Job, Allocation, AuditEvent schema; seed script operational
+- Priority entities delivered: operators, jobs, credentials, fatigue records, allocations — all live
+- Payroll and invoicing correctly excluded from Phase 1
 
-*Weakness to address: LIFTIQ currently has zero operational reality. This step is the gate. Nothing else matters until data persistence exists.*
+*Gate condition met. The backend exists. Design-partner conversations can now be backed by a live product.*
 
 **Step 1.2 — Sign two design-partner agreements (Months 2–4)**
 - Target: independent crane operators, 15–40 personnel, not Freo Group scale
@@ -214,9 +219,10 @@ This is the classic platform wedge: enter where the incumbent is weakest, prove 
 ### LIFTIQ Weaknesses (Real, Must Be Fixed)
 | Weakness | Risk If Unaddressed |
 |----------|-------------------|
-| No live product | Design-partner conversations stall; credibility ceiling |
-| No backend | Cannot capture any real operational value |
-| No compliance claims yet | WHS compliance angle stays theoretical |
+| ~~No live product~~ — Live on Fly.io | ~~Design-partner conversations stall~~ — gate is open |
+| ~~No backend~~ — Phase 1 deployed | ~~Cannot capture any real operational value~~ — backend exists |
+| No live pilot with real operator data | Product proof is still internal; cannot replace fictional demo data with reference outcomes |
+| No compliance reporting exports | WHS audit trail exists in database but cannot be handed to a WHS advisor or exported |
 | No mobile access | Dispatchers work on-site; desktop-only is a blocker |
 | No payroll/invoicing | FCC customers won't consider a partial replacement |
 | Single founder/team dependency | Execution risk is high at every phase gate |
