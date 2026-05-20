@@ -231,36 +231,21 @@ Update this doctrine when any of these change:
 
 If product behaviour changes and the doctrine does not, the doctrine becomes stale and must not be treated as current operating truth.
 
-## 10. If All Else Is Lost Summary
+## 10. If All Else Is Lost
 
-DispatchTalon exists to structure dispatch decisions before work is confirmed.
+If every other doc in this set is missing, this is the recovery summary.
 
-It is for companies allocating labour, plant, crane, rigging, transport, and lifting resources.
+- The product is **DispatchTalon**. The legacy route is `/liftiq/`. Do not rebrand back.
+- The product is **decision-support**, not compliance, not payroll, not engineering authority.
+- The unit of value is **a defensible allocation in under two minutes**.
+- The decision stack is **Eligibility, Availability, Fatigue, Fit, Coverage, Operator, Publish, Audit**.
+- The **operator is always the decision-maker**. The system never publishes alone.
+- The customer focus is **the first five design-partner pilots**. Their feedback outranks aesthetics.
+- The **claim boundary is sacred**. We never claim to make a worker compliant, safe, or licensed.
+- The **audit log is the system of record**. Not memory, not chat, not spreadsheets.
+- The strongest wedge is **role coverage**: a job may need four roles, not four people.
+- The product workflow is: Build business, Add workers, Create jobs, Run SmartRank, Review role coverage, Publish allocation manually when ready, Check audit, Export CSV office handoff.
+- The commercial path is: Qualify leads, Run discovery, Match internal pilot tier, Sign pilot agreement, Configure tenant, Run real jobs, Collect evidence, Convert or exit.
+- Internal docs live under `docs/`. Companion docs are listed in each file header.
 
-Its strongest wedge is role coverage: a job may need four roles, not four people.
-
-Its workflow:
-
-1. Build business.
-2. Add workers.
-3. Create jobs.
-4. Run SmartRank.
-5. Review role coverage.
-6. Publish allocation manually when ready.
-7. Check audit.
-8. Export CSV office handoff.
-
-Its commercial path:
-
-1. Qualify leads.
-2. Run discovery.
-3. Match internal pilot tier.
-4. Sign pilot agreement.
-5. Configure tenant.
-6. Run real jobs.
-7. Collect evidence.
-8. Convert or exit.
-
-Its boundary:
-
-Decision support only. The dispatcher remains the decision-maker.
+Rebuild from here.
