@@ -75,46 +75,50 @@ No additional Vercel configuration is required.
 
 ## 6. DNS Setup Steps
 
-Do not guess DNS values. Vercel will display the exact records during step 8 above. The general shape will be one of:
+Stack in use: Squarespace and Vercel only. No Cloudflare, no third party DNS host.
 
-- An A record on the apex pointing at a Vercel anycast IP.
-- A CNAME record on `www` pointing at a Vercel-managed hostname.
+- The domain `dispatchtalon.com` is managed in Squarespace (either purchased through Squarespace Domains or transferred there). Squarespace is the DNS host.
+- Vercel is the deployment target.
+
+Do not guess DNS values. Vercel will display the exact records during Phase 5 step 8. The general shape will be:
+
+- An A record on the apex (`@`) pointing at a Vercel anycast IP that Vercel shows you.
+- A CNAME record on `www` pointing at a Vercel managed hostname that Vercel shows you.
+
+If Vercel shows you different record types (for example a TXT record for verification), add those too, exactly as displayed. Squarespace's DNS panel supports A, CNAME, MX, TXT, AAAA, NS, and SRV records, which covers everything Vercel will ask for.
 
 Manual DNS sequence:
 
 1. Add `dispatchtalon.com` to the Vercel project (already covered in Phase 5 step 8).
 2. Add `www.dispatchtalon.com` to the same Vercel project.
-3. Copy the Vercel-provided DNS records exactly. Note the type (A or CNAME), name, value, and TTL.
-4. Open the DNS provider chosen in Phase 7 below.
-5. Add the records exactly as displayed. If the provider asks for a TTL and Vercel did not specify one, use `auto` or `3600`.
-6. Wait for Vercel to mark both domains as **Valid Configuration**. Usual time is 5 to 60 minutes. Worst case is 24 hours.
-7. Confirm HTTPS is automatically provisioned. Vercel issues TLS certificates once the DNS resolves.
-8. Confirm `/diagnostic/` loads at the live URL.
-9. Run a test submission. See Phase 8.
-10. Confirm the Formspree inbox receives the result.
+3. In Vercel, copy each DNS record exactly. Note: type (A, CNAME, TXT), host (or name), value, and any TTL.
+4. Open Squarespace. Steps 5 to 8 are the Squarespace specific path.
+5. In Squarespace, go to **Settings, Domains**, click `dispatchtalon.com`, then click **DNS Settings** (sometimes labelled **DNS** or **Advanced DNS Settings**).
+6. Remove any pre-set Squarespace site records that conflict with Vercel's records. Specifically: if the apex `@` already has an A record pointing somewhere else, edit it to Vercel's IP. If there is an existing `www` CNAME pointing at a Squarespace target, change it to Vercel's CNAME target. Keep any MX, TXT, or other records that you actually use (for example email forwarding).
+7. Add the Vercel A record on `@`. Add the Vercel CNAME record on `www`. Add any TXT verification record Vercel provided. Save.
+8. Wait for Vercel to mark both `dispatchtalon.com` and `www.dispatchtalon.com` as **Valid Configuration**. Usual time is 5 to 60 minutes. Worst case is 24 hours.
+9. Confirm HTTPS is automatically provisioned. Vercel issues TLS certificates once DNS resolves.
+10. Confirm `/diagnostic/` loads at the live URL.
+11. Run a test submission. See Phase 8.
+12. Confirm the Formspree inbox receives the result.
 
-## 7. Cloudflare vs Registrar DNS Options
+## 7. Squarespace Specific Notes
 
-Pick one. Both are acceptable.
+A few Squarespace quirks to know before touching the DNS panel.
 
-| Option | Pros | Cons |
-|---|---|---|
-| **Cloudflare DNS** | Free CDN and TLS termination in front of Vercel. Fast DNS. Strong tooling for later record changes. Easier rollback. | Adds a second account to manage. Requires nameserver change at the registrar. |
-| **Registrar DNS** | One fewer account. Records live where the domain lives. | DNS performance varies by registrar. Limited tooling. No CDN. |
+- **Do not use "Connect Domain to a Squarespace Site" for dispatchtalon.com.** That flow auto-populates Squarespace's own A and CNAME values and will overwrite the Vercel records the next time Squarespace re-applies the preset. If Squarespace prompts you to "use this domain for a Squarespace site," dismiss the prompt. The domain should remain a manually managed DNS zone.
+- **Squarespace's apex record is editable.** Unlike some DNS hosts, Squarespace allows an A record directly on `@`. That is what Vercel needs. Do not look for ALIAS or ANAME options. A record on `@` with Vercel's value is correct.
+- **TTL is fine at default.** Squarespace defaults are acceptable. If a TTL field is presented, accept the default unless Vercel specifies otherwise.
+- **DNS propagation visibility.** Squarespace does not show a "propagation complete" indicator. Use Vercel's domain status page as the source of truth. When Vercel shows **Valid Configuration**, the domain is live for that record.
+- **Do not delete unrelated TXT records.** If Cody or anyone else has set TXT records for email DKIM, SPF, or domain verification on other services, leave them alone. Only add, change, or remove the records named in step 6 and 7 above.
+- **MX records for email.** This launch does not touch email routing. If Squarespace already has MX records for an email provider (Google Workspace, Microsoft 365, Squarespace Email Campaigns), leave them.
 
-Recommendation: **Cloudflare DNS**. The fastest path to a stable, cached, fully TLS-terminated URL.
+Rollback inside Squarespace:
 
-To switch the domain to Cloudflare DNS:
-
-1. Create a free Cloudflare account.
-2. Add `dispatchtalon.com` as a site.
-3. Cloudflare will display two assigned nameservers.
-4. Log into the registrar where dispatchtalon.com was purchased.
-5. Replace the registrar nameservers with the two Cloudflare nameservers.
-6. Wait for Cloudflare to confirm the domain is **Active**. Usually 5 to 60 minutes.
-7. Then proceed with Phase 6 step 5, adding the Vercel records inside Cloudflare DNS.
-
-If Cloudflare is not available, skip this section and add records directly at the registrar in Phase 6.
+1. Open the same **DNS Settings** panel.
+2. Remove the Vercel A record on `@` and the Vercel CNAME on `www`.
+3. Optionally restore the Squarespace site defaults by re-running "Connect Domain to a Squarespace Site" (only if you genuinely want the domain back on a Squarespace surface).
+4. The domain will stop resolving to Vercel within minutes. The diagnostic file remains available via the Vercel preview URL.
 
 ## 8. Formspree Test Steps
 
@@ -161,7 +165,7 @@ This launch is reversible at every step.
 | Failure mode | Rollback |
 |---|---|
 | Diagnostic does not render on dispatchtalon.com | Remove the custom domain from the Vercel project. The repo file remains untouched. Use the Vercel preview URL for warm sends until fixed. |
-| DNS misconfiguration | Restore previous nameservers at the registrar (if Cloudflare was added) or remove the added records (if registrar DNS was used directly). |
+| DNS misconfiguration | In Squarespace DNS Settings, remove the Vercel A record on `@` and the Vercel CNAME on `www`. The domain stops resolving to Vercel within minutes. The diagnostic file remains available via the Vercel preview URL. |
 | Formspree endpoint fails | The script-level `mailto:` fallback still produces an email draft. Update the `action` in `dispatch-readiness-diagnostic.html` to a backup endpoint and redeploy. |
 | Brand or claim drift detected after launch | Update the file in the repo, push, Vercel auto-deploys. No infrastructure change required. |
 | Domain itself is compromised or needs to be paused | Pause the Vercel deployment or remove the domain assignment. The diagnostic file remains available via the Vercel preview URL for warm channels. |
