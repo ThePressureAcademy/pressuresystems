@@ -66,21 +66,31 @@ Pick one and link consistently across channels:
 
 ---
 
-## Form endpoint setup (REQUIRED before public launch)
+## Form endpoint (wired)
 
-The HTML form currently has an **empty `action`**. With no endpoint configured the form falls back to a `mailto:` draft so no submission is ever silently lost.
+The HTML form `action` is wired to the Pressure Systems Formspree project:
 
-Before public launch, set the form `action` to one of:
+```
+<form id="leadForm" action="https://formspree.io/f/xzdyappr" method="POST">
+```
 
-- **Formspree** - paste the project endpoint URL into the `<form id="leadForm" action="...">` attribute.
-- **Custom backend route** - server must accept `POST` `application/x-www-form-urlencoded` and return a redirect or 2xx.
+Submissions go directly to the configured Formspree inbox. If the endpoint is unreachable at submit time, the form falls back to a `mailto:` draft so no submission is silently lost.
 
-The hidden fields already populated in the form:
+The hidden fields posted with every submission:
 
 - `result_band`, `score`, `selected_answers`, `timestamp`, `source_channel`
 - `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` (parsed from the URL)
 
-Until an endpoint is configured, the artifact still works for in-person walkthroughs and warm outreach - leads can copy the result summary or email it directly.
+Rotation rule:
+
+- If the Formspree endpoint is rotated or replaced, update the `action` attribute on the form in `dispatch-readiness-diagnostic.html` and this README in the same PR.
+- Do not put the Formspree project token in any other file, marketing asset, or doc.
+- The endpoint string itself is not a secret (it is delivered to every visitor by the rendered HTML), but treat it as a configuration value, not as content.
+
+Alternative if Formspree is replaced with a custom backend later:
+
+- Server must accept `POST` `application/x-www-form-urlencoded` and return a redirect or `2xx`.
+- The fallback `mailto:` flow in the script handles unreachable endpoints automatically.
 
 ---
 
