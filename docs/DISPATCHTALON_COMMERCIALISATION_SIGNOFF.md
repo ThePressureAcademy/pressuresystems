@@ -119,6 +119,21 @@ Do not mark READY without evidence.
 | Screenshots/recordings must not expose real customer data. | OPEN | Use demo tenant and synthetic data. |
 | Role coverage must not be misunderstood as approval/compliance. | OPEN | Use review-required and dispatcher-confirmation language. |
 
+## 7B. Known Blockers
+
+Risks become blockers when they prevent a specific sign-off step from clearing. Record each blocker explicitly. Do not leave blockers implicit in the risk register.
+
+| Blocker | Affects | Owner | Target unblock | Notes |
+|---|---|---|---|---|
+| _none recorded_ | . | . | . | When a blocker exists, add a row with concrete fields. A blocker without an owner and a target unblock date is not yet documented. |
+
+Rules:
+
+- A blocker must name the readiness checklist item it prevents from clearing (Product, Market, Legal/IP, Operational, or Commercial).
+- A blocker without an owner cannot be tracked. Assign one before recording.
+- A blocker without a target unblock date is not yet documented. Set one, even if it is a best estimate.
+- When a blocker clears, leave the row in place with a "cleared on <date>" note for 90 days, then archive. This protects the lessons learned trail.
+
 ## 8. Sign-off Record
 
 | Field | Entry |

@@ -193,6 +193,8 @@ Stop and escalate when:
 
 ## 11. IF / THEN Operational Logic
 
+Task-scope checks. Apply when an agent touches the named surface.
+
 - IF the task touches live deployment, THEN verify current main, deployment target, health endpoint, and route response.
 - IF the task touches public pages, THEN scan for unsupported claims and old product naming.
 - IF the task touches worker notification, THEN verify manual publish boundary and do not send SMS.
@@ -200,3 +202,20 @@ Stop and escalate when:
 - IF the task touches SmartRank or role coverage, THEN verify CredentialGate, FatigueGuard, schedule conflict, and audit tests.
 - IF the task touches sales or funnel assets, THEN mark pricing internal and preserve pilot-stage language.
 - IF the task is blocked, THEN report blocker, proof missing, and exact next action.
+
+Boundary-decision lookup. Pattern-match the request against this table before acting.
+
+| IF | THEN |
+|---|---|
+| IF a request would expose a secret | THEN refuse and instruct rotation |
+| IF a request would publish to a customer without review | THEN draft only and queue for human |
+| IF a claim would imply compliance, safety, or engineering authority | THEN reframe inside the allowed claim set or refuse |
+| IF the brand is being shifted to LIFTIQ | THEN correct to DispatchTalon and cite this doctrine |
+| IF a fix is reported without verification | THEN mark as "unverified" and request observed proof |
+| IF a credential number must be displayed | THEN confirm tenant authorisation, otherwise mask |
+| IF a pricing question exceeds the internal working model | THEN escalate to Cody |
+| IF a regulator or standards reference is needed | THEN cite only what is verifiable, otherwise omit |
+| IF an agent action is irreversible | THEN require explicit human confirmation |
+| IF an agent loop has no stop condition | THEN stop manually and add the stop condition |
+| IF an audit log entry would be incomplete | THEN block the action that depends on it |
+| IF a public website change is requested | THEN require commercialisation sign-off review |

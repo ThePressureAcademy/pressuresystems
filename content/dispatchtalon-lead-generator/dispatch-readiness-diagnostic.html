@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Dispatch Readiness Diagnostic - DispatchTalon</title>
+<meta name="description" content="A 3-minute self-assessment for labour, crane, rigging, plant, transport, and lifting operators. Identify where your dispatch process is exposed before the job goes out." />
+<link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAABWElEQVR42u2VPUsDQRCGd/Zm7yuXRCMKkQspFEEEQRD/jJ1YiJV/zx8gKWJQC1ELIZWx0XyC3u3ujEXsb8VELG7qfXnmnd15F2qNDbHMkmLJVQJKQAn4RwApped5zMwspJQA4CjEwhMshB+EAsBau7beIKLJdBr6vjUmzz4L5V4QVQp6B1B+UE2Sdis9OjxAD6tJMhpPQEpr9AJGBABZlu/v7Z6dHHd7t/cPj+jhzvaWzrXLoIodCCHCKDKWmOni/LTTvXl7f4+jeDgcMllm/i0AACSqlXq907tbVdyqq6fByEc5Hk9dAOjyEshSrVZtan15dW2NqVfiwA+IyUXr5ACVP5vN2mkKHoZxJY6i534fhDC6+JLB5ctUQQQSmDjdbBprXwavqJAs5dkHLAQw9wEAudYghFKK5yu3kEX7XjdmZlaIgpmI3KMCfxQsjl2XcV0CSsAfA74Ahm+MCaJuSmUAAAAASUVORK5CYII=" />
+<style>
+  :root {
+    --bg: #16191d;
+    --bg-elev: #1d2126;
+    --card: #23282f;
+    --card-border: #2f353d;
+    --steel: #3a424c;
+    --steel-soft: #4a525d;
+    --cream: #ece6d3;
+    --cream-soft: #c8c2b1;
+    --muted: #8a8576;
+    --rust: #b8552d;
+    --rust-soft: #d06d44;
+    --rust-deep: #8a3f1f;
+    --green: #6c8a5b;
+    --amber: #c4953c;
+    --shadow: 0 8px 30px rgba(0,0,0,0.45);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(184,85,45,0.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(58,66,76,0.35), transparent 60%),
+      var(--bg);
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  header.brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .brand-mark {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--cream);
+  }
+  .brand-mark .mark-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: block;
+    flex-shrink: 0;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .brand-mark .lockup {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+  .brand-mark .wordmark {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: var(--cream);
+    text-transform: none;
+  }
+  .brand-mark .sub {
+    color: var(--muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .brand-node {
+    width: 8px;
+    height: 8px;
+    background: var(--rust);
+    border-radius: 2px;
+    box-shadow: 0 0 0 3px rgba(184,85,45,0.15);
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  .footer-brand {
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.4px;
+  }
+  .footer-brand .mark-img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .footer-brand .stack {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+  .footer-brand .stack strong {
+    color: var(--cream-soft);
+    font-weight: 600;
+  }
+  .brand-meta {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .hero h1 {
+    font-size: clamp(26px, 5vw, 36px);
+    line-height: 1.15;
+    margin: 0 0 14px;
+    color: var(--cream);
+    letter-spacing: -0.5px;
+  }
+  .hero .lede {
+    color: var(--cream-soft);
+    font-size: 17px;
+    margin: 0 0 18px;
+  }
+  .hero .ticks {
+    margin: 0 0 24px;
+    padding: 0;
+    list-style: none;
+    color: var(--cream-soft);
+    font-size: 14px;
+  }
+  .hero .ticks li {
+    padding: 6px 0 6px 22px;
+    position: relative;
+  }
+  .hero .ticks li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    width: 10px;
+    height: 2px;
+    background: var(--rust);
+  }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--steel);
+    border-radius: 999px;
+    padding: 4px 10px;
+    margin-bottom: 12px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--rust);
+    background: var(--rust);
+    color: #fff;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 120ms ease, transform 120ms ease;
+  }
+  .btn:hover { background: var(--rust-soft); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost {
+    background: transparent;
+    border-color: var(--steel);
+    color: var(--cream);
+  }
+  .btn.ghost:hover { border-color: var(--cream-soft); }
+  .btn.block { width: 100%; }
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .progress .bar {
+    flex: 1;
+    height: 6px;
+    background: var(--steel);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress .bar-fill {
+    height: 100%;
+    background: var(--rust);
+    width: 0%;
+    transition: width 200ms ease;
+  }
+  .category-tag {
+    display: inline-block;
+    font-size: 11px;
+    color: var(--rust-soft);
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 8px;
+  }
+  .q-title {
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--cream);
+    margin: 0 0 6px;
+    line-height: 1.3;
+  }
+  .q-help {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 16px;
+  }
+  .options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-elev);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    cursor: pointer;
+    color: var(--cream);
+    transition: border-color 120ms ease, background 120ms ease;
+    text-align: left;
+    font-size: 15px;
+  }
+  .option:hover {
+    border-color: var(--rust);
+    background: #262b32;
+  }
+  .option.selected {
+    border-color: var(--rust);
+    background: rgba(184,85,45,0.10);
+  }
+  .option .marker {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--steel-soft);
+    flex-shrink: 0;
+  }
+  .option.selected .marker {
+    border-color: var(--rust);
+    background: var(--rust);
+    box-shadow: inset 0 0 0 3px var(--card);
+  }
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  /* Result */
+  .score-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .score-num {
+    font-family: var(--mono);
+    font-size: 48px;
+    line-height: 1;
+    color: var(--rust);
+    font-weight: 700;
+    min-width: 110px;
+  }
+  .score-num small {
+    font-size: 18px;
+    color: var(--muted);
+  }
+  .band {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+  }
+  .band-name {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--cream);
+    margin: 2px 0 0;
+  }
+  .result-block h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    margin: 18px 0 6px;
+  }
+  .result-block p {
+    margin: 0;
+    color: var(--cream-soft);
+    font-size: 15px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  input, select, textarea {
+    width: 100%;
+    background: var(--bg-elev);
+    border: 1px solid var(--card-border);
+    color: var(--cream);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-family: var(--font);
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--rust);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  .checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 8px;
+    color: var(--cream-soft);
+    font-size: 13px;
+  }
+  .checkbox-row input { width: auto; margin-top: 3px; }
+  .disclaimer {
+    margin-top: 24px;
+    padding: 14px 16px;
+    border: 1px dashed var(--card-border);
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .hidden { display: none !important; }
+  .summary-box {
+    background: var(--bg-elev);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--cream-soft);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--rust);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 200ms ease, transform 200ms ease;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  footer.foot {
+    margin-top: 36px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    text-align: center;
+  }
+  .watermark {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  @media (max-width: 540px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .score-card { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .score-num { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="brand">
+    <div class="brand-mark">
+      <img class="mark-img" alt="DispatchTalon mark" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAADbklEQVR42u3Zz2sdVRQH8HPur8nMvF8kJjSNtdrGCta2xCLYJrGCiCCCC+lCFJe6cdOVuBD8A1y6cNGNf4GbCKWtiKKbYG2Mee1rU0yamDd5+VUxeT/mzp17XLQNoeJGLziBe1bDvGFmPnPuzHzvPKz0D8F+Lgb7vDzAAzzAAzzAAzzAAzzAAzzAAzzAAzxgn5ZwuC8iYowh4u4aRCSiR7ax1u7dpjAAxpVSgvPdc+eMaa0BUEhBRAAEgAhg8lynPbC2QEOIiKSUQkgCIEBAJEvrG5u1WrVarey029ZaREYElkBKqVTwSGf+dfEgjP/7XhBRBgEAZJmxNicirbNPPrpweuxkr6vHTj63sLjU6XaUUkRAZBljJssKBlBKa31s9GilXM6y7OLnnzWTZOrSN2sb60jwyrlJQFxpJowhIiJAbtwA0Mm3UUTsi2JLJIT49OMLaZp9cfHLG7PXXxif7HZ7Nxu3Rw4Ovzxx1lq68u13RIQIvU7byShy2IFA6+yJx0fu3Fn88IP3JsbHf70531rfiKMoUIoAGrfmTxx/Nmm12p02Z9xkunDvAWPM4MAAIL71zvunTx2/9uPl82++vrm5FYXhgaHBUinudDrw4KKTq4O664BUJje1WjWQavra9alLVyvV6rtvn59tzE9P/9QXBCvN5MlDh1bXWmmqmbsOOAMIKa2lKAqFEJyzzOSlUrw03xg7WF7XzGSmUi5Va5XV1bXMGMbQ1VPIbZQgIWSeW6VUrVqZuvp9urr05w9fBWFssoxzDgBccEsWCpmFMM9tHIYIsHB32RJtb27YA0en6NitG/WcqN64zYAx5jh9uRxCBNQXBC+Nn0nTdOveH4yxlWbSbDatJSJ4/tSJ0SNP/TJXJwKGWLgXmZBKCLm1de/3JJk88+Jj/f0zc/UoivI873Z7b7z2qlLq68tXTGYY5wjgCoCu/uQL4xIBMoZaa2vtuYmzI8PDd5eXAeDI4cMzc/WfZ2bDMOScEQEA9do7BQIQkeqLpJSWHkTl7e2dZ54eHRocIMDfFhaTVqsclywRAN1/hqbdjpNQ7awD9+M0fxinOWO9NEVEa4lxpqS0D/Nznudaa7B5sYbQ7oRm742x96fd5aJOaP42//qnrObw7P2k3gM8wAM8wAM8wAM8wAM8wAM8wAM8wAP+t/oLPk+ThcJNfE0AAAAASUVORK5CYII=" />
+      <span class="lockup">
+        <span class="wordmark">DispatchTalon</span>
+        <span class="sub">by Pressure Systems</span>
+      </span>
+    </div>
+    <div class="brand-meta">Diagnostic v1</div>
+  </header>
+
+  <!-- INTRO -->
+  <section id="intro" class="panel hero">
+    <span class="pill">Dispatch Readiness Diagnostic</span>
+    <h1>Is your dispatch process structured before the job goes out - or still relying on notes, memory, and messages?</h1>
+    <p class="lede">A 3-minute self-assessment for labour, crane, rigging, plant, transport, and lifting operators. Identify where your process is exposed before allocations are confirmed.</p>
+    <ul class="ticks">
+      <li>15 short questions across 5 categories</li>
+      <li>Score 0–60 with a clear readiness band</li>
+      <li>Tailored next action for your operation</li>
+      <li>No marketing fluff. Built for working operators.</li>
+    </ul>
+    <div class="btn-row">
+      <button class="btn" id="startBtn">Start the diagnostic</button>
+      <a class="btn ghost" href="#what-it-measures" id="learnMoreBtn">What it measures</a>
+    </div>
+    <div id="what-it-measures" class="disclaimer">
+      <strong style="color: var(--cream-soft);">What this measures.</strong>
+      Job intake clarity, worker / role / credential visibility, multi-role allocation coverage, dispatch publish control, and audit / office handoff. Scoring is self-reported. This is not a legal, compliance, permit, or engineering assessment.
+    </div>
+  </section>
+
+  <!-- QUESTIONS -->
+  <section id="quiz" class="panel hidden">
+    <div class="progress">
+      <span id="progressLabel">Question 1 of 15</span>
+      <div class="bar"><div class="bar-fill" id="progressFill"></div></div>
+    </div>
+    <span class="category-tag" id="categoryTag"></span>
+    <h2 class="q-title" id="qTitle"></h2>
+    <p class="q-help" id="qHelp"></p>
+    <div class="options" id="optionsList"></div>
+    <div class="nav-row">
+      <button class="btn ghost" id="prevBtn">Back</button>
+      <button class="btn" id="nextBtn">Next</button>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="result" class="panel hidden">
+    <span class="pill">Your Result</span>
+    <div class="score-card">
+      <div class="score-num"><span id="scoreVal">0</span><small>/60</small></div>
+      <div>
+        <div class="band">Readiness Band</div>
+        <div class="band-name" id="bandName"></div>
+      </div>
+    </div>
+
+    <div class="result-block">
+      <h3>Meaning</h3>
+      <p id="bandMeaning"></p>
+
+      <h3>Main risk</h3>
+      <p id="mainRisk"></p>
+
+      <h3>DispatchTalon fit</h3>
+      <p id="dtFit"></p>
+
+      <h3>Recommended next action</h3>
+      <p id="recAction"></p>
+
+      <h3>Suggested pilot type</h3>
+      <p id="pilotType"></p>
+
+      <h3>Copyable summary</h3>
+      <div class="summary-box" id="summaryBox"></div>
+
+      <div class="btn-row" style="margin-top: 16px;">
+        <button class="btn ghost" id="copyBtn">Copy result summary</button>
+        <button class="btn ghost" id="shareBtn">Share result text</button>
+        <button class="btn" id="toLeadBtn">Send my dispatch context</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEAD CAPTURE -->
+  <section id="lead" class="panel hidden">
+    <span class="pill">Step 2 - Send Context</span>
+    <h2 style="margin: 0 0 6px; font-size: 22px;">Send Cody your dispatch context</h2>
+    <p style="color: var(--cream-soft); font-size: 14px; margin: 0 0 18px;">No demo request. No sales pressure. He'll review your context and reply with a fit assessment and a recommended next step.</p>
+
+    <form id="leadForm" action="https://formspree.io/f/xzdyappr" method="POST" novalidate>
+      <div class="form-grid">
+        <div>
+          <label for="f_name">Name</label>
+          <input id="f_name" name="name" type="text" autocomplete="name" required />
+        </div>
+        <div>
+          <label for="f_company">Company</label>
+          <input id="f_company" name="company" type="text" autocomplete="organization" required />
+        </div>
+        <div>
+          <label for="f_role">Role</label>
+          <select id="f_role" name="role">
+            <option value="">Select</option>
+            <option>Owner</option>
+            <option>Operations Manager</option>
+            <option>Dispatcher / Allocator</option>
+            <option>General Manager</option>
+            <option>Office / Admin</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="f_email">Email</label>
+          <input id="f_email" name="email" type="email" autocomplete="email" required />
+        </div>
+        <div>
+          <label for="f_phone">Phone (optional)</label>
+          <input id="f_phone" name="phone" type="tel" autocomplete="tel" />
+        </div>
+        <div>
+          <label for="f_location">Location (state / country)</label>
+          <input id="f_location" name="location" type="text" placeholder="e.g. QLD, NSW, NZ" />
+        </div>
+        <div class="full">
+          <label for="f_method">Current dispatch method</label>
+          <select id="f_method" name="dispatch_method">
+            <option value="">Select</option>
+            <option>Phone calls / memory</option>
+            <option>SMS / WhatsApp</option>
+            <option>Email threads</option>
+            <option>OneNote / spreadsheet</option>
+            <option>Whiteboard / paper diary</option>
+            <option>Generic scheduling tool</option>
+            <option>Industry system (FCC etc.)</option>
+            <option>Mixed / partly structured</option>
+          </select>
+        </div>
+        <div>
+          <label for="f_workers">Workers / personnel</label>
+          <select id="f_workers" name="workers">
+            <option value="">Select</option>
+            <option>1–5</option>
+            <option>6–14</option>
+            <option>15–40</option>
+            <option>41–80</option>
+            <option>81–150</option>
+            <option>150+</option>
+          </select>
+        </div>
+        <div>
+          <label for="f_assets">Assets / plant</label>
+          <select id="f_assets" name="assets">
+            <option value="">Select</option>
+            <option>Labour-only</option>
+            <option>1–5 plant</option>
+            <option>6–15 plant</option>
+            <option>16–40 plant</option>
+            <option>40+ plant</option>
+          </select>
+        </div>
+        <div>
+          <label for="f_jobs">Weekly jobs</label>
+          <select id="f_jobs" name="weekly_jobs">
+            <option value="">Select</option>
+            <option>Under 10</option>
+            <option>10–25</option>
+            <option>26–60</option>
+            <option>61–120</option>
+            <option>120+</option>
+          </select>
+        </div>
+        <div class="full">
+          <label for="f_pain">Main pain (one line)</label>
+          <textarea id="f_pain" name="main_pain" placeholder="What's the part of your dispatch loop you wish you could trust more?"></textarea>
+        </div>
+      </div>
+
+      <!-- Hidden fields injected by JS -->
+      <input type="hidden" name="result_band" id="h_band" />
+      <input type="hidden" name="score" id="h_score" />
+      <input type="hidden" name="selected_answers" id="h_answers" />
+      <input type="hidden" name="timestamp" id="h_ts" />
+      <input type="hidden" name="source_channel" id="h_source" />
+      <input type="hidden" name="utm_source" id="h_utm_source" />
+      <input type="hidden" name="utm_medium" id="h_utm_medium" />
+      <input type="hidden" name="utm_campaign" id="h_utm_campaign" />
+      <input type="hidden" name="utm_term" id="h_utm_term" />
+      <input type="hidden" name="utm_content" id="h_utm_content" />
+
+      <div class="checkbox-row">
+        <input id="f_consent" name="consent" type="checkbox" required />
+        <label for="f_consent" style="text-transform: none; letter-spacing: 0; color: var(--cream-soft); font-size: 13px; margin: 0;">
+          I'm okay with Cody from DispatchTalon contacting me about this context. No newsletter sign-up, no auto-sequence.
+        </label>
+      </div>
+
+      <div class="btn-row" style="margin-top: 18px;">
+        <button class="btn block" id="submitBtn" type="submit">Send my dispatch context</button>
+      </div>
+
+      <p id="formNote" style="margin-top: 12px; font-size: 12px; color: var(--muted);">
+        Your submission goes directly to Cody. No newsletter, no auto sequence. If the endpoint is unreachable, the form falls back to an email draft.
+      </p>
+    </form>
+
+    <div id="leadDone" class="hidden">
+      <h2 style="font-size: 20px; margin: 0 0 8px;">Got it - context received.</h2>
+      <p style="color: var(--cream-soft);">Cody will review your dispatch context and reply with a fit assessment and a recommended next step (discovery call, pilot scenario, or design partner application).</p>
+      <p style="color: var(--muted); font-size: 13px;">If you don't hear back within two working days, reply to your confirmation email or ping <span style="color: var(--cream-soft);">+ contact via your usual channel</span>.</p>
+    </div>
+  </section>
+
+  <!-- BOUNDARIES -->
+  <section class="disclaimer">
+    <strong style="color: var(--cream-soft);">Claim boundaries.</strong>
+    DispatchTalon is decision-support. The dispatcher remains the decision-maker. Review is required before dispatch. DispatchTalon does not claim compliance approval, permit approval, legal road access approval, lift-engineering approval, autonomous dispatch, payroll-ready, invoice-ready, direct Xero / MYOB integration, or live SMS sending. Manual SMS preview / copy / manual publish only. CSV office handoff. Pilot-stage product.
+  </section>
+
+  <div class="footer-brand">
+    <img class="mark-img" alt="DispatchTalon mark" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAADbklEQVR42u3Zz2sdVRQH8HPur8nMvF8kJjSNtdrGCta2xCLYJrGCiCCCC+lCFJe6cdOVuBD8A1y6cNGNf4GbCKWtiKKbYG2Mee1rU0yamDd5+VUxeT/mzp17XLQNoeJGLziBe1bDvGFmPnPuzHzvPKz0D8F+Lgb7vDzAAzzAAzzAAzzAAzzAAzzAAzzAAzxgn5ZwuC8iYowh4u4aRCSiR7ax1u7dpjAAxpVSgvPdc+eMaa0BUEhBRAAEgAhg8lynPbC2QEOIiKSUQkgCIEBAJEvrG5u1WrVarey029ZaREYElkBKqVTwSGf+dfEgjP/7XhBRBgEAZJmxNicirbNPPrpweuxkr6vHTj63sLjU6XaUUkRAZBljJssKBlBKa31s9GilXM6y7OLnnzWTZOrSN2sb60jwyrlJQFxpJowhIiJAbtwA0Mm3UUTsi2JLJIT49OMLaZp9cfHLG7PXXxif7HZ7Nxu3Rw4Ovzxx1lq68u13RIQIvU7byShy2IFA6+yJx0fu3Fn88IP3JsbHf70531rfiKMoUIoAGrfmTxx/Nmm12p02Z9xkunDvAWPM4MAAIL71zvunTx2/9uPl82++vrm5FYXhgaHBUinudDrw4KKTq4O664BUJje1WjWQavra9alLVyvV6rtvn59tzE9P/9QXBCvN5MlDh1bXWmmqmbsOOAMIKa2lKAqFEJyzzOSlUrw03xg7WF7XzGSmUi5Va5XV1bXMGMbQ1VPIbZQgIWSeW6VUrVqZuvp9urr05w9fBWFssoxzDgBccEsWCpmFMM9tHIYIsHB32RJtb27YA0en6NitG/WcqN64zYAx5jh9uRxCBNQXBC+Nn0nTdOveH4yxlWbSbDatJSJ4/tSJ0SNP/TJXJwKGWLgXmZBKCLm1de/3JJk88+Jj/f0zc/UoivI873Z7b7z2qlLq68tXTGYY5wjgCoCu/uQL4xIBMoZaa2vtuYmzI8PDd5eXAeDI4cMzc/WfZ2bDMOScEQEA9do7BQIQkeqLpJSWHkTl7e2dZ54eHRocIMDfFhaTVqsclywRAN1/hqbdjpNQ7awD9+M0fxinOWO9NEVEa4lxpqS0D/Nznudaa7B5sYbQ7oRm742x96fd5aJOaP42//qnrObw7P2k3gM8wAM8wAM8wAM8wAM8wAM8wAM8wAP+t/oLPk+ThcJNfE0AAAAASUVORK5CYII=" />
+    <div class="stack">
+      <strong>DispatchTalon by Pressure Systems</strong>
+      <span>Internal grade diagnostic. No public pricing. Pilot stage product.</span>
+    </div>
+  </div>
+
+  <footer class="foot">DispatchTalon by Pressure Systems &middot; Dispatch Readiness Diagnostic v1</footer>
+</div>
+
+<div class="watermark">DispatchTalon &middot; DRD v1</div>
+<div class="toast" id="toast">Copied</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Question bank ----------
+  // value: option label, score: 0-4
+  var Q = [
+    {
+      cat: "Job Intake Clarity",
+      title: "Where does the job first land?",
+      help: "Pick the most common path. Not where it eventually ends up - where it first arrives.",
+      options: [
+        { label: "Phone call / memory", score: 0 },
+        { label: "SMS / WhatsApp",       score: 1 },
+        { label: "Email",                score: 2 },
+        { label: "OneNote / spreadsheet",score: 3 },
+        { label: "Structured job intake",score: 4 }
+      ]
+    },
+    {
+      cat: "Job Intake Clarity",
+      title: "Are job requirements captured before dispatch?",
+      help: "Roles, ticket needs, site context, timing, customer - captured up-front, not chased after.",
+      options: [
+        { label: "Rarely",                       score: 0 },
+        { label: "Sometimes",                    score: 1 },
+        { label: "Usually",                      score: 2 },
+        { label: "Always",                       score: 3 },
+        { label: "Structured and reviewed",      score: 4 }
+      ]
+    },
+    {
+      cat: "Job Intake Clarity",
+      title: "Are role counts recorded?",
+      help: "Example: Truck Driver x2, Dogman x1, Rigger x1.",
+      options: [
+        { label: "No - we work it out at dispatch", score: 0 },
+        { label: "Sometimes, in a message",         score: 1 },
+        { label: "In notes / spreadsheet",          score: 2 },
+        { label: "In a structured field",           score: 3 },
+        { label: "Structured and visible to ops",   score: 4 }
+      ]
+    },
+    {
+      cat: "Worker / Role / Credential Visibility",
+      title: "Can you quickly see who can perform each role?",
+      help: "Within seconds, not after a phone call.",
+      options: [
+        { label: "Only in the dispatcher's head",   score: 0 },
+        { label: "Scattered in messages / notes",   score: 1 },
+        { label: "Partly in a spreadsheet",         score: 2 },
+        { label: "In a maintained roster",          score: 3 },
+        { label: "Structured by role per worker",   score: 4 }
+      ]
+    },
+    {
+      cat: "Worker / Role / Credential Visibility",
+      title: "Can you quickly see who has each ticket / credential?",
+      help: "HRWL, VOCs, site cards, specialist tickets - visible before allocation.",
+      options: [
+        { label: "Not without asking",                  score: 0 },
+        { label: "In a folder somewhere",               score: 1 },
+        { label: "Tracked in a spreadsheet",            score: 2 },
+        { label: "Tracked with expiries",               score: 3 },
+        { label: "Structured per worker with expiries", score: 4 }
+      ]
+    },
+    {
+      cat: "Worker / Role / Credential Visibility",
+      title: "Are VOCs, site requirements, or specialist credentials visible before allocation?",
+      help: "Site- or customer-specific requirements should surface before the worker is picked, not after.",
+      options: [
+        { label: "Never",                                  score: 0 },
+        { label: "Rarely",                                 score: 1 },
+        { label: "Sometimes for major sites",              score: 2 },
+        { label: "Mostly - we check before publish",       score: 3 },
+        { label: "Always - structured into the decision",  score: 4 }
+      ]
+    },
+    {
+      cat: "Multi-Role Allocation Coverage",
+      title: "How do you decide if one worker can cover multiple roles?",
+      help: "Dogman + Rigger, Truck Driver + Dogman, etc.",
+      options: [
+        { label: "Gut feel in the moment",                  score: 0 },
+        { label: "Phone the worker",                        score: 1 },
+        { label: "Notes / informal pattern",                score: 2 },
+        { label: "Documented per worker",                   score: 3 },
+        { label: "Suggested by system, confirmed by ops",   score: 4 }
+      ]
+    },
+    {
+      cat: "Multi-Role Allocation Coverage",
+      title: "Do you compare conservative headcount against realistic role coverage?",
+      help: "Four role slots can sometimes be covered by two workers.",
+      options: [
+        { label: "We just count bodies",                    score: 0 },
+        { label: "We try, but not consistently",            score: 1 },
+        { label: "Sometimes, for known crew",               score: 2 },
+        { label: "Most jobs",                               score: 3 },
+        { label: "Structured - every multi-role job",       score: 4 }
+      ]
+    },
+    {
+      cat: "Multi-Role Allocation Coverage",
+      title: "Can your current system show that a four-role job may only need two workers?",
+      help: "If the answer is 'we work it out manually', score that honestly.",
+      options: [
+        { label: "No - we always send four",                score: 0 },
+        { label: "Only if the dispatcher remembers",        score: 1 },
+        { label: "Sometimes, manually",                     score: 2 },
+        { label: "Usually, manually",                       score: 3 },
+        { label: "Yes - suggested with warnings",           score: 4 }
+      ]
+    },
+    {
+      cat: "Dispatch Control / Publish Process",
+      title: "Is worker notification separate from internal allocation selection?",
+      help: "Picking the worker and notifying them should be two distinct steps.",
+      options: [
+        { label: "Same step - we just message them",        score: 0 },
+        { label: "Loosely separated",                       score: 1 },
+        { label: "Separated in process, not in tool",       score: 2 },
+        { label: "Separated, with a check before notify",   score: 3 },
+        { label: "Structured publish step after review",    score: 4 }
+      ]
+    },
+    {
+      cat: "Dispatch Control / Publish Process",
+      title: "Can you preview what the worker receives before publishing?",
+      help: "Wording, timing, site, role, joiners - visible before send.",
+      options: [
+        { label: "No",                                      score: 0 },
+        { label: "We re-read the message",                  score: 1 },
+        { label: "We preview informally",                   score: 2 },
+        { label: "We preview formally most of the time",    score: 3 },
+        { label: "Always preview - structured field",       score: 4 }
+      ]
+    },
+    {
+      cat: "Dispatch Control / Publish Process",
+      title: "Are changes / overrides recorded?",
+      help: "When the dispatcher overrides a suggestion or swaps a worker, is the reason captured?",
+      options: [
+        { label: "No",                                      score: 0 },
+        { label: "Sometimes, in messages",                  score: 1 },
+        { label: "In notes",                                score: 2 },
+        { label: "In a tracked log",                        score: 3 },
+        { label: "Structured override + reason captured",   score: 4 }
+      ]
+    },
+    {
+      cat: "Audit / Office Handoff",
+      title: "Can you show why a worker was selected?",
+      help: "Six weeks later, can you reconstruct the decision?",
+      options: [
+        { label: "Not really",                              score: 0 },
+        { label: "Maybe, from messages",                    score: 1 },
+        { label: "Sometimes, from notes",                   score: 2 },
+        { label: "Usually, from records",                   score: 3 },
+        { label: "Always - audit trail per allocation",     score: 4 }
+      ]
+    },
+    {
+      cat: "Audit / Office Handoff",
+      title: "Can office / admin export job & allocation data without retyping?",
+      help: "Office staff shouldn't re-key what dispatch already entered.",
+      options: [
+        { label: "Everything is retyped",                   score: 0 },
+        { label: "Some copy-paste",                         score: 1 },
+        { label: "Mixed",                                   score: 2 },
+        { label: "Mostly exportable",                       score: 3 },
+        { label: "Structured CSV export every week",        score: 4 }
+      ]
+    },
+    {
+      cat: "Audit / Office Handoff",
+      title: "Can management review warnings, overrides, and allocation history later?",
+      help: "Operations review needs more than a roster - it needs a record of the decisions.",
+      options: [
+        { label: "No record exists",                        score: 0 },
+        { label: "Only in scattered messages",              score: 1 },
+        { label: "Partial - notes / spreadsheet",           score: 2 },
+        { label: "Yes - most decisions",                    score: 3 },
+        { label: "Yes - full reviewable history",           score: 4 }
+      ]
+    }
+  ];
+
+  // ---------- Bands ----------
+  var BANDS = [
+    {
+      min: 0, max: 20,
+      name: "Manual Dispatch Risk",
+      meaning: "Your dispatch process depends heavily on people remembering the right details at the right time. The note isn't the risk - the missing trail is.",
+      risk: "If your dispatcher is sick, leaves, or has one bad day, the cost is real. Audit reconstruction is slow or impossible.",
+      fit: "DispatchTalon would give you a structured intake, role coverage suggestions, and an audit trail - without replacing the dispatcher's judgement.",
+      action: "Book a 20-minute diagnostic call to walk through a real recent job.",
+      pilot: "Testing Partner"
+    },
+    {
+      min: 21, max: 35,
+      name: "Partially Structured",
+      meaning: "Some structure exists, but key decisions still rely on manual checking, memory, or disconnected notes.",
+      risk: "Multi-role coverage and credential checks are the most likely exposure. The decision happens, but the trail behind it is thin.",
+      fit: "DispatchTalon would structure the layer that's currently in your head - role coverage, credential surfacing, and reviewable publish.",
+      action: "Send a sample job through DispatchTalon together - context-first, not a demo.",
+      pilot: "Labour Allocation Pilot (or Testing Partner if small)"
+    },
+    {
+      min: 36, max: 48,
+      name: "Dispatch-Ready but Exposed",
+      meaning: "Your operation has structure, but role coverage, credential checks, publish control, audit, or exports may still be exposed.",
+      risk: "You probably look organised from the outside. The exposure is in the decisions that didn't get recorded.",
+      fit: "DispatchTalon would close the audit and role-coverage layer over the structure you already have.",
+      action: "Run a focused pilot scenario on a real allocation window.",
+      pilot: "Founding Partner Pilot"
+    },
+    {
+      min: 49, max: 60,
+      name: "Pilot Candidate",
+      meaning: "Your process is mature enough to test DispatchTalon against real allocation pressure.",
+      risk: "The remaining risk is invisible to you because your structure masks it. DispatchTalon will surface the edge cases your current system absorbs silently.",
+      fit: "DispatchTalon would be an evaluation-grade test, not an onboarding rescue.",
+      action: "Apply for a Design Partner Pilot. Bring a defined scope and a sponsor.",
+      pilot: "Commercial Pilot (or Founding Partner if multi-branch)"
+    }
+  ];
+
+  // ---------- State ----------
+  var state = {
+    idx: 0,
+    answers: new Array(Q.length).fill(null),
+    score: 0,
+    band: null
+  };
+
+  // ---------- Helpers ----------
+  function $(id) { return document.getElementById(id); }
+  function show(id) { $(id).classList.remove("hidden"); }
+  function hide(id) { $(id).classList.add("hidden"); }
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(window.__tt);
+    window.__tt = setTimeout(function () { t.classList.remove("show"); }, 1600);
+  }
+  function getUTM() {
+    var p = new URLSearchParams(window.location.search);
+    return {
+      source: p.get("utm_source") || "",
+      medium: p.get("utm_medium") || "",
+      campaign: p.get("utm_campaign") || "",
+      term: p.get("utm_term") || "",
+      content: p.get("utm_content") || ""
+    };
+  }
+
+  // ---------- Render ----------
+  function renderQuestion() {
+    var q = Q[state.idx];
+    $("categoryTag").textContent = q.cat;
+    $("qTitle").textContent = q.title;
+    $("qHelp").textContent = q.help || "";
+    $("progressLabel").textContent = "Question " + (state.idx + 1) + " of " + Q.length;
+    $("progressFill").style.width = (((state.idx) / Q.length) * 100) + "%";
+
+    var list = $("optionsList");
+    list.innerHTML = "";
+    var current = state.answers[state.idx];
+    q.options.forEach(function (opt, i) {
+      var el = document.createElement("button");
+      el.type = "button";
+      el.className = "option" + (current === i ? " selected" : "");
+      el.setAttribute("data-i", i);
+      el.innerHTML = '<span class="marker"></span><span>' + opt.label + '</span>';
+      el.addEventListener("click", function () {
+        state.answers[state.idx] = i;
+        renderQuestion();
+      });
+      list.appendChild(el);
+    });
+
+    $("prevBtn").disabled = state.idx === 0;
+    $("nextBtn").textContent = state.idx === Q.length - 1 ? "See result" : "Next";
+  }
+
+  function computeScore() {
+    var total = 0;
+    state.answers.forEach(function (a, i) {
+      if (a === null || a === undefined) return;
+      total += Q[i].options[a].score;
+    });
+    state.score = total;
+    state.band = BANDS.find(function (b) { return total >= b.min && total <= b.max; });
+  }
+
+  function buildSummary() {
+    var lines = [];
+    lines.push("DispatchTalon - Dispatch Readiness Diagnostic");
+    lines.push("Score: " + state.score + "/60  ·  Band: " + state.band.name);
+    lines.push("");
+    lines.push("Main risk: " + state.band.risk);
+    lines.push("DispatchTalon fit: " + state.band.fit);
+    lines.push("Recommended next: " + state.band.action);
+    lines.push("Suggested pilot type: " + state.band.pilot);
+    lines.push("");
+    lines.push("Answers:");
+    Q.forEach(function (q, i) {
+      var a = state.answers[i];
+      var label = (a === null || a === undefined) ? "(no answer)" : q.options[a].label;
+      lines.push("  " + (i + 1) + ". " + q.title + " → " + label);
+    });
+    return lines.join("\n");
+  }
+
+  function renderResult() {
+    computeScore();
+    $("scoreVal").textContent = state.score;
+    $("bandName").textContent = state.band.name;
+    $("bandMeaning").textContent = state.band.meaning;
+    $("mainRisk").textContent = state.band.risk;
+    $("dtFit").textContent = state.band.fit;
+    $("recAction").textContent = state.band.action;
+    $("pilotType").textContent = state.band.pilot;
+    $("summaryBox").textContent = buildSummary();
+
+    // hidden form fields
+    $("h_band").value = state.band.name;
+    $("h_score").value = String(state.score);
+    $("h_answers").value = JSON.stringify(state.answers.map(function (a, i) {
+      return a === null ? null : { q: i + 1, label: Q[i].options[a].label, score: Q[i].options[a].score };
+    }));
+    $("h_ts").value = new Date().toISOString();
+    var u = getUTM();
+    $("h_utm_source").value = u.source;
+    $("h_utm_medium").value = u.medium;
+    $("h_utm_campaign").value = u.campaign;
+    $("h_utm_term").value = u.term;
+    $("h_utm_content").value = u.content;
+    $("h_source").value = u.source || document.referrer || "direct";
+  }
+
+  // ---------- Wiring ----------
+  document.addEventListener("DOMContentLoaded", function () {
+    $("startBtn").addEventListener("click", function () {
+      hide("intro");
+      show("quiz");
+      renderQuestion();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    $("nextBtn").addEventListener("click", function () {
+      if (state.answers[state.idx] === null) {
+        toast("Pick an option to continue");
+        return;
+      }
+      if (state.idx === Q.length - 1) {
+        hide("quiz");
+        show("result");
+        renderResult();
+        $("progressFill").style.width = "100%";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      state.idx += 1;
+      renderQuestion();
+    });
+
+    $("prevBtn").addEventListener("click", function () {
+      if (state.idx === 0) return;
+      state.idx -= 1;
+      renderQuestion();
+    });
+
+    $("copyBtn").addEventListener("click", function () {
+      var text = buildSummary();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { toast("Copied"); });
+      } else {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); toast("Copied"); }
+        catch (e) { toast("Copy failed"); }
+        document.body.removeChild(ta);
+      }
+    });
+
+    $("shareBtn").addEventListener("click", function () {
+      var text = buildSummary();
+      if (navigator.share) {
+        navigator.share({ title: "Dispatch Readiness Diagnostic", text: text }).catch(function () {});
+      } else {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { toast("Share text copied"); });
+        } else {
+          toast("Share not supported");
+        }
+      }
+    });
+
+    $("toLeadBtn").addEventListener("click", function () {
+      show("lead");
+      $("lead").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    $("leadForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var form = e.target;
+      if (!form.action || form.action === window.location.href || form.action === "") {
+        // No endpoint configured - fall back to mailto draft + on-screen confirmation.
+        var data = {
+          name: $("f_name").value,
+          company: $("f_company").value,
+          role: $("f_role").value,
+          email: $("f_email").value,
+          phone: $("f_phone").value,
+          location: $("f_location").value,
+          dispatch_method: $("f_method").value,
+          workers: $("f_workers").value,
+          assets: $("f_assets").value,
+          weekly_jobs: $("f_jobs").value,
+          main_pain: $("f_pain").value,
+          score: state.score,
+          band: state.band ? state.band.name : "",
+          timestamp: new Date().toISOString()
+        };
+        var body = "Dispatch Readiness Diagnostic - submitted context\n\n";
+        Object.keys(data).forEach(function (k) {
+          body += k + ": " + (data[k] || "-") + "\n";
+        });
+        body += "\n--- Diagnostic summary ---\n" + buildSummary();
+        var mailto = "mailto:?subject=" + encodeURIComponent("DispatchTalon - Dispatch Readiness context") + "&body=" + encodeURIComponent(body);
+        try { window.location.href = mailto; } catch (err) {}
+        hide("leadForm");
+        $("leadDone").classList.remove("hidden");
+        return;
+      }
+      // If an action is configured (Formspree etc.), let it submit normally.
+      try { form.submit(); } catch (err) {}
+      hide("leadForm");
+      $("leadDone").classList.remove("hidden");
+    });
+  });
+})();
+</script>
+</body>
+</html>
