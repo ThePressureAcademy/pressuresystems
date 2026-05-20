@@ -187,6 +187,33 @@ Expected review:
 - Dispatcher confirms suitability.
 - Review warnings remain visible.
 
+## 12.5 Role Coverage Rehearsal (Shadow Run)
+
+Before the first real publish, run a shadow rehearsal against live data so the operator can compare DispatchTalon's decision shape to what they would have done anyway.
+
+Goal: run the next planned dispatch loop in DispatchTalon alongside the operator's existing system, without publishing from DispatchTalon. The rehearsal protects against silent disagreement between system and operator and surfaces calibration issues before they become customer-visible.
+
+Action:
+
+- The operator allocates the next real day of jobs in DispatchTalon as a shadow run.
+- They also allocate the same day in their existing system (spreadsheet, OneNote, WhatsApp, whiteboard, or current tool) as they normally would.
+- Both allocations are recorded side by side. Only the existing-system allocation is published. DispatchTalon's allocations stay unpublished.
+
+Verification:
+
+- Compare the two allocations job by job.
+- For each job, classify the outcome as: exact match, equivalent (different worker but same role coverage shape), divergence (different role coverage shape).
+- Every divergence must be explained, either as a DispatchTalon improvement, an operator preference DispatchTalon does not yet see, or a data gap (missing credential, missing role, stale fatigue).
+- No divergence is allowed to pass without explanation. An unexplained divergence is a defect, not a preference.
+
+Exit condition:
+
+- One full day of jobs shadowed.
+- Every divergence has a written explanation in the audit log or rehearsal note.
+- Operator signs off that they understand each divergence before moving to Section 13.
+
+Do not skip this stage on the assumption that earlier stages already proved fit. Earlier stages prove the loop. This stage proves the calibration.
+
 ## 13. First Publish Allocation
 
 Publish allocation must remain deliberate:
