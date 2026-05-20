@@ -77,6 +77,12 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /\/internal\/pilot-activity/);
     assert.match(res.text, /does not expose operational payloads or customer job content/);
     assert.match(res.text, /worker names, emails, phone numbers, job descriptions, client names, site addresses/i);
+    assert.match(res.text, /Status \/ Result/);
+    assert.match(res.text, /Technical details/);
+    assert.match(res.text, /auditEventStatus/);
+    assert.match(res.text, /auditEventTechnicalDetails/);
+    assert.doesNotMatch(res.text, /el\('th',\s*\{\},\s*'User'\)/);
+    assert.doesNotMatch(res.text, /el\('th',\s*\{\},\s*'Payload'\)/);
     assert.match(res.text, /formatCompanyLabel/);
     assert.match(res.text, /Company:/);
     assert.match(res.text, /test portal/);
@@ -246,6 +252,8 @@ describe('Pilot console — static asset serving', () => {
       'isStaleRender',       // async render guard
       'auditEventReason',    // audit summary
       'auditEventSignals',   // warning/block summary
+      'auditEventStatus',    // customer-facing audit status
+      'auditEventTechnicalDetails', // internal-only collapsed technical detail
       'syncInternalNav',     // internal-only monitor navigation
     ]) {
       assert.match(appJs, new RegExp(`function ${fn}`),

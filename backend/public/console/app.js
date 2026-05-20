@@ -4653,39 +4653,94 @@ function auditEventPill(eventType) {
   return 'pill-info';
 }
 
-function auditEventsTable(events) {
+function auditEventStatus(event) {
+  const eventType = event.event_type || '';
+  const reason = auditEventReason(event);
+  const signals = auditEventSignals(event);
+  const detail = [reason, signals].filter((value) => value && value !== '-').join(' | ');
+
+  if (eventType.includes('failed')) {
+    return { label: 'Failed', className: 'pill-bad', detail };
+  }
+  if (eventType.includes('blocked') || ['allocation_rejected', 'credential_block_applied', 'fatigue_block_applied', 'availability_block_applied'].includes(eventType)) {
+    return { label: 'Blocked', className: 'pill-bad', detail };
+  }
+  if (eventType.includes('review') || eventType.includes('warning') || ['warning_acknowledged', 'credential_expiry_alert', 'non_top_ranked_selected', 'allocation_publish_previewed', 'role_coverage_override_recorded'].includes(eventType)) {
+    return { label: 'Review', className: 'pill-warn', detail };
+  }
+  if (eventType.includes('created') || eventType.includes('confirmed') || eventType.includes('published') || eventType.includes('completed') || eventType.includes('updated') || eventType.includes('imported') || eventType.includes('changed')) {
+    return { label: 'Recorded', className: 'pill-ok', detail };
+  }
+  return { label: 'Logged', className: 'pill-info', detail };
+}
+
+function auditEventReference(event) {
+  const refs = [];
+  if (event.allocation_id) refs.push('Allocation');
+  if (event.job_id) refs.push('Job');
+  if (event.worker_id) refs.push('Worker');
+  if (event.event_type?.startsWith('company_')) refs.push('Company setup');
+  if (event.event_type?.includes('export')) refs.push('Export');
+  return refs.length ? refs.join(' / ') : '-';
+}
+
+function auditEventTechnicalDetails(event) {
+  const technicalRows = [
+    ['Event ID', event.id],
+    ['User ID', event.user_id],
+    ['Worker ID', event.worker_id],
+    ['Job ID', event.job_id],
+    ['Allocation ID', event.allocation_id]
+  ];
+
+  return el('details', { class: 'technical-details' },
+    el('summary', {}, 'Technical details'),
+    el('div', { class: 'technical-detail-grid' },
+      ...technicalRows.flatMap(([label, value]) => [
+        el('div', { class: 'muted' }, label),
+        el('div', { class: 'mono' }, value || '-')
+      ])
+    ),
+    el('pre', { class: 'mono technical-payload' }, JSON.stringify(event.payload || {}, null, 2))
+  );
+}
+
+function auditEventsTable(events, options = {}) {
   if (!events || events.length === 0) return el('div', { class: 'empty' }, 'No audit events.');
+
+  const showTechnicalDetails = options.showTechnicalDetails ?? isInternalAdmin();
+  const headers = [
+    'Timestamp',
+    'Event',
+    'Status / Result',
+    'Reference'
+  ];
+  if (showTechnicalDetails) headers.push('Technical');
 
   const table = el('table');
   table.appendChild(el('thead', {}, el('tr', {},
-    el('th', {}, 'Timestamp'),
-    el('th', {}, 'Event'),
-    el('th', {}, 'User'),
-    el('th', {}, 'Refs'),
-    el('th', {}, 'Reason'),
-    el('th', {}, 'Warnings / blocks'),
-    el('th', {}, 'Payload')
+    ...headers.map((header) => el('th', {}, header))
   )));
 
   const body = el('tbody');
   for (const event of events) {
-    const refs = el('div', { class: 'audit-summary' },
-      el('span', { class: 'small mono' }, `worker ${shortId(event.worker_id)}`),
-      el('span', { class: 'small mono' }, `job ${shortId(event.job_id)}`)
-    );
-    const details = el('details', {},
-      el('summary', {}, 'view'),
-      el('pre', { class: 'mono' }, JSON.stringify(event.payload, null, 2))
-    );
-
-    body.appendChild(el('tr', {},
+    const status = auditEventStatus(event);
+    const rowCells = [
       el('td', { class: 'small' }, fmtDate(event.timestamp)),
       el('td', {}, el('span', { class: `pill ${auditEventPill(event.event_type)}` }, formatDisplayLabel(event.event_type))),
-      el('td', { class: 'mono small' }, shortId(event.user_id)),
-      el('td', {}, refs),
-      el('td', { class: 'small' }, auditEventReason(event)),
-      el('td', { class: 'small' }, auditEventSignals(event)),
-      el('td', {}, details)
+      el('td', { class: 'activity-status-cell' },
+        el('span', { class: `pill ${status.className}` }, status.label),
+        status.detail ? el('div', { class: 'small muted activity-detail' }, status.detail) : null
+      ),
+      el('td', { class: 'small' }, auditEventReference(event))
+    ];
+
+    if (showTechnicalDetails) {
+      rowCells.push(el('td', {}, auditEventTechnicalDetails(event)));
+    }
+
+    body.appendChild(el('tr', {},
+      ...rowCells
     ));
   }
   table.appendChild(body);
