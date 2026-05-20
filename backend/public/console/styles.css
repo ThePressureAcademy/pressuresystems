@@ -950,6 +950,36 @@ details { margin-top: 8px; }
 summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 details[open] summary { color: var(--text); }
 
+.activity-status-cell {
+  min-width: 160px;
+}
+
+.activity-detail {
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+.technical-details {
+  max-width: 360px;
+}
+
+.technical-detail-grid {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 8px 0;
+  word-break: break-word;
+}
+
+.technical-payload {
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.18);
+}
+
 .empty {
   padding: 30px;
   text-align: center;
