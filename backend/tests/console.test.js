@@ -59,6 +59,8 @@ describe('Pilot console — static asset serving', () => {
     assert.equal(res.status, 200);
     assert.match(res.headers['content-type'], /css/);
     assert.match(res.text, /metric-tile/);
+    assert.match(res.text, /\.asset-tile/);
+    assert.match(res.text, /\.credential-tile/);
   });
 
   test('GET /console/app.js returns the SPA bundle', async () => {
@@ -115,6 +117,9 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Plant and asset register hidden/);
     assert.match(res.text, /Job requirements/);
     assert.match(res.text, /Asset Register/);
+    assert.match(res.text, /renderAssetTile/);
+    assert.match(res.text, /asset-tile/);
+    assert.match(res.text, /asset-tile__meta/);
     assert.match(res.text, /Reset company data/);
     assert.match(res.text, /CLEAR COMPANY DATA/);
     assert.match(res.text, /Asset number \/ plant number/);
@@ -155,6 +160,10 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Role coverage to confirm for this worker/);
     assert.match(res.text, /Combined-role allocation is decision support only/);
     assert.match(res.text, /Required credentials and VOCs/);
+    assert.match(res.text, /renderCredentialTile/);
+    assert.match(res.text, /credential-tile/);
+    assert.match(res.text, /credential-tile__meta/);
+    assert.match(res.text, /Add credential/);
     assert.match(res.text, /Crane \/ equipment classes/);
     assert.match(res.text, /Site conditions/);
     assert.match(res.text, /Additional job requirements \/ notes/);
@@ -244,7 +253,8 @@ describe('Pilot console — static asset serving', () => {
       'renderWorkerImport',  // CSV / TSV import flow
       'renderJobBriefImport',// job brief import flow
       'renderNewWorker',     // create worker
-      'renderWorkerDetail',  // worker detail (also renders credentials + fatigue inline)
+      'renderWorkerDetail',  // worker detail (also renders credentials + fatigue)
+      'renderCredentialTile', // collapsible worker credential tiles
       'renderJobsList',      // jobs list
       'renderNewJob',        // create job
       'renderJobDetail',     // job detail
@@ -256,6 +266,7 @@ describe('Pilot console — static asset serving', () => {
       'renderExports',       // CSV export centre
       'renderInternalPilotMonitor', // internal privacy-safe pilot activity monitor
       'downloadExportCsv',   // authenticated CSV downloads
+      'renderAssetTile',     // collapsible asset register tiles
       'buildCredentialForm', // credential entry
       'buildFatigueForm',    // fatigue entry
       'buildSecurityPanel',  // account security panel + optional password rotation

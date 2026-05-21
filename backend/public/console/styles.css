@@ -689,6 +689,10 @@ textarea.large-note {
 }
 
 .asset-group summary {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto auto;
+  gap: 10px;
+  align-items: center;
   cursor: pointer;
 }
 
@@ -716,6 +720,61 @@ textarea.large-note {
   background: rgba(255,255,255,0.025);
 }
 
+details.asset-row.asset-tile {
+  display: block;
+}
+
+.asset-tile summary,
+.credential-tile summary {
+  min-height: 44px;
+}
+
+.asset-row.asset-tile summary {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.asset-tile__title,
+.credential-tile__title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.asset-tile__meta,
+.credential-tile__meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.asset-tile__body,
+.credential-tile__body {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.asset-tile__actions {
+  margin-top: 12px;
+}
+
+.tile-disclosure-label {
+  justify-self: end;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
 .asset-add-form {
   margin-top: 12px;
 }
@@ -729,6 +788,35 @@ textarea.large-note {
   border-radius: 8px;
   padding: 10px;
   margin: 8px 0;
+}
+
+.credential-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.credential-tile {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.credential-tile summary {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.asset-group summary:focus-visible,
+.asset-tile summary:focus-visible,
+.credential-tile summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 6px;
 }
 
 .job-edit-panel summary,
@@ -1296,6 +1384,26 @@ ul.tag-list li {
   .business-accordion summary {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .asset-group summary,
+  .asset-row.asset-tile summary,
+  .credential-tile summary {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .asset-tile__meta,
+  .credential-tile__meta {
+    justify-content: flex-start;
+  }
+
+  .tile-disclosure-label {
+    justify-self: start;
+  }
+
+  .asset-row {
+    grid-template-columns: 1fr;
   }
 
   .business-card-head {

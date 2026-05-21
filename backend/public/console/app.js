@@ -2418,12 +2418,20 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
   }
 
   for (const item of Array.from(registerItems.values()).sort((a, b) => String(a.label).localeCompare(String(b.label)))) {
-    const group = el('details', { class: 'asset-group', open: item.is_enabled ? 'true' : null });
+    const group = el('details', { class: 'asset-group asset-tile' });
     const existingAssets = assetsByItem.get(String(item.id)) || [];
+    const reviewAssets = existingAssets.filter((asset) => asset.asset_status !== 'active');
     group.appendChild(el('summary', {},
-      el('strong', {}, item.label),
-      el('span', { class: 'small muted' }, ` ${item.group_label || item.category}`),
-      !item.is_enabled ? el('span', { class: 'pill pill-warn', style: 'margin-left:8px;' }, 'class not enabled') : null
+      el('span', { class: 'asset-tile__title' },
+        el('strong', {}, item.label),
+        el('span', { class: 'small muted' }, item.group_label || item.category)
+      ),
+      el('span', { class: 'asset-tile__meta' },
+        el('span', { class: 'pill pill-info' }, `${existingAssets.length} asset(s)`),
+        reviewAssets.length > 0 ? el('span', { class: 'pill pill-warn' }, `${reviewAssets.length} needs review`) : null
+      ),
+      !item.is_enabled ? el('span', { class: 'pill pill-warn', style: 'margin-left:8px;' }, 'class not enabled') : null,
+      el('span', { class: 'tile-disclosure-label' }, 'Details')
     ));
 
     if (!item.is_enabled) {
@@ -2436,29 +2444,7 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
       group.appendChild(el('div', { class: 'small muted asset-empty' }, 'No plant numbers added yet.'));
     } else {
       group.appendChild(el('div', { class: 'asset-list' }, ...existingAssets.map((asset) =>
-        el('div', { class: 'asset-row' },
-          el('div', {},
-            el('strong', {}, asset.asset_number),
-            el('div', { class: 'small muted' }, asset.display_name || asset.catalogue_item?.label || item.label)
-          ),
-          el('span', { class: `pill ${asset.asset_status === 'active' ? 'pill-ok' : 'pill-warn'}` }, formatDisplayLabel(asset.asset_status)),
-          el('span', { class: 'small muted' }, asset.home_location || '-'),
-          el('button', {
-            type: 'button',
-            class: 'secondary',
-            onclick: async () => {
-              try {
-                await api('POST', `/company/assets/${asset.id}/archive`);
-                companyAssetsCache = null;
-                companySetupStateCache = null;
-                toast('Asset archived', 'success');
-                router();
-              } catch (err) {
-                toast(err.error || 'Could not archive asset', 'error');
-              }
-            }
-          }, 'Archive')
-        )
+        renderAssetTile(asset, item)
       )));
     }
 
@@ -2515,6 +2501,61 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
   }
 
   return panel;
+}
+
+function assetStatusPill(status) {
+  const normalized = status || 'active';
+  return el('span', {
+    class: `pill asset-tile__status ${normalized === 'active' ? 'pill-ok' : 'pill-warn'}`
+  }, formatDisplayLabel(normalized));
+}
+
+function renderAssetTile(asset, catalogueItem = {}) {
+  const title = asset.display_name || asset.asset_number || catalogueItem.label || 'Asset';
+  const category = asset.catalogue_item?.label || catalogueItem.label || catalogueItem.group_label || 'Asset';
+  const status = asset.asset_status || 'active';
+  const tile = el('details', { class: 'asset-row asset-tile' });
+  tile.appendChild(el('summary', {},
+    el('span', { class: 'asset-tile__title' },
+      el('strong', {}, title),
+      el('span', { class: 'small muted' }, asset.asset_number ? `Plant number: ${asset.asset_number}` : 'Plant number not recorded')
+    ),
+    el('span', { class: 'asset-tile__meta' },
+      el('span', { class: 'small muted' }, category),
+      assetStatusPill(status),
+      asset.home_location ? el('span', { class: 'small muted' }, asset.home_location) : null
+    ),
+    el('span', { class: 'tile-disclosure-label' }, 'Details')
+  ));
+
+  tile.appendChild(el('div', { class: 'asset-tile__body' },
+    el('div', { class: 'kv' },
+      el('div', {}, 'Asset number / plant number'), el('div', {}, asset.asset_number || '-'),
+      el('div', {}, 'Display name'), el('div', {}, asset.display_name || '-'),
+      el('div', {}, 'Type / category'), el('div', {}, category),
+      el('div', {}, 'Status'), el('div', {}, assetStatusPill(status)),
+      el('div', {}, 'Home location'), el('div', {}, asset.home_location || '-'),
+      el('div', {}, 'Notes'), el('div', {}, asset.notes || '-')
+    ),
+    el('div', { class: 'button-row asset-tile__actions' },
+      el('button', {
+        type: 'button',
+        class: 'secondary',
+        onclick: async () => {
+          try {
+            await api('POST', `/company/assets/${asset.id}/archive`);
+            companyAssetsCache = null;
+            companySetupStateCache = null;
+            toast('Asset archived', 'success');
+            router();
+          } catch (err) {
+            toast(err.error || 'Could not archive asset', 'error');
+          }
+        }
+      }, 'Archive')
+    )
+  ));
+  return tile;
 }
 
 function renderJobAssetSelector(catalogue = {}, assetsPayload = {}, options = {}) {
@@ -3284,28 +3325,9 @@ async function renderWorkerDetail(workerId, renderCycle) {
   if (credentials.length === 0) {
     credPanel.appendChild(el('div', { class: 'empty' }, 'No credentials recorded.'));
   } else {
-    const table = el('table');
-    table.appendChild(el('thead', {}, el('tr', {},
-      el('th', {}, 'Type'),
-      el('th', {}, 'Identifier'),
-      el('th', {}, 'Issued'),
-      el('th', {}, 'Expires'),
-      el('th', {}, 'Status'),
-      el('th', {}, 'Verified')
-    )));
-    const body = el('tbody');
-    for (const credential of credentials) {
-      body.appendChild(el('tr', {},
-        el('td', {}, formatDisplayLabel(credential.type)),
-        el('td', {}, credential.identifier || '-'),
-        el('td', {}, fmtDateOnly(credential.issue_date)),
-        el('td', {}, fmtDateOnly(credential.expiry_date)),
-        el('td', {}, credPill(credential.status)),
-        el('td', {}, credential.verified ? 'Yes' : 'No')
-      ));
-    }
-    table.appendChild(body);
-    credPanel.appendChild(table);
+    credPanel.appendChild(el('div', { class: 'credential-list' },
+      ...credentials.map((credential) => renderCredentialTile(credential))
+    ));
   }
   if (workerArchived) {
     credPanel.appendChild(el('div', { class: 'small muted' },
@@ -3352,6 +3374,37 @@ async function renderWorkerDetail(workerId, renderCycle) {
     fatPanel.appendChild(buildFatigueForm(workerId));
   }
   view.appendChild(fatPanel);
+}
+
+function renderCredentialTile(credential) {
+  const status = credential.status || '';
+  const tile = el('details', { class: 'credential-tile' });
+  tile.appendChild(el('summary', {},
+    el('span', { class: 'credential-tile__title' },
+      el('strong', {}, formatDisplayLabel(credential.type) || 'Credential'),
+      el('span', { class: 'small muted' }, credential.identifier || 'No identifier recorded')
+    ),
+    el('span', { class: 'credential-tile__meta' },
+      status ? credPill(status) : el('span', { class: 'pill pill-warn' }, 'Needs review'),
+      credential.expiry_date ? el('span', { class: 'small muted' }, `Expires ${fmtDateOnly(credential.expiry_date)}`) : el('span', { class: 'small muted' }, 'No expiry recorded'),
+      el('span', { class: `pill credential-tile__status ${credential.verified ? 'pill-ok' : 'pill-warn'}` }, credential.verified ? 'Verified' : 'Not verified')
+    ),
+    el('span', { class: 'tile-disclosure-label' }, 'Details')
+  ));
+
+  tile.appendChild(el('div', { class: 'credential-tile__body' },
+    el('div', { class: 'kv' },
+      el('div', {}, 'Credential details'), el('div', {}, formatDisplayLabel(credential.type) || '-'),
+      el('div', {}, 'Identifier'), el('div', {}, credential.identifier || '-'),
+      el('div', {}, 'Issuing body'), el('div', {}, credential.issuing_body || '-'),
+      el('div', {}, 'Issued'), el('div', {}, fmtDateOnly(credential.issue_date)),
+      el('div', {}, 'Expires'), el('div', {}, fmtDateOnly(credential.expiry_date)),
+      el('div', {}, 'Status'), el('div', {}, status ? credPill(status) : 'Needs review'),
+      el('div', {}, 'Verified'), el('div', {}, credential.verified ? 'Yes' : 'No')
+    )
+  ));
+
+  return tile;
 }
 
 function buildCredentialForm(workerId, intakeOptions = {}) {
