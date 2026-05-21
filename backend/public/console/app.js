@@ -106,6 +106,136 @@ const EXPORT_SECTIONS = [
   }
 ];
 
+const TOWERCRANE_VERIFICATION_STATUSES = [
+  'Unverified reference asset',
+  'Verified model existence',
+  'Verified spec sheet available',
+  'Verified owned fleet',
+  'Verified partner-access fleet',
+  'Verified historical fleet',
+  'Do not publish',
+  'Publish as generic category example only',
+  'Publish as customer-facing fleet item'
+];
+
+const TOWERCRANE_PUBLISH_STATUSES = [
+  'Do not publish',
+  'Publish as generic category example',
+  'Publish as verified fleet item',
+  'Publish with "specs available on request"',
+  'Hold for verification',
+  'Internal only'
+];
+
+const TOWERCRANE_CATEGORIES = [
+  {
+    key: 'flat_top',
+    title: 'Flat Top Tower Cranes',
+    shortTitle: 'Flat Top',
+    description: 'Flat-top tower cranes are suited to projects requiring efficient erection, clear overhead coordination, strong lifting performance, and effective multi-crane site planning. They are commonly used across commercial builds, residential towers, infrastructure works, and general construction sites.',
+    bestFor: [
+      'Commercial construction',
+      'Residential towers',
+      'Multi-crane sites',
+      'General building works',
+      'Structural lifting',
+      'Clean overhead coordination'
+    ]
+  },
+  {
+    key: 'luffing_jib',
+    title: 'Luffing Jib Tower Cranes',
+    shortTitle: 'Luffing Jib',
+    description: 'Luffing jib cranes are built for constrained sites where swing radius, neighbouring structures, airspace restrictions, or close-proximity crane operations require tighter control. They are well suited to city projects, high-rise construction, and dense urban environments.',
+    bestFor: [
+      'High-rise construction',
+      'Restricted urban sites',
+      'Tight city blocks',
+      'Multi-crane airspace',
+      'Infrastructure projects',
+      'Limited swing radius'
+    ]
+  },
+  {
+    key: 'hammerhead',
+    title: 'Hammerhead Tower Cranes',
+    shortTitle: 'Hammerhead',
+    description: 'Hammerhead tower cranes provide strong horizontal jib performance and dependable lifting coverage for conventional construction sites. They are suitable where site space allows fixed-jib operation and broad lifting coverage is required.',
+    bestFor: [
+      'Conventional construction sites',
+      'Broad lifting coverage',
+      'Commercial builds',
+      'Civil construction',
+      'Structural lifting',
+      'Adequate swing room'
+    ]
+  },
+  {
+    key: 'derrick',
+    title: 'Derrick Cranes',
+    shortTitle: 'Derrick',
+    description: 'Derrick cranes support specialised lifting operations, particularly where access is restricted or tower crane dismantling requires controlled rooftop or structure-mounted lifting solutions. They should be presented as a specialist capability rather than a general hire item.',
+    bestFor: [
+      'Rooftop lifting',
+      'Tower crane dismantling',
+      'Restricted-access lifting',
+      'Structure-mounted lifting',
+      'Specialist crane removal',
+      'Controlled small-footprint lifting'
+    ]
+  }
+];
+
+const TOWERCRANE_REFERENCE_MODELS = [
+  { category: 'flat_top', manufacturer: 'Potain', model: 'MC85B', capacity: '5T', description: 'Compact and efficient, suitable for tight urban sites and fast setup.' },
+  { category: 'flat_top', manufacturer: 'Potain', model: 'MCT88', capacity: '5T', description: 'Topless layout assists visibility and multi-crane coordination.' },
+  { category: 'flat_top', manufacturer: 'Raimondi', model: 'MRT144', capacity: '10T', description: 'Versatile mid-range crane suited to typical building projects.' },
+  { category: 'flat_top', manufacturer: 'Raimondi', model: 'MRT189', capacity: '10T', description: 'Reliable option for busy multi-crane construction sites.' },
+  { category: 'flat_top', manufacturer: 'Raimondi', model: 'MRT294', capacity: '16T', description: 'Higher-capacity option with longer reach for larger commercial or campus-style projects.' },
+  { category: 'flat_top', manufacturer: 'Yongmao', model: 'STT133', capacity: '6T', description: 'Simple and dependable option for housing and light commercial work.' },
+  { category: 'flat_top', manufacturer: 'Yongmao', model: 'STT153', capacity: '8T', description: 'Good lift capacity while remaining compact to transport and erect.' },
+  { category: 'flat_top', manufacturer: 'Comedil', model: 'CTT331', capacity: '16T', description: 'Robust performer for routine mid-to-large lifts.' },
+  { category: 'flat_top', manufacturer: 'Comedil', model: 'CTT561', capacity: '24T', description: 'Higher-capacity option for heavier structural lifts.' },
+  { category: 'flat_top', manufacturer: 'Comansa', model: '21CM550', capacity: '25T', description: 'Balanced lifting strength and reach for larger construction sites.' },
+  { category: 'flat_top', manufacturer: 'Comansa', model: '21CM750', capacity: '37.5T', description: 'Powerful option for heavy material handling and structural work.' },
+  { category: 'flat_top', manufacturer: 'Comansa', model: '21CM1100', capacity: '50T', description: 'High-capacity flat-top tower crane suited to very heavy industrial and structural lifts.' },
+  { category: 'flat_top', manufacturer: 'Comedil', model: 'CTT51A-2', capacity: '-', description: 'Compact flat-top tower crane suited to smaller building sites and efficient site setup.' },
+  { category: 'flat_top', manufacturer: 'Comedil', model: 'CTT161-2.5', capacity: '-', description: 'Flat-top crane option for light-to-medium lifting requirements where clean site coordination matters.' },
+  { category: 'flat_top', manufacturer: 'Comedil', model: 'CTT561A-20', capacity: '-', description: 'Higher-capacity flat-top crane suited to major building works and heavier structural lifting.' },
+  { category: 'flat_top', manufacturer: 'Yongmao', model: 'STT140-8', capacity: '-', description: 'Flat-top crane suited to general construction, multi-crane sites, and efficient lifting operations.' },
+  { category: 'flat_top', manufacturer: 'Yongmao', model: 'STT200-10', capacity: '-', description: 'Mid-range flat-top tower crane suitable for commercial projects and larger building sites.' },
+  { category: 'flat_top', manufacturer: 'Yongmao', model: 'STT293-18', capacity: '-', description: 'Larger flat-top crane option for heavier loads, longer reach, and demanding construction programmes.' },
+  { category: 'luffing_jib', manufacturer: 'Comedil', model: 'CTL180', capacity: '16T', description: 'Compact luffer that fits neatly into constrained urban sites.' },
+  { category: 'luffing_jib', manufacturer: 'Comedil', model: 'CTL260', capacity: '18T', description: 'Proven mid-range option for medium-scale projects.' },
+  { category: 'luffing_jib', manufacturer: 'Comedil', model: 'CTL340', capacity: '24T', description: 'Handles heavy loads with precise luffing movement.' },
+  { category: 'luffing_jib', manufacturer: 'Comedil', model: 'CTL430', capacity: '24T', description: 'Strong choice for demanding sites requiring reliability and versatility.' },
+  { category: 'luffing_jib', manufacturer: 'Recom', model: 'RTL285', capacity: '18T', description: 'Solid lifting ability across a wide range of jobs.' },
+  { category: 'luffing_jib', manufacturer: 'Comansa', model: 'CML310', capacity: '24T', description: 'Flexible crane for large builds with complex lifting needs.' },
+  { category: 'luffing_jib', manufacturer: 'Comansa', model: 'CML560', capacity: '36T', description: 'High lifting capacity suited to very large structures and infrastructure.' },
+  { category: 'luffing_jib', manufacturer: 'Comansa', model: 'CML800', capacity: '64T', description: 'High-capacity luffing crane suited to major projects and heavy lifting requirements.' },
+  { category: 'luffing_jib', manufacturer: 'Yongmao', model: 'STL230', capacity: '-', description: 'Luffing jib tower crane suited to restricted sites, city builds, and projects requiring controlled jib movement in tight airspace.' },
+  { category: 'luffing_jib', manufacturer: 'Yongmao', model: 'STL420', capacity: '-', description: 'Larger luffing jib crane option for demanding high-rise, commercial, and infrastructure lifting environments.' },
+  { category: 'luffing_jib', manufacturer: 'Comedil', model: 'CTL205', capacity: '-', description: 'Compact-to-mid luffing crane option suited to urban construction and controlled lifting zones.' },
+  { category: 'luffing_jib', manufacturer: 'GJJ', model: 'JTL120E-8', capacity: '-', description: 'Luffing jib crane option for constrained sites requiring efficient lifting within limited swing radius.' },
+  { category: 'hammerhead', manufacturer: 'GJJ', model: 'JT125H-6', capacity: '-', description: 'Hammerhead tower crane suited to conventional building sites requiring dependable reach and lifting performance.' },
+  { category: 'hammerhead', manufacturer: 'Liebherr', model: '290HC', capacity: '-', description: 'Heavy-duty hammerhead tower crane option suited to larger construction projects and structural lifting requirements.' },
+  { category: 'derrick', manufacturer: 'Derrick', model: 'EDKH185 25t', capacity: '25T', description: 'Derrick crane suited to specialised lifting, dismantling, rooftop works, and restricted-access lifting conditions.' },
+  { category: 'derrick', manufacturer: 'Derrick', model: 'EDK45 6t Stiff Leg', capacity: '6T', description: 'Stiff-leg derrick crane suited to controlled lifting where conventional crane access or dismantling conditions are restricted.' }
+].map((item) => ({
+  ...item,
+  verification_status: 'Unverified reference asset',
+  source_type: 'Unknown',
+  source_note: 'Prompt-provided candidate reference. Verify company, source, and spec evidence before publishing.',
+  source_company: '-',
+  ownership_status: 'Reference only',
+  availability_status: 'Unknown',
+  spec_sheet_status: 'Not verified',
+  publish_status: 'Hold for verification',
+  internal_notes: 'Do not present as owned fleet or customer-facing capability until evidence is recorded.',
+  last_verified_date: '-',
+  verified_by: '-'
+}));
+
 const DISPLAY_LABEL_OVERRIDES = {
   crane_operator: 'Crane Operator',
   heavy_lift_crane_operator: 'Heavy Lift Crane Operator',
@@ -1697,6 +1827,7 @@ async function renderOurBusiness(renderCycle) {
   ));
   view.appendChild(renderOperatingModePanel(profile));
   view.appendChild(renderDefaultTimezonePanel(profile, intakeOptions));
+  view.appendChild(renderTowerCraneBusinessBuilder());
 
   if (!catalogue.configured) {
     form.appendChild(el('div', { class: 'read-only-banner' },
@@ -1899,6 +2030,354 @@ function renderCompanyResetPanel(setupState = {}) {
   }
 
   panel.appendChild(cards);
+  return panel;
+}
+
+function towerCraneCategoryByKey(key) {
+  return TOWERCRANE_CATEGORIES.find((category) => category.key === key);
+}
+
+function towerCraneModelsForCategory(key) {
+  return TOWERCRANE_REFERENCE_MODELS.filter((model) => model.category === key);
+}
+
+function renderBusinessAccordion(title, summaryText, bodyNodes = [], open = false) {
+  const details = el('details', { class: 'business-accordion', ...(open ? { open: 'open' } : {}) });
+  details.appendChild(el('summary', {},
+    el('span', { class: 'business-accordion-title' }, title),
+    el('span', { class: 'business-accordion-summary' }, summaryText)
+  ));
+  details.appendChild(el('div', { class: 'business-accordion-body' }, ...bodyNodes));
+  return details;
+}
+
+function renderTowerStatusPill(label, tone = 'neutral') {
+  return el('span', { class: `business-status business-status-${tone}` }, label);
+}
+
+function renderTowerCraneCapabilitySummary() {
+  return renderBusinessAccordion('Tower Crane Capability Summary',
+    'Reusable crane-sector asset architecture, not a company fleet claim.',
+    [
+      el('div', { class: 'business-layer-grid' },
+        el('div', { class: 'business-layer-card' },
+          el('strong', {}, 'Layer 1 - customer-facing content'),
+          el('p', { class: 'small muted' }, 'Simple capability copy, clean category explanations, enquiry path, and spec wording that avoids unverified fleet claims.')
+        ),
+        el('div', { class: 'business-layer-card' },
+          el('strong', {}, 'Layer 2 - business-building controls'),
+          el('p', { class: 'small muted' }, 'Category builder, CTA structure, page sections, candidate model cards, and publish decisions for a specific crane business.')
+        ),
+        el('div', { class: 'business-layer-card' },
+          el('strong', {}, 'Layer 3 - internal intelligence'),
+          el('p', { class: 'small muted' }, 'Source notes, verification status, ownership status, spec checks, competitor/reference context, and model-by-model records.')
+        )
+      ),
+      el('div', { class: 'read-only-banner' },
+        'This library is not a fleet claim. Every imported model starts as an unverified reference asset until company, source, and spec evidence is recorded.'
+      ),
+      el('div', { class: 'business-status-row' },
+        renderTowerStatusPill('Draft', 'draft'),
+        renderTowerStatusPill('Needs verification', 'warning'),
+        renderTowerStatusPill('Internal only', 'neutral')
+      )
+    ],
+    true
+  );
+}
+
+function renderTowerCraneNextAction() {
+  return renderBusinessAccordion('Next Recommended Action',
+    'Select one crane business, verify source evidence, then generate a clean page preview.',
+    [
+      el('ol', { class: 'business-action-list' },
+        el('li', {}, 'Pick the target business or pilot tenant.'),
+        el('li', {}, 'Attach source evidence for each crane model before publishing it as a customer-facing asset.'),
+        el('li', {}, 'Use generic category examples when fleet ownership is not verified.'),
+        el('li', {}, 'Keep technical notes collapsed and expose only enquiry-ready copy to customers.')
+      )
+    ],
+    true
+  );
+}
+
+function renderTowerCranePagePreview() {
+  return renderBusinessAccordion('Customer-Facing Output Preview',
+    'Generic tower crane page structure that can be adapted after verification.',
+    [
+      el('div', { class: 'business-preview-card' },
+        el('div', { class: 'eyebrow' }, 'Tower crane capability page builder'),
+        el('h3', {}, 'Tower Crane Solutions for Complex Construction Sites'),
+        el('p', {}, 'Structured tower crane capability for commercial builds, high-rise projects, infrastructure works, restricted-access sites, and heavy structural lifting. Use this preview only after verifying which models belong to the business.'),
+        el('div', { class: 'business-chip-row' },
+          ...[
+            'High-rise construction',
+            'Commercial developments',
+            'Multi-crane sites',
+            'Restricted-access urban projects',
+            'Infrastructure works',
+            'Heavy structural lifting',
+            'Rooftop and specialist lifting',
+            'Crane dismantling support'
+          ].map((item) => el('span', {}, item))
+        )
+      )
+    ],
+    true
+  );
+}
+
+function renderTowerCranePreviewBody() {
+  return el('div', { class: 'business-preview-content' },
+    el('p', {}, 'Tower crane capability should be matched to site conditions, lifting requirements, access constraints, project sequencing, and available working radius. A clear tower crane page helps customers understand the right crane category before requesting detailed technical support.'),
+    el('div', { class: 'tower-category-grid' },
+      ...TOWERCRANE_CATEGORIES.map((category) =>
+        el('div', { class: 'tower-category-card' },
+          el('h4', {}, category.title),
+          el('p', { class: 'small muted' }, category.description),
+          el('ul', { class: 'tag-list' }, ...category.bestFor.slice(0, 4).map((item) => el('li', {}, item)))
+        )
+      )
+    ),
+    el('div', { class: 'business-cta-block' },
+      el('h4', {}, 'Need help selecting the right tower crane?'),
+      el('p', { class: 'small muted' }, 'Send through project details, site constraints, lifting requirements, or programme dates so suitable tower crane options can be reviewed.'),
+      el('div', { class: 'button-row' },
+        el('button', { type: 'button' }, 'Enquire About Tower Cranes'),
+        el('button', { type: 'button', class: 'secondary' }, 'Request Crane Specs')
+      )
+    )
+  );
+}
+
+function renderTowerCraneCategoryBuilder() {
+  return renderBusinessAccordion('Crane Category Builder',
+    'Four reusable category blocks for clean crane-sector service pages.',
+    [
+      el('div', { class: 'tower-category-grid' },
+        ...TOWERCRANE_CATEGORIES.map((category) =>
+          el('div', { class: 'tower-category-card' },
+            el('div', { class: 'business-card-head' },
+              el('h4', {}, category.title),
+              renderTowerStatusPill('Generic category example', 'neutral')
+            ),
+            el('p', { class: 'small muted' }, category.description),
+            el('div', { class: 'small muted' }, 'Best suited for'),
+            el('ul', { class: 'tag-list' }, ...category.bestFor.map((item) => el('li', {}, item)))
+          )
+        )
+      )
+    ]
+  );
+}
+
+function renderTowerCraneReferenceLibrary() {
+  const categorySections = TOWERCRANE_CATEGORIES.map((category) => {
+    const models = towerCraneModelsForCategory(category.key);
+    return renderBusinessAccordion(`${category.shortTitle} candidates`,
+      `${models.length} reference model(s), all held for verification.`,
+      [
+        el('div', { class: 'tower-model-grid' },
+          ...models.map((model) =>
+            el('div', { class: 'tower-model-card' },
+              el('div', { class: 'business-card-head' },
+                el('h4', {}, `${model.manufacturer} ${model.model}`),
+                renderTowerStatusPill(model.verification_status, 'warning')
+              ),
+              el('div', { class: 'small muted' }, category.title),
+              el('p', {}, model.description),
+              el('div', { class: 'tower-model-meta' },
+                el('span', {}, `Capacity: ${model.capacity}`),
+                el('span', {}, 'Specs available on request'),
+                el('span', {}, `Publish: ${model.publish_status}`)
+              )
+            )
+          )
+        )
+      ]
+    );
+  });
+  return renderBusinessAccordion('Reference Asset Library',
+    `${TOWERCRANE_REFERENCE_MODELS.length} candidate crane models. Collapsed to prevent a data wall.`,
+    [
+      el('p', { class: 'small muted' }, 'These are equipment-category examples and market reference assets only. They are not presented as a pilot user fleet, competitor fleet, owned fleet, or hire list.'),
+      ...categorySections
+    ]
+  );
+}
+
+function renderTowerCraneVerificationTable() {
+  const rows = TOWERCRANE_REFERENCE_MODELS.map((model) => {
+    const category = towerCraneCategoryByKey(model.category);
+    return el('tr', {},
+      el('td', {}, `${model.manufacturer} ${model.model}`),
+      el('td', {}, category?.shortTitle || '-'),
+      el('td', {}, model.capacity),
+      el('td', {}, model.source_type),
+      el('td', {}, model.ownership_status),
+      el('td', {}, model.spec_sheet_status),
+      el('td', {}, model.publish_status)
+    );
+  });
+  return renderBusinessAccordion('Verification Status',
+    'Internal model-by-model status table. Hidden from the customer-facing preview.',
+    [
+      el('div', { class: 'business-table-wrapper' },
+        el('table', { class: 'business-verification-table' },
+          el('thead', {},
+            el('tr', {},
+              el('th', {}, 'Model name'),
+              el('th', {}, 'Crane category'),
+              el('th', {}, 'Capacity'),
+              el('th', {}, 'Source type'),
+              el('th', {}, 'Ownership status'),
+              el('th', {}, 'Spec sheet status'),
+              el('th', {}, 'Customer-facing publish status')
+            )
+          ),
+          el('tbody', {}, ...rows)
+        )
+      ),
+      el('details', { class: 'business-nested-detail' },
+        el('summary', {}, 'Status options and verification fields'),
+        el('div', { class: 'business-layer-grid' },
+          el('div', { class: 'business-layer-card' },
+            el('strong', {}, 'Verification statuses'),
+            el('ul', { class: 'tag-list' }, ...TOWERCRANE_VERIFICATION_STATUSES.map((status) => el('li', {}, status)))
+          ),
+          el('div', { class: 'business-layer-card' },
+            el('strong', {}, 'Publish statuses'),
+            el('ul', { class: 'tag-list' }, ...TOWERCRANE_PUBLISH_STATUSES.map((status) => el('li', {}, status)))
+          ),
+          el('div', { class: 'business-layer-card' },
+            el('strong', {}, 'Required verification fields'),
+            el('p', { class: 'small muted' }, 'Model name, category, capacity, manufacturer, source type, source note, source company, ownership status, availability status, spec sheet status, publish status, internal notes, last verified date, and verified by.')
+          )
+        )
+      )
+    ]
+  );
+}
+
+function renderTowerCraneSpecManagement() {
+  return renderBusinessAccordion('Spec Sheet / Download Management',
+    'Spec links stay withheld until the source file is verified.',
+    [
+      el('ul', { class: 'business-action-list' },
+        el('li', {}, 'Only show "View specs" where a real file or technical page has been checked.'),
+        el('li', {}, 'Confirm the model name matches the spec file before customer-facing use.'),
+        el('li', {}, 'Check that the file does not confuse the customer about ownership or source company.'),
+        el('li', {}, 'If no verified file exists, show: Specs available on request.')
+      )
+    ]
+  );
+}
+
+function renderTowerCraneSeoAndIntent() {
+  return renderBusinessAccordion('SEO and Search Intent',
+    'Natural crane-sector search coverage without keyword stuffing or ownership claims.',
+    [
+      el('div', { class: 'business-layer-grid' },
+        el('div', { class: 'business-layer-card' },
+          el('strong', {}, 'Suggested meta title'),
+          el('p', { class: 'small muted' }, 'Tower Crane Capability | Flat Top, Luffing, Hammerhead & Derrick Crane Solutions')
+        ),
+        el('div', { class: 'business-layer-card' },
+          el('strong', {}, 'Suggested meta description'),
+          el('p', { class: 'small muted' }, 'Structured tower crane capability pages for commercial construction, high-rise projects, infrastructure works, restricted-access sites, structural lifting, and crane dismantling support.')
+        ),
+        el('div', { class: 'business-layer-card' },
+          el('strong', {}, 'Search intent'),
+          el('ul', { class: 'tag-list' },
+            ...[
+              'Tower crane hire',
+              'Tower cranes',
+              'Flat top tower cranes',
+              'Luffing jib cranes',
+              'Hammerhead cranes',
+              'Derrick cranes',
+              'Construction crane hire',
+              'High-rise crane solutions',
+              'Restricted-access lifting',
+              'Crane dismantling',
+              'Structural lifting',
+              'Equipment hire website'
+            ].map((term) => el('li', {}, term))
+          )
+        )
+      )
+    ]
+  );
+}
+
+function renderTowerCraneEnquiryPathway() {
+  return renderBusinessAccordion('Enquiry Pathway',
+    'Keep the next step visible and practical.',
+    [
+      el('div', { class: 'business-cta-block' },
+        el('h4', {}, 'Need help selecting the right tower crane?'),
+        el('p', { class: 'small muted' }, 'Send through project details, site constraints, lifting requirements, or programme dates so suitable tower crane options can be reviewed.'),
+        el('div', { class: 'button-row' },
+          el('button', { type: 'button' }, 'Discuss Tower Crane Requirements'),
+          el('button', { type: 'button', class: 'secondary' }, 'Request Crane Specs')
+        )
+      )
+    ]
+  );
+}
+
+function renderTowerCraneInternalNotes() {
+  return renderBusinessAccordion('Internal Notes',
+    'Collapsed source-control reminders for operators and agents.',
+    [
+      el('ul', { class: 'business-action-list' },
+        el('li', {}, 'Do not treat pilot-user screenshots, competitor pages, or uploaded reference material as proof of owned fleet.'),
+        el('li', {}, 'Do not publish a crane as a customer-facing asset until the specific business has verified evidence.'),
+        el('li', {}, 'Use neutral labels such as reference model, candidate crane model, equipment category example, or verify before publishing.'),
+        el('li', {}, 'Keep verification notes separate from customer-facing copy.')
+      )
+    ]
+  );
+}
+
+function renderTowerCraneFollowUp() {
+  return renderBusinessAccordion('Follow-Up Improvements',
+    'Useful next work after the controlled asset library is reviewed.',
+    [
+      el('ol', { class: 'business-action-list' },
+        el('li', {}, 'Add editable per-tenant source records when backend data storage is required.'),
+        el('li', {}, 'Add verified spec-file attachment support when a real document workflow exists.'),
+        el('li', {}, 'Add a publish workflow that separates generic category examples from verified business assets.'),
+        el('li', {}, 'Run mobile visual QA once the target pilot tenant has sample business data.')
+      )
+    ]
+  );
+}
+
+function renderTowerCraneBusinessBuilder() {
+  const panel = el('div', { class: 'panel business-builder-panel' });
+  panel.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h3', {}, 'Build Our Business: Tower Crane Asset Library'),
+      el('div', { class: 'small muted' },
+        'Reusable tower crane categories, candidate models, verification controls, and customer-facing page preview for crane-sector business building.'
+      )
+    ),
+    renderTowerStatusPill('Internal only', 'neutral')
+  ));
+  panel.appendChild(renderTowerCraneCapabilitySummary());
+  panel.appendChild(renderTowerCraneNextAction());
+  const preview = renderTowerCranePagePreview();
+  preview.querySelector('.business-preview-card')?.appendChild(renderTowerCranePreviewBody());
+  panel.appendChild(preview);
+  panel.appendChild(renderTowerCraneCategoryBuilder());
+  panel.appendChild(renderTowerCraneReferenceLibrary());
+  panel.appendChild(renderTowerCraneVerificationTable());
+  panel.appendChild(renderTowerCraneSpecManagement());
+  panel.appendChild(renderTowerCraneSeoAndIntent());
+  panel.appendChild(renderTowerCraneEnquiryPathway());
+  panel.appendChild(renderTowerCraneInternalNotes());
+  panel.appendChild(renderTowerCraneFollowUp());
   return panel;
 }
 
