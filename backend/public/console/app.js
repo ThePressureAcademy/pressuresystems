@@ -9,6 +9,7 @@ const state = {
 const TOKEN_KEY = 'liftiq.token';
 const USER_KEY = 'liftiq.user';
 const PASSWORD_REMINDER_DISMISSED_KEY = 'liftiq.passwordReminderDismissed';
+const OUR_BUSINESS_DISCLOSURE_KEY = 'liftiq.ourBusinessDisclosure';
 
 const ROLE_OPTIONS = ['crane_operator', 'dogman', 'rigger', 'traffic_controller', 'supervisor', 'allocator'];
 const EMPLOYMENT_OPTIONS = ['permanent', 'casual', 'contractor', 'labour_hire'];
@@ -569,6 +570,46 @@ let companySetupStateCache = null;
 let intakeOptionsCache = null;
 
 const LABOUR_ONLY_CATALOGUE_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
+const OUR_BUSINESS_SECTION_KEYS = [
+  'operating-mode',
+  'business-basics',
+  'tower-crane-library',
+  'requirements',
+  'asset-register',
+  'reset-company-data'
+];
+const CATALOGUE_SECTION_GROUPS = [
+  {
+    key: 'credentials-vocs',
+    title: 'Credentials / VOCs',
+    summary: 'Licences, tickets, VOCs, inductions, and worker eligibility gates.',
+    categories: ['credential', 'voc']
+  },
+  {
+    key: 'site-conditions',
+    title: 'Site conditions / job requirements',
+    summary: 'Civil, access, site condition, and review flags used during job setup.',
+    categories: ['civil']
+  },
+  {
+    key: 'equipment-classes',
+    title: 'Equipment classes',
+    summary: 'Plant and crane requirement classes. Saved plant numbers are managed in Asset Register.',
+    categories: ['equipment']
+  },
+  {
+    key: 'transport-classes',
+    title: 'Transport classes',
+    summary: 'Transport requirement classes that may affect dispatch review.',
+    categories: ['transport']
+  },
+  {
+    key: 'specialist-requirements',
+    title: 'Rail / energy / specialist requirements',
+    summary: 'Specialist review requirements. Keep collapsed unless relevant to this company.',
+    categories: ['rail', 'energy']
+  }
+];
 const REQUIREMENT_GROUP_ORDER = [
   'High Risk Work',
   'VOC',
@@ -1796,6 +1837,171 @@ function renderDefaultTimezonePanel(profile, intakeOptions = {}) {
   return form;
 }
 
+function ourBusinessDisclosureStorageKey() {
+  const companyId = state.user?.company?.id || companyProfileCache?.id || 'company';
+  const userId = state.user?.id || 'user';
+  return `${OUR_BUSINESS_DISCLOSURE_KEY}.${companyId}.${userId}`;
+}
+
+function readOurBusinessDisclosureState() {
+  try {
+    return JSON.parse(localStorage.getItem(ourBusinessDisclosureStorageKey()) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeOurBusinessDisclosureState(sectionKey, open) {
+  const current = readOurBusinessDisclosureState();
+  current[sectionKey] = Boolean(open);
+  localStorage.setItem(ourBusinessDisclosureStorageKey(), JSON.stringify(current));
+}
+
+function defaultOurBusinessSectionOpen(sectionKey, context = {}) {
+  const saved = readOurBusinessDisclosureState();
+  if (Object.prototype.hasOwnProperty.call(saved, sectionKey)) return Boolean(saved[sectionKey]);
+  if (sectionKey === 'operating-mode') return Boolean(context.isFirstRun || !context.catalogueConfigured);
+  if (sectionKey === 'business-basics') return Boolean(context.isFirstRun);
+  if (sectionKey === 'requirements') return Boolean(context.isFirstRun || !context.catalogueConfigured);
+  return false;
+}
+
+function setupStatusPill(status) {
+  const normalized = status || 'Not started';
+  const className = /saved|selected|added|ready/i.test(normalized)
+    ? 'pill pill-ok'
+    : /review|hidden|not started/i.test(normalized)
+      ? 'pill pill-warn'
+      : 'pill pill-info';
+  return el('span', { class: className }, normalized);
+}
+
+function prepareOurBusinessSectionBody(node) {
+  if (node?.classList?.contains('panel')) {
+    node.classList.remove('panel');
+    node.classList.add('our-business-section__embedded-panel');
+  }
+  return node;
+}
+
+function renderOurBusinessSection(sectionKey, title, summary, bodyNode, options = {}) {
+  const details = el('details', {
+    class: `panel our-business-section ${options.className || ''}`.trim(),
+    'data-our-business-section': sectionKey
+  });
+  details.open = defaultOurBusinessSectionOpen(sectionKey, options.context || {});
+  details.appendChild(el('summary', {},
+    el('span', { class: 'our-business-section__title' },
+      el('strong', {}, title),
+      el('span', { class: 'small muted' }, summary)
+    ),
+    el('span', { class: 'our-business-section__meta' },
+      options.countLabel ? el('span', { class: 'small muted' }, options.countLabel) : null,
+      setupStatusPill(options.status)
+    ),
+    el('span', { class: 'tile-disclosure-label' }, 'Open details')
+  ));
+  details.appendChild(el('div', { class: 'our-business-section__body' }, bodyNode));
+  details.addEventListener('toggle', () => writeOurBusinessDisclosureState(sectionKey, details.open));
+  return details;
+}
+
+function setOurBusinessSectionsOpen(open, sectionKeys = OUR_BUSINESS_SECTION_KEYS) {
+  document.querySelectorAll('details[data-our-business-section]').forEach((section) => {
+    const key = section.getAttribute('data-our-business-section');
+    if (!sectionKeys.includes(key)) return;
+    section.open = Boolean(open);
+    writeOurBusinessDisclosureState(key, section.open);
+  });
+}
+
+function renderOurBusinessControls(mode) {
+  const controls = el('div', { class: 'our-business-controls button-row' },
+    el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: () => setOurBusinessSectionsOpen(false)
+    }, 'Collapse all'),
+    el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: () => setOurBusinessSectionsOpen(true)
+    }, 'Expand all')
+  );
+  if (mode === 'plant_and_labour') {
+    controls.appendChild(el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: () => {
+        const target = document.querySelector('details[data-our-business-section="asset-register"]');
+        if (!target) return;
+        target.open = true;
+        writeOurBusinessDisclosureState('asset-register', true);
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 'Jump to Asset Register'));
+  }
+  return controls;
+}
+
+function countCatalogueItemsByCategories(catalogue = {}, categories = [], enabledOnly = false) {
+  const set = new Set(categories);
+  return (catalogue.items || [])
+    .filter((item) => set.has(item.category))
+    .filter((item) => !enabledOnly || item.is_enabled)
+    .length;
+}
+
+function catalogueForCategories(catalogue = {}, categories = []) {
+  const set = new Set(categories);
+  const items = (catalogue.items || []).filter((item) => set.has(item.category));
+  return {
+    ...catalogue,
+    items,
+    grouped: groupCatalogueItems(items),
+    enabled_count: items.filter((item) => item.is_enabled).length
+  };
+}
+
+function renderCatalogueCategorySection(section, catalogue, options = {}) {
+  const sectionCatalogue = catalogueForCategories(catalogue, section.categories);
+  const total = (sectionCatalogue.items || []).length;
+  if (total === 0) return null;
+  const selected = sectionCatalogue.enabled_count || 0;
+  const details = el('details', { class: 'business-accordion catalogue-section', 'data-catalogue-section': section.key });
+  details.open = Boolean(options.open);
+  details.appendChild(el('summary', {},
+    el('span', { class: 'business-accordion-title' }, section.title),
+    el('span', { class: 'business-accordion-summary' }, section.summary),
+    el('span', { class: 'our-business-section__meta' },
+      el('span', { class: 'small muted' }, `${selected} selected / ${total} available`),
+      setupStatusPill(selected > 0 ? 'Selected' : 'Not started')
+    )
+  ));
+  details.appendChild(el('div', { class: 'business-accordion-body' },
+    renderRequirementChecklist(sectionCatalogue, options.checklistOptions || {})
+  ));
+  return details;
+}
+
+function renderOurBusinessCatalogueSections(catalogue, mode, setupState = {}) {
+  const root = el('div', { class: 'our-business-catalogue-sections' });
+  const isFirstRun = Boolean(setupState.is_first_run);
+  for (const section of CATALOGUE_SECTION_GROUPS) {
+    if (mode === 'labour_only' && ['equipment-classes', 'transport-classes'].includes(section.key)) continue;
+    const open = (
+      (section.key === 'credentials-vocs' && (isFirstRun || mode === 'labour_only')) ||
+      (section.key === 'equipment-classes' && mode === 'plant_and_labour' && countCatalogueItemsByCategories(catalogue, ['equipment'], true) === 0)
+    );
+    const node = renderCatalogueCategorySection(section, catalogue, { open });
+    if (node) root.appendChild(node);
+  }
+  if (!root.children.length) {
+    root.appendChild(el('div', { class: 'empty' }, 'No company requirement sections available for this operating mode.'));
+  }
+  return root;
+}
+
 async function renderOurBusiness(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
@@ -1809,25 +2015,78 @@ async function renderOurBusiness(renderCycle) {
   if (isStaleRender(renderCycle)) return;
   const mode = operatingMode(profile);
   const visibleCatalogue = filterCatalogueForOperatingMode(catalogue, mode);
+  const context = {
+    isFirstRun: Boolean(setupState.is_first_run),
+    catalogueConfigured: Boolean(catalogue.configured),
+    enabledCatalogueCount: visibleCatalogue.enabled_count || 0
+  };
+  const assetCount = (assetsPayload.assets || []).length;
+  const enabledAssetClassCount = assetItemsFromCatalogue(catalogue).length;
 
-  const form = el('form', { class: 'panel' });
+  const form = el('form', { class: 'our-business-requirements-form' });
   const errBox = el('div', { class: 'error' });
   const success = el('div', { class: 'status-note hidden' });
 
+  view.appendChild(el('div', { class: 'panel our-business-overview' },
+    el('div', { class: 'toolbar' },
+      el('div', {},
+        el('h2', {}, 'Our Business'),
+        el('div', { class: 'small muted' },
+          mode === 'labour_only'
+            ? 'Labour-only setup keeps plant and asset controls out of the way while preserving people, credentials, VOCs, and review requirements.'
+            : 'Plant + labour setup lets you enable only the equipment classes your company uses, then add actual plant numbers in Asset Register.'
+        )
+      ),
+      el('span', { class: 'pill pill-info' }, `${visibleCatalogue.enabled_count || 0} visible enabled`)
+    ),
+    renderOurBusinessControls(mode)
+  ));
+
+  view.appendChild(renderOurBusinessSection(
+    'operating-mode',
+    'Operating mode',
+    'Controls whether plant, transport, crane planning, and asset selectors appear in normal job setup.',
+    prepareOurBusinessSectionBody(renderOperatingModePanel(profile)),
+    {
+      context,
+      status: 'Selected',
+      countLabel: mode === 'labour_only' ? 'Labour only' : 'Plant + labour'
+    }
+  ));
+  view.appendChild(renderOurBusinessSection(
+    'business-basics',
+    'Business basics',
+    'Company timezone used as the default for new jobs.',
+    prepareOurBusinessSectionBody(renderDefaultTimezonePanel(profile, intakeOptions)),
+    {
+      context,
+      status: profile.timezone ? 'Saved' : 'Needs review',
+      countLabel: profile.timezone || 'No timezone saved'
+    }
+  ));
+  view.appendChild(renderOurBusinessSection(
+    'tower-crane-library',
+    'Tower Crane Asset Library',
+    'Static/internal business-building reference. It does not create company fleet assets or job selectors.',
+    prepareOurBusinessSectionBody(renderTowerCraneBusinessBuilder()),
+    {
+      context,
+      status: 'Internal only',
+      countLabel: 'Reference only'
+    }
+  ));
+
   form.appendChild(el('div', { class: 'toolbar' },
     el('div', {},
-      el('h2', {}, 'Our Business'),
+      el('h3', {}, 'Company requirement catalogue'),
       el('div', { class: 'small muted' },
         mode === 'labour_only'
           ? 'Choose the credentials, VOCs, civil/access, rail, and energy requirements your labour allocation workflow uses.'
           : 'Choose the credentials, equipment, transport, civil/access, rail, energy, and VOC requirements your company actually uses.'
       )
     ),
-    el('span', { class: 'pill pill-info' }, `${visibleCatalogue.enabled_count || 0} visible enabled`)
+    setupStatusPill(catalogue.configured ? 'Saved' : 'Not started')
   ));
-  view.appendChild(renderOperatingModePanel(profile));
-  view.appendChild(renderDefaultTimezonePanel(profile, intakeOptions));
-  view.appendChild(renderTowerCraneBusinessBuilder());
 
   if (!catalogue.configured) {
     form.appendChild(el('div', { class: 'read-only-banner' },
@@ -1842,12 +2101,17 @@ async function renderOurBusiness(renderCycle) {
     placeholder: 'Filter catalogue items...',
     'aria-label': 'Filter catalogue items'
   });
-  const checklist = renderRequirementChecklist(visibleCatalogue);
+  const checklist = renderOurBusinessCatalogueSections(visibleCatalogue, mode, setupState);
   search.addEventListener('input', () => {
     const query = search.value.trim().toLowerCase();
     checklist.querySelectorAll('.check-row').forEach((row) => {
       const text = row.textContent.toLowerCase();
       row.classList.toggle('hidden', query && !text.includes(query));
+    });
+    checklist.querySelectorAll('details.catalogue-section').forEach((section) => {
+      const hasVisibleMatch = Array.from(section.querySelectorAll('.check-row'))
+        .some((row) => !row.classList.contains('hidden'));
+      if (query && hasVisibleMatch) section.open = true;
     });
   });
 
@@ -1881,19 +2145,61 @@ async function renderOurBusiness(renderCycle) {
     }
   });
 
-  view.appendChild(form);
+  view.appendChild(renderOurBusinessSection(
+    'requirements',
+    'Company requirements',
+    'Enable only the job, worker, credential, equipment, and review items this company actually uses.',
+    form,
+    {
+      context,
+      status: catalogue.configured ? 'Saved' : 'Not started',
+      countLabel: `${visibleCatalogue.enabled_count || 0} selected`
+    }
+  ));
   if (mode === 'plant_and_labour') {
-    view.appendChild(renderAssetRegister(catalogue, assetsPayload));
+    view.appendChild(renderOurBusinessSection(
+      'asset-register',
+      'Asset register',
+      'Add real asset numbers only under enabled equipment and transport classes. Job selectors use these saved assets only.',
+      prepareOurBusinessSectionBody(renderAssetRegister(catalogue, assetsPayload)),
+      {
+        context,
+        status: assetCount > 0 ? 'Saved' : (enabledAssetClassCount > 0 ? 'Needs review' : 'Not started'),
+        countLabel: `${assetCount} assets / ${enabledAssetClassCount} classes`
+      }
+    ));
   } else {
-    view.appendChild(el('div', { class: 'panel' },
-      el('h3', {}, 'Plant and asset register hidden'),
-      el('p', { class: 'small muted' },
-        'This company is configured as labour-only. Switch to Plant + labour above to manage equipment classes, transport items, and actual plant assets.'
-      )
+    view.appendChild(renderOurBusinessSection(
+      'asset-register',
+      'Asset register',
+      'Hidden in Labour-only mode so job creation does not show irrelevant plant selectors.',
+      el('div', {},
+        el('h3', {}, 'Plant and asset register hidden'),
+        el('p', { class: 'small muted' },
+          'This company is configured as labour-only. Switch to Plant + labour above to manage equipment classes, transport items, and actual plant assets.'
+        )
+      ),
+      {
+        context,
+        status: 'Hidden in labour-only',
+        countLabel: 'No asset selector'
+      }
     ));
   }
   const resetPanel = renderCompanyResetPanel(setupState);
-  if (resetPanel) view.appendChild(resetPanel);
+  if (resetPanel) {
+    view.appendChild(renderOurBusinessSection(
+      'reset-company-data',
+      'Review / setup summary',
+      'Advanced reset controls and setup counts. Keep collapsed unless you are cleaning a tenant.',
+      prepareOurBusinessSectionBody(resetPanel),
+      {
+        context,
+        status: 'Advanced',
+        countLabel: 'Admin action'
+      }
+    ));
+  }
 }
 
 const RESET_OPTIONS = [
@@ -2409,6 +2715,18 @@ function renderAssetRegister(catalogue, assetsPayload = {}) {
     ),
     el('span', { class: 'pill pill-info' }, `${assets.length} active asset(s)`)
   ));
+  panel.appendChild(el('div', { class: 'button-row asset-register-controls' },
+    el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: () => panel.querySelectorAll('details.asset-group').forEach((group) => { group.open = false; })
+    }, 'Collapse asset groups'),
+    el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: () => panel.querySelectorAll('details.asset-group').forEach((group) => { group.open = true; })
+    }, 'Expand asset groups')
+  ));
 
   if (registerItems.size === 0) {
     panel.appendChild(el('div', { class: 'empty' },
@@ -2583,13 +2901,13 @@ function renderJobAssetSelector(catalogue = {}, assetsPayload = {}, options = {}
       const assets = (assetsByItem.get(String(item.id)) || []).filter((asset) => asset.asset_status !== 'retired');
       if (assets.length === 0) {
         panel.appendChild(el('div', { class: 'small muted asset-select-row' },
-          `No plant numbers registered for this class. The job will use the ${item.label} requirement only.`
+          `No saved assets for ${item.label} yet. Add plant numbers in Our Business or use one-off job context.`
         ));
         continue;
       }
 
       const select = el('select', { name: 'company_asset_ids' });
-      select.appendChild(el('option', { value: '' }, `Any available ${item.label}`));
+      select.appendChild(el('option', { value: '' }, `No specific saved asset selected for ${item.label}`));
       for (const asset of assets) {
         const option = el('option', { value: String(asset.id) },
           `${asset.asset_number} - ${asset.display_name || item.label} (${formatDisplayLabel(asset.asset_status)})`
