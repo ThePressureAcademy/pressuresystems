@@ -113,6 +113,17 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Operating mode/);
     assert.match(res.text, /Labour only/);
     assert.match(res.text, /Plant \+ labour/);
+    assert.match(res.text, /OUR_BUSINESS_DISCLOSURE_KEY/);
+    assert.match(res.text, /renderOurBusinessSection/);
+    assert.match(res.text, /our-business-section/);
+    assert.match(res.text, /Collapse all/);
+    assert.match(res.text, /Expand all/);
+    assert.match(res.text, /Jump to Asset Register/);
+    assert.match(res.text, /Company requirement catalogue/);
+    assert.match(res.text, /Credentials \/ VOCs/);
+    assert.match(res.text, /Equipment classes/);
+    assert.match(res.text, /Transport classes/);
+    assert.match(res.text, /Rail \/ energy \/ specialist requirements/);
     assert.match(res.text, /Labour-only mode/);
     assert.match(res.text, /Plant and asset register hidden/);
     assert.match(res.text, /Job requirements/);
@@ -120,6 +131,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderAssetTile/);
     assert.match(res.text, /asset-tile/);
     assert.match(res.text, /asset-tile__meta/);
+    assert.match(res.text, /Collapse asset groups/);
+    assert.match(res.text, /Expand asset groups/);
     assert.match(res.text, /Reset company data/);
     assert.match(res.text, /CLEAR COMPANY DATA/);
     assert.match(res.text, /Asset number \/ plant number/);
@@ -151,6 +164,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /refreshAuthenticatedUser/);
     assert.match(res.text, /\/auth\/me/);
     assert.match(res.text, /Select asset \/ plant number/);
+    assert.match(res.text, /No specific saved asset selected/);
+    assert.match(res.text, /No saved assets for/);
     assert.match(res.text, /Edit job/);
     assert.match(res.text, /Save job changes/);
     assert.match(res.text, /Crew roles/);

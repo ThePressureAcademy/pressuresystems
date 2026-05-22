@@ -503,6 +503,38 @@ describe('Job intake requirement catalogue', () => {
     assert.ok(audit.body.events.some((event) => event.event_type === 'job_asset_selected'));
   });
 
+  test('job asset selection only accepts saved current-company assets', async () => {
+    const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
+    await enableCatalogueItems([mobile20]);
+
+    const requirementOnly = await request.post('/api/jobs').set(auth()).send(createJobPayload({
+      reference: 'REQ-ONLY',
+      requirement_item_ids: [mobile20.id]
+    }));
+    assert.equal(requirementOnly.status, 201);
+    assert.equal(requirementOnly.body.asset_assignments.length, 0);
+
+    const ownAssets = await request.get('/api/company/assets').set(auth());
+    assert.equal(ownAssets.status, 200);
+    assert.equal(ownAssets.body.assets.length, 0);
+
+    await enableCatalogueItems([mobile20], otherToken);
+    const otherAsset = await createAsset(mobile20, 'MC20-OTHER', {}, otherToken);
+    assert.equal(otherAsset.status, 201);
+
+    const blocked = await request.post('/api/jobs').set(auth()).send(createJobPayload({
+      reference: 'CROSS-TENANT-ASSET',
+      requirement_item_ids: [mobile20.id],
+      company_asset_ids: [otherAsset.body.id]
+    }));
+    assert.equal(blocked.status, 400);
+    assert.equal(blocked.body.error, 'Selected asset not found');
+
+    const ownAssetsAfter = await request.get('/api/company/assets').set(auth());
+    assert.equal(ownAssetsAfter.status, 200);
+    assert.equal(ownAssetsAfter.body.assets.length, 0);
+  });
+
   test('job brief import detects known and unknown asset numbers without creating unknown assets', async () => {
     const mobile20 = itemByKey('equipment_mobile_crane_20t_city');
     const enable = await enableCatalogueItems([mobile20]);
