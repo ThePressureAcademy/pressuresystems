@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="index,follow" />
+<title>DispatchTalon Personalisation Profile | Allocation Logic Questionnaire</title>
+<meta name="description" content="A short DispatchTalon profile for crane, rigging, labour, plant, and transport operators to capture allocation priorities, review triggers, and human-confirmed dispatch rules." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="DispatchTalon by Pressure Systems" />
+<meta property="og:title" content="Your business. Your allocation logic. Human confirmed." />
+<meta property="og:description" content="Capture how your business makes allocation decisions before dispatch. Built for crane, rigging, labour, plant, transport, and lifting operators." />
+<meta property="og:url" content="https://dispatchtalon.com/personalisation/" />
+<!-- TODO: Replace with a dedicated Personalisation Profile OG card when produced. -->
+<meta property="og:image" content="https://dispatchtalon.com/og-diagnostic.png" />
+<meta property="og:image:secure_url" content="https://dispatchtalon.com/og-diagnostic.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="DispatchTalon personalisation profile. Your business. Your allocation logic. Human confirmed." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Your business. Your allocation logic. Human confirmed." />
+<meta name="twitter:description" content="Capture how your business makes allocation decisions before dispatch." />
+<meta name="twitter:image" content="https://dispatchtalon.com/og-diagnostic.png" />
+<meta name="twitter:image:alt" content="DispatchTalon personalisation profile. Your business. Your allocation logic. Human confirmed." />
+<link rel="canonical" href="https://dispatchtalon.com/personalisation/" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon-192.png" />
+<meta name="theme-color" content="#08111D" />
+<style>
+  :root {
+    --bg: #08111d;
+    --bg-elev: #101a28;
+    --card: #132033;
+    --card-soft: rgba(245, 241, 232, 0.045);
+    --card-border: rgba(255,255,255,0.10);
+    --card-border-strong: rgba(255,255,255,0.16);
+    --cream: #f5f1e8;
+    --cream-soft: #d8d1c2;
+    --muted: #aeb7c4;
+    --micro: #6f7a89;
+    --rust: #d07a35;
+    --rust-deep: #9d5128;
+    --amber: #e0a15a;
+    --green: #748c66;
+    --danger: #bf675f;
+    --shadow: 0 18px 70px rgba(0,0,0,0.46);
+    --radius: 14px;
+    --radius-sm: 9px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+      radial-gradient(1100px 620px at 84% -12%, rgba(208,122,53,0.13), transparent 62%),
+      radial-gradient(760px 520px at -12% 38%, rgba(81,101,126,0.20), transparent 66%),
+      linear-gradient(180deg, #08111d 0%, #101827 45%, #08111d 100%);
+  }
+
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  a { color: inherit; }
+  img, svg { display: block; max-width: 100%; }
+  :focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .skip-link {
+    position: fixed;
+    left: 16px;
+    top: 12px;
+    z-index: 20;
+    transform: translateY(-160%);
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: var(--cream);
+    color: var(--bg);
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.2s ease;
+  }
+  .skip-link:focus-visible { transform: translateY(0); }
+
+  .wrap {
+    position: relative;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 30px 20px 80px;
+  }
+
+  .watermark {
+    position: fixed;
+    right: -110px;
+    bottom: -120px;
+    width: min(54vw, 560px);
+    opacity: 0.045;
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+  }
+
+  .brand {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 34px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+  }
+  .mark-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    flex: 0 0 auto;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .lockup {
+    display: grid;
+    gap: 4px;
+    line-height: 1.05;
+  }
+  .wordmark {
+    color: var(--cream);
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: 0.1px;
+  }
+  .sub {
+    color: var(--micro);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .status-chip,
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    min-height: 29px;
+    padding: 5px 10px;
+    border: 1px solid var(--card-border-strong);
+    border-radius: 999px;
+    color: var(--muted);
+    background: rgba(245,241,232,0.035);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.1px;
+    text-transform: uppercase;
+  }
+  .status-chip::before,
+  .pill.hot::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--rust);
+  }
+
+  .minor-link {
+    color: var(--muted);
+    font-size: 13px;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(174,183,196,0.28);
+  }
+  .minor-link:hover { color: var(--cream); border-bottom-color: var(--rust); }
+
+  main { position: relative; z-index: 1; }
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+    gap: 22px;
+    align-items: start;
+    margin-bottom: 22px;
+  }
+  .hero-copy,
+  .hero-card,
+  .panel,
+  .question-panel,
+  .result-panel,
+  .lead-panel {
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, rgba(16,26,40,0.96), rgba(19,32,51,0.88));
+    box-shadow: var(--shadow);
+  }
+  .hero-copy { padding: clamp(24px, 4vw, 36px); }
+  .hero-card { padding: 22px; }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 15px;
+    color: var(--rust);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 28px;
+    height: 2px;
+    background: var(--rust);
+  }
+  h1 {
+    margin: 0 0 16px;
+    color: var(--cream);
+    font-size: clamp(31px, 6vw, 56px);
+    line-height: 1.02;
+    letter-spacing: -1.7px;
+  }
+  .lede {
+    max-width: 66ch;
+    margin: 0;
+    color: var(--cream-soft);
+    font-size: 17px;
+  }
+  .time-promise {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 22px;
+    color: var(--cream);
+    font-weight: 800;
+  }
+  .time-promise span {
+    padding: 8px 11px;
+    border: 1px solid rgba(208,122,53,0.44);
+    border-radius: 999px;
+    background: rgba(208,122,53,0.10);
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.8px;
+  }
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 26px;
+  }
+  .btn {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 18px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: var(--rust);
+    color: #160d08;
+    font-weight: 800;
+    text-decoration: none;
+    transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  }
+  .btn:hover { transform: translateY(-1px); background: var(--amber); }
+  .btn.secondary {
+    background: rgba(245,241,232,0.04);
+    color: var(--cream);
+    border-color: var(--card-border-strong);
+  }
+  .btn.secondary:hover { background: rgba(245,241,232,0.075); border-color: rgba(224,161,90,0.42); }
+  .btn.ghost {
+    min-height: 42px;
+    background: transparent;
+    color: var(--muted);
+    border-color: var(--card-border);
+  }
+  .btn.block { width: 100%; }
+  .btn[disabled] { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+  .support-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 12px;
+  }
+  .support-list li {
+    position: relative;
+    padding-left: 23px;
+    color: var(--cream-soft);
+    font-size: 14px;
+  }
+  .support-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 11px;
+    height: 2px;
+    background: var(--rust);
+  }
+
+  .boundary {
+    margin: 22px 0;
+    padding: 16px 18px;
+    border: 1px solid rgba(208,122,53,0.25);
+    border-left: 3px solid var(--rust);
+    border-radius: var(--radius-sm);
+    background: rgba(208,122,53,0.075);
+    color: var(--cream-soft);
+    font-size: 14px;
+  }
+  .boundary strong { color: var(--cream); }
+
+  .panel { padding: 22px; margin-bottom: 22px; }
+  .section-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .section-head h2,
+  .result-panel h2,
+  .lead-panel h2 {
+    margin: 0;
+    color: var(--cream);
+    font-size: clamp(21px, 3vw, 28px);
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+  }
+  .section-head p,
+  .lead-panel p,
+  .result-panel p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .capture-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .capture-card {
+    min-width: 0;
+    padding: 17px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    background: rgba(245,241,232,0.035);
+  }
+  .icon-line {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 13px;
+    border: 1px solid rgba(208,122,53,0.34);
+    border-radius: 10px;
+    background:
+      linear-gradient(90deg, transparent 9px, rgba(208,122,53,0.24) 10px, transparent 11px),
+      linear-gradient(0deg, transparent 9px, rgba(174,183,196,0.16) 10px, transparent 11px);
+  }
+  .capture-card h3 {
+    margin: 0;
+    color: var(--cream);
+    font-size: 15px;
+  }
+  .capture-card p {
+    margin: 7px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .hidden { display: none !important; }
+  .profile-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr);
+    gap: 18px;
+    align-items: start;
+    margin-top: 22px;
+  }
+  .progress-card {
+    position: sticky;
+    top: 18px;
+    padding: 18px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    background: rgba(16,26,40,0.88);
+  }
+  .progress-card h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+  }
+  .progress-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .progress-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 18px;
+    color: var(--micro);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .progress-bar {
+    height: 8px;
+    margin-top: 10px;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    background: rgba(245,241,232,0.05);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--rust), var(--amber));
+    transition: width 0.2s ease;
+  }
+  .section-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .section-dot {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--micro);
+    font-size: 12px;
+  }
+  .section-dot::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid var(--steel, #3a424c);
+    background: transparent;
+  }
+  .section-dot.active { color: var(--cream); }
+  .section-dot.done { color: var(--muted); }
+  .section-dot.active::before,
+  .section-dot.done::before { border-color: var(--rust); background: var(--rust); }
+
+  .question-panel,
+  .result-panel,
+  .lead-panel {
+    padding: clamp(22px, 4vw, 30px);
+  }
+  .question-kicker {
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .question-panel h2 {
+    margin: 10px 0 8px;
+    color: var(--cream);
+    font-size: clamp(23px, 4vw, 34px);
+    line-height: 1.12;
+    letter-spacing: -0.6px;
+  }
+  .help {
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .options {
+    display: grid;
+    gap: 10px;
+  }
+  .option {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 14px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    background: rgba(245,241,232,0.035);
+    color: var(--cream-soft);
+    transition: background 0.16s ease, border-color 0.16s ease;
+  }
+  .option:hover {
+    background: rgba(245,241,232,0.065);
+    border-color: rgba(208,122,53,0.32);
+  }
+  .option input {
+    width: 18px;
+    height: 18px;
+    margin: 2px 0 0;
+    accent-color: var(--rust);
+    flex: 0 0 auto;
+  }
+  .option strong {
+    display: block;
+    color: var(--cream);
+    font-size: 14px;
+  }
+  .option span {
+    display: block;
+    color: var(--cream-soft);
+    font-size: 14px;
+  }
+  .limit-note,
+  .validation {
+    min-height: 21px;
+    margin: 12px 0 0;
+    color: var(--amber);
+    font-size: 13px;
+  }
+  .validation.error { color: #e6a09a; }
+  textarea,
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"] {
+    width: 100%;
+    border: 1px solid var(--card-border-strong);
+    border-radius: var(--radius-sm);
+    background: rgba(8,17,29,0.66);
+    color: var(--cream);
+    padding: 13px 14px;
+  }
+  textarea {
+    min-height: 138px;
+    resize: vertical;
+  }
+  textarea::placeholder,
+  input::placeholder { color: rgba(174,183,196,0.68); }
+  .question-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .result-card {
+    padding: 16px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    background: rgba(245,241,232,0.035);
+  }
+  .result-card h3 {
+    margin: 0 0 8px;
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+  }
+  .result-card p,
+  .result-card li {
+    color: var(--cream-soft);
+    font-size: 14px;
+  }
+  .result-card p { margin: 0; }
+  .result-card ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+  .band-box {
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid rgba(208,122,53,0.28);
+    border-radius: var(--radius-sm);
+    background: rgba(208,122,53,0.075);
+  }
+  .band-box strong {
+    display: block;
+    color: var(--cream);
+    font-size: 18px;
+  }
+  .summary-box {
+    white-space: pre-wrap;
+    margin-top: 14px;
+    padding: 16px;
+    max-height: 260px;
+    overflow: auto;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    background: rgba(8,17,29,0.64);
+    color: var(--cream-soft);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .lead-panel { margin-top: 20px; }
+  .lead-form {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+  }
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .field {
+    display: grid;
+    gap: 7px;
+  }
+  .field label,
+  .permission {
+    color: var(--cream-soft);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .permission {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    background: rgba(245,241,232,0.035);
+  }
+  .permission input {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--rust);
+    flex: 0 0 auto;
+  }
+  .form-status {
+    min-height: 22px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .form-status.error { color: #e6a09a; }
+  .form-status.ok { color: #aac69c; }
+  .fallback-link {
+    display: inline-flex;
+    margin-top: 8px;
+    color: var(--amber);
+  }
+  footer {
+    margin-top: 36px;
+    padding-top: 26px;
+    border-top: 1px solid var(--card-border);
+    color: var(--micro);
+    font-size: 13px;
+  }
+  .footer-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .footer-brand .mark-img { width: 44px; height: 44px; }
+  .footer-brand strong {
+    color: var(--cream);
+    font-size: 16px;
+  }
+  .footer-brand span {
+    display: block;
+    color: var(--micro);
+    margin-top: 2px;
+  }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    z-index: 30;
+    transform: translate(-50%, 22px);
+    opacity: 0;
+    padding: 10px 13px;
+    border: 1px solid var(--card-border-strong);
+    border-radius: 999px;
+    background: #101a28;
+    color: var(--cream);
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 820px) {
+    .hero,
+    .profile-shell,
+    .field-grid,
+    .result-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .progress-card { position: static; }
+    .capture-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .section-head { align-items: start; flex-direction: column; }
+  }
+
+  @media (max-width: 540px) {
+    .wrap { padding: 22px 14px 60px; }
+    .brand { align-items: flex-start; flex-direction: column; }
+    .top-actions { justify-content: flex-start; }
+    .mark-img { width: 42px; height: 42px; }
+    .wordmark { font-size: 17px; }
+    .sub { font-size: 9px; }
+    .capture-grid { grid-template-columns: minmax(0, 1fr); }
+    .hero-copy,
+    .hero-card,
+    .panel,
+    .question-panel,
+    .result-panel,
+    .lead-panel {
+      padding: 18px;
+    }
+    .hero-actions,
+    .question-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .btn { width: 100%; }
+    .watermark { width: 92vw; right: -44vw; bottom: -28vw; }
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to profile</a>
+<img class="watermark" src="/dispatchtalon-mark.png" alt="" aria-hidden="true" />
+<div class="wrap">
+  <header class="brand">
+    <a class="brand-mark" href="/diagnostic/" aria-label="DispatchTalon by Pressure Systems">
+      <img class="mark-img" alt="DispatchTalon mark" src="/dispatchtalon-mark.png" />
+      <span class="lockup">
+        <span class="wordmark">DispatchTalon</span>
+        <span class="sub">by Pressure Systems</span>
+      </span>
+    </a>
+    <div class="top-actions">
+      <span class="status-chip">Pilot-stage profile</span>
+      <a class="minor-link" href="/diagnostic/">Back to diagnostic</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="intro">
+      <div class="hero-copy">
+        <span class="eyebrow">Dispatch Intelligence Profile</span>
+        <h1>How does your business decide who should go?</h1>
+        <p class="lede">A short personalisation profile for crane, rigging, labour, plant, transport, and lifting operators. Capture the rules, pressure points, and review triggers that shape your allocation decisions before dispatch is confirmed.</p>
+        <div class="time-promise"><span>5-8 minutes</span> Your business. Your rules. Your allocation logic. Human confirmed.</div>
+        <div class="hero-actions">
+          <button class="btn" type="button" id="startBtn">Start the profile</button>
+          <a class="btn secondary" href="#captures">What this captures</a>
+        </div>
+      </div>
+      <aside class="hero-card" aria-label="Profile support points">
+        <ul class="support-list">
+          <li>Map your allocation priorities</li>
+          <li>Capture suitability and credential rules</li>
+          <li>Identify review triggers before dispatch</li>
+          <li>Define what must stay human-confirmed</li>
+          <li>No autonomous dispatch. No compliance approval claims. Pilot-stage decision support.</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="boundary">
+      <strong>Claim boundary.</strong>
+      DispatchTalon is decision-support. The dispatcher or operations lead remains the decision-maker. This profile does not create compliance approval, permit approval, lift-engineering approval, payroll approval, autonomous dispatch, or automatic allocation. Review is required before dispatch.
+    </section>
+
+    <section class="panel" id="captures">
+      <div class="section-head">
+        <div>
+          <span class="pill hot">What this captures</span>
+          <h2>Not a survey. A dispatch logic map.</h2>
+          <p>These answers shape a future Dispatch Intelligence Profile. They do not turn on automation or tenant-specific agents.</p>
+        </div>
+      </div>
+      <div class="capture-grid">
+        <article class="capture-card">
+          <div class="icon-line" aria-hidden="true"></div>
+          <h3>Business profile</h3>
+          <p>Operating type, scale, assets, and current allocation method.</p>
+        </article>
+        <article class="capture-card">
+          <div class="icon-line" aria-hidden="true"></div>
+          <h3>Allocation priorities</h3>
+          <p>What matters before a worker, crew, or asset is confirmed.</p>
+        </article>
+        <article class="capture-card">
+          <div class="icon-line" aria-hidden="true"></div>
+          <h3>Suitability rules</h3>
+          <p>Credential, site, role, fatigue, and asset-fit logic.</p>
+        </article>
+        <article class="capture-card">
+          <div class="icon-line" aria-hidden="true"></div>
+          <h3>Review triggers</h3>
+          <p>What should warn, block, or require a human reason.</p>
+        </article>
+        <article class="capture-card">
+          <div class="icon-line" aria-hidden="true"></div>
+          <h3>Fairness and pressure</h3>
+          <p>Client preference, worker familiarity, and explainability pressure.</p>
+        </article>
+        <article class="capture-card">
+          <div class="icon-line" aria-hidden="true"></div>
+          <h3>Human boundaries</h3>
+          <p>What must remain confirmed by the dispatcher or operations lead.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="profile-shell hidden" id="quiz" aria-live="polite">
+      <aside class="progress-card">
+        <h2>Profile progress</h2>
+        <p id="progressLabel">Question 1 of 21</p>
+        <div class="progress-meta">
+          <span id="sectionLabel">Business Profile</span>
+          <span id="percentLabel">0%</span>
+        </div>
+        <div class="progress-bar" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="section-list" id="sectionList"></div>
+      </aside>
+
+      <article class="question-panel">
+        <div class="question-kicker" id="questionKicker">Business Profile</div>
+        <h2 id="questionTitle" tabindex="-1">Question title</h2>
+        <p class="help" id="questionHelp">Question help</p>
+        <form id="questionForm">
+          <fieldset>
+            <legend class="sr-only" id="questionLegend">Question</legend>
+            <div id="answerMount"></div>
+          </fieldset>
+          <p class="validation" id="validationMsg" aria-live="polite"></p>
+          <div class="question-actions">
+            <button class="btn ghost" type="button" id="backBtn">Back</button>
+            <button class="btn" type="submit" id="nextBtn">Next</button>
+          </div>
+        </form>
+      </article>
+    </section>
+
+    <section class="result-panel hidden" id="result" aria-live="polite">
+      <span class="pill hot">Dispatch Intelligence Profile Draft</span>
+      <h2>Your Allocation Logic Snapshot</h2>
+      <p>This is a profile summary, not a compliance readiness score.</p>
+      <div class="band-box">
+        <strong id="bandName">Profile band</strong>
+        <p id="bandText">Profile interpretation.</p>
+      </div>
+      <div class="result-grid">
+        <article class="result-card">
+          <h3>Business type</h3>
+          <p id="businessType"></p>
+        </article>
+        <article class="result-card">
+          <h3>Allocation maturity snapshot</h3>
+          <p id="maturitySnapshot"></p>
+        </article>
+        <article class="result-card">
+          <h3>What your business prioritises</h3>
+          <ul id="priorityList"></ul>
+        </article>
+        <article class="result-card">
+          <h3>Highest review triggers</h3>
+          <ul id="triggerList"></ul>
+        </article>
+        <article class="result-card">
+          <h3>Where pressure is likely to appear</h3>
+          <p id="pressureText"></p>
+        </article>
+        <article class="result-card">
+          <h3>What must stay human-confirmed</h3>
+          <ul id="humanList"></ul>
+        </article>
+        <article class="result-card">
+          <h3>Personalisation opportunities</h3>
+          <p id="fitText"></p>
+        </article>
+        <article class="result-card">
+          <h3>Do-not-automate notes</h3>
+          <p id="avoidText"></p>
+        </article>
+      </div>
+      <div class="summary-box" id="summaryBox" tabindex="0"></div>
+      <div class="hero-actions">
+        <button class="btn" type="button" id="copySummaryBtn">Copy summary</button>
+        <button class="btn secondary" type="button" id="sendContextBtn">Send Cody your profile</button>
+        <button class="btn ghost" type="button" id="restartBtn">Start again</button>
+      </div>
+    </section>
+
+    <section class="lead-panel hidden" id="lead">
+      <span class="pill hot">Step 2</span>
+      <h2>Send Cody your personalisation profile</h2>
+      <p>Cody will review the profile and reply with a recommended next step: pilot scenario, design-partner review, or business-fit assessment.</p>
+      <form class="lead-form" id="leadForm" action="https://formspree.io/f/xzdyappr" method="POST">
+        <input type="hidden" name="intent" value="dispatchtalon-personalisation-profile" />
+        <input type="hidden" name="source" value="dispatchtalon-personalisation-page" />
+        <input type="hidden" name="route" value="/personalisation/" />
+        <input type="hidden" name="profile_band" id="h_band" />
+        <input type="hidden" name="profile_summary" id="h_summary" />
+        <input type="hidden" name="selected_answers" id="h_answers" />
+        <input type="hidden" name="timestamp" id="h_ts" />
+        <input type="hidden" name="utm_source" id="h_utm_source" />
+        <input type="hidden" name="utm_medium" id="h_utm_medium" />
+        <input type="hidden" name="utm_campaign" id="h_utm_campaign" />
+        <input type="hidden" name="utm_content" id="h_utm_content" />
+        <input type="hidden" name="source_channel" id="h_source" />
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="leadName">Name</label>
+            <input id="leadName" name="name" type="text" autocomplete="name" required />
+          </div>
+          <div class="field">
+            <label for="leadCompany">Company</label>
+            <input id="leadCompany" name="company" type="text" autocomplete="organization" required />
+          </div>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="leadRole">Role</label>
+            <input id="leadRole" name="role" type="text" required />
+          </div>
+          <div class="field">
+            <label for="leadEmail">Email</label>
+            <input id="leadEmail" name="email" type="email" autocomplete="email" required />
+          </div>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="leadPhone">Phone optional</label>
+            <input id="leadPhone" name="phone" type="tel" autocomplete="tel" />
+          </div>
+          <div class="field">
+            <label for="leadLocation">Location</label>
+            <input id="leadLocation" name="location" type="text" autocomplete="address-level2" required />
+          </div>
+        </div>
+        <label class="permission" for="permission">
+          <input id="permission" name="permission_to_contact" type="checkbox" value="yes" required />
+          <span>I'm okay with Cody from DispatchTalon reviewing this profile and contacting me about pilot/personalisation fit. No newsletter sign-up. No auto-sequence.</span>
+        </label>
+        <button class="btn block" id="submitBtn" type="submit">Send my personalisation profile</button>
+        <p class="form-status" id="formStatus" aria-live="polite"></p>
+        <a class="fallback-link hidden" id="fallbackMail" href="#">Open email draft instead</a>
+      </form>
+      <div class="result-card hidden" id="thankYou" tabindex="-1">
+        <h3>Profile received.</h3>
+        <p>Cody will review your allocation profile and reply with a recommended next step: pilot scenario, design-partner review, or business-fit assessment.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-brand">
+      <img class="mark-img" alt="DispatchTalon mark" src="/dispatchtalon-mark.png" />
+      <div>
+        <strong>DispatchTalon by Pressure Systems</strong>
+        <span>Decision support for dispatch teams. Pilot-stage product.</span>
+      </div>
+    </div>
+    <p><strong>Claim boundary.</strong> DispatchTalon is decision-support. The dispatcher or operations lead remains the decision-maker. This profile does not create compliance approval, permit approval, lift-engineering approval, payroll approval, autonomous dispatch, or automatic allocation. Review is required before dispatch.</p>
+  </footer>
+</div>
+
+<div class="toast" id="toast">Copied</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "dispatchtalon.personalisationProfile.v1";
+  var PRIORITIES = [
+    "Availability",
+    "Correct ticket / credential",
+    "Site experience",
+    "Client familiarity",
+    "Asset suitability",
+    "Fatigue / workload",
+    "Travel distance",
+    "Crew chemistry",
+    "Fairness",
+    "Overtime control",
+    "Margin / commercial outcome",
+    "Supervisor preference",
+    "Emergency response capability"
+  ];
+  var REVIEW_OPTIONS = [
+    "Expired credential",
+    "Credential expiring soon",
+    "Worker has not done similar job",
+    "Unfamiliar site",
+    "High-risk job type",
+    "Fatigue / workload concern",
+    "Repeated allocation to same worker",
+    "Client has specific preference",
+    "Asset is not ideal",
+    "Role coverage incomplete",
+    "Overtime risk",
+    "Unclear notes",
+    "Dispatcher override"
+  ];
+
+  var QUESTIONS = [
+    { section: "Business Profile", type: "checkbox", key: "work_type", title: "What type of work does your business mainly perform?", options: ["Mobile crane hire", "Tower crane operations", "Rigging / heavy lift", "Labour hire", "Plant hire", "Transport / heavy haulage", "Shutdown / maintenance", "Civil / construction support", "Other"] },
+    { section: "Business Profile", type: "single", key: "worker_count", title: "Roughly how many workers/operators are regularly allocated?", options: ["1-5", "6-14", "15-40", "41-80", "81-150", "150+"] },
+    { section: "Business Profile", type: "single", key: "asset_count", title: "Roughly how many major assets are allocated?", options: ["Labour-only", "1-5 plant/assets", "6-15 plant/assets", "16-40 plant/assets", "40+ plant/assets"] },
+    { section: "Business Profile", type: "checkbox", key: "decision_makers", title: "Who currently makes or confirms allocation decisions?", options: ["Owner", "Operations manager", "Allocator / dispatcher", "Supervisor", "Sales", "Office / admin", "Shared across multiple people", "Other"] },
+    { section: "Business Profile", type: "checkbox", key: "current_tools", title: "What do you currently use for dispatch/allocation?", options: ["Phone calls / memory", "SMS / WhatsApp", "Email threads", "Whiteboard / paper diary", "OneNote / spreadsheet", "Generic scheduling tool", "Industry dispatch system", "Mixed / partly structured"] },
+    { section: "Allocation Priorities", type: "top5", key: "top_priorities", title: "What matters most before confirming who goes to a job?", help: "Choose up to five. These become the first draft of your allocation logic.", options: PRIORITIES },
+    { section: "Allocation Priorities", type: "single", key: "missed_factor", title: "Which factor causes the most problems when missed?", options: PRIORITIES },
+    { section: "Allocation Priorities", type: "checkbox", key: "head_knowledge", title: "Which factor currently lives mostly in someone's head?", options: PRIORITIES },
+    { section: "Review Triggers", type: "checkbox", key: "review_triggers", title: "What should always trigger a review before the job goes out?", options: REVIEW_OPTIONS },
+    { section: "Review Triggers", type: "checkbox", key: "block_dispatch", title: "What should block dispatch until someone confirms it?", options: ["Expired credential", "Missing required role", "Unsuitable asset", "Fatigue risk", "Missing client requirement", "Missing site information", "Missing lift / job details", "None, show warnings only"] },
+    { section: "Review Triggers", type: "checkbox", key: "visible_not_blocking", title: "What should be visible but not blocking?", options: ["Client preference", "Worker preference", "Site familiarity", "Travel distance", "Recent workload", "Crew pairing", "Margin / cost impact", "Override reason"] },
+    { section: "Review Triggers", type: "checkbox", key: "reason_required", title: "What decisions should require a reason to be recorded?", options: ["Sending someone without ideal experience", "Overriding credential warning", "Choosing preferred worker over higher-ranked suitability", "Sending extra labour", "Substituting asset", "Ignoring fatigue/workload warning", "Changing crew after confirmation", "Other"] },
+    { section: "Fairness, Relationships, and Pressure", type: "scale", key: "client_preference", title: "How often does client preference influence who gets sent?", help: "1 = rarely. 5 = very often.", options: ["1", "2", "3", "4", "5"] },
+    { section: "Fairness, Relationships, and Pressure", type: "scale", key: "worker_familiarity", title: "How often does worker familiarity influence who gets selected?", help: "1 = rarely. 5 = very often.", options: ["1", "2", "3", "4", "5"] },
+    { section: "Fairness, Relationships, and Pressure", type: "single", key: "hard_to_explain", title: "Are there situations where allocation decisions are hard to explain later?", options: ["Yes, often", "Sometimes", "Rarely", "No", "Unsure"] },
+    { section: "Fairness, Relationships, and Pressure", type: "single", key: "review_trail_help", title: "Would a visible suitability/review trail help reduce pressure on the person making the call?", options: ["Yes", "Maybe", "No", "Unsure"] },
+    { section: "Fairness, Relationships, and Pressure", type: "text", key: "avoid_fairness", title: "What should DispatchTalon avoid doing when it comes to fairness?", placeholder: "Example: Do not ignore client preference. Do not make it feel like worker surveillance. Do not override dispatcher judgement." },
+    { section: "Human Control and Future Profile", type: "checkbox", key: "human_decisions", title: "What decisions should always stay with the dispatcher or operations lead?", options: ["Final allocation confirmation", "Client-sensitive decisions", "High-risk job decisions", "Fatigue exceptions", "Credential exceptions", "Worker conflict / crew chemistry", "Asset substitution", "Emergency response changes", "All decisions"] },
+    { section: "Human Control and Future Profile", type: "checkbox", key: "distrust", title: "What would make you distrust a recommendation?", options: ["It ignores site experience", "It ignores client preference", "It ignores fatigue", "It ignores credentials", "It chooses the same people too often", "It cannot explain why", "It feels like surveillance", "It removes human judgement", "It is too hard to override"] },
+    { section: "Human Control and Future Profile", type: "checkbox", key: "trust", title: "What would make you trust a recommendation?", options: ["Shows required tickets", "Shows site experience", "Shows recent workload", "Shows asset fit", "Shows role coverage", "Shows reason for recommendation", "Lets dispatcher override", "Records why the decision changed", "Keeps the final call human-confirmed"] },
+    { section: "Human Control and Future Profile", type: "text", key: "understand_first", title: "If DispatchTalon could be shaped around your business, what should it understand first?", placeholder: "Example: How we choose crews for tilt panel jobs. Which clients need familiar workers. How we avoid sending unnecessary labour." }
+  ];
+
+  var state = loadState() || { index: 0, answers: {} };
+  var sections = QUESTIONS.reduce(function (acc, q) {
+    if (acc.indexOf(q.section) === -1) acc.push(q.section);
+    return acc;
+  }, []);
+
+  function $(id) { return document.getElementById(id); }
+  function show(id) { $(id).classList.remove("hidden"); }
+  function hide(id) { $(id).classList.add("hidden"); }
+  function toast(message) {
+    var el = $("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(window.__dtpToast);
+    window.__dtpToast = setTimeout(function () { el.classList.remove("show"); }, 1500);
+  }
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (err) {}
+  }
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (err) {
+      return null;
+    }
+  }
+  function valueFor(key) {
+    return state.answers[key];
+  }
+  function setValue(key, value) {
+    state.answers[key] = value;
+    saveState();
+  }
+  function asArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+  function listText(value, fallback) {
+    var list = asArray(value).filter(Boolean);
+    return list.length ? list.join(", ") : fallback;
+  }
+  function addListItems(target, items, fallback) {
+    target.innerHTML = "";
+    var values = asArray(items).filter(Boolean);
+    if (!values.length) values = [fallback || "Not specified"];
+    values.slice(0, 7).forEach(function (item) {
+      var li = document.createElement("li");
+      li.textContent = item;
+      target.appendChild(li);
+    });
+  }
+  function currentQuestion() {
+    return QUESTIONS[state.index];
+  }
+  function progressPercent() {
+    return Math.round((state.index / QUESTIONS.length) * 100);
+  }
+  function renderSections() {
+    var active = currentQuestion().section;
+    var mount = $("sectionList");
+    mount.innerHTML = "";
+    sections.forEach(function (section) {
+      var firstIndex = QUESTIONS.findIndex(function (q) { return q.section === section; });
+      var item = document.createElement("div");
+      item.className = "section-dot" + (section === active ? " active" : "") + (state.index > firstIndex ? " done" : "");
+      item.textContent = section;
+      mount.appendChild(item);
+    });
+  }
+  function renderQuestion() {
+    var q = currentQuestion();
+    $("progressLabel").textContent = "Question " + (state.index + 1) + " of " + QUESTIONS.length;
+    $("sectionLabel").textContent = q.section;
+    $("percentLabel").textContent = progressPercent() + "%";
+    $("progressFill").style.width = progressPercent() + "%";
+    $("questionKicker").textContent = q.section;
+    $("questionTitle").textContent = q.title;
+    $("questionLegend").textContent = q.title;
+    $("questionHelp").textContent = q.help || "Answer based on the way the work actually runs today.";
+    $("validationMsg").textContent = "";
+    $("validationMsg").classList.remove("error");
+    $("backBtn").disabled = state.index === 0;
+    $("nextBtn").textContent = state.index === QUESTIONS.length - 1 ? "Build profile" : "Next";
+    renderSections();
+    renderAnswer(q);
+    setTimeout(function () { $("questionTitle").focus(); }, 0);
+  }
+  function renderAnswer(q) {
+    var mount = $("answerMount");
+    mount.innerHTML = "";
+    if (q.type === "text") {
+      var textarea = document.createElement("textarea");
+      textarea.id = "answerText";
+      textarea.placeholder = q.placeholder || "";
+      textarea.value = valueFor(q.key) || "";
+      textarea.addEventListener("input", function () {
+        setValue(q.key, textarea.value.trim());
+      });
+      mount.appendChild(textarea);
+      return;
+    }
+
+    var selected = q.type === "single" || q.type === "scale" ? valueFor(q.key) : asArray(valueFor(q.key));
+    var options = document.createElement("div");
+    options.className = "options";
+    q.options.forEach(function (option, index) {
+      var id = "answer-" + state.index + "-" + index;
+      var label = document.createElement("label");
+      label.className = "option";
+      label.setAttribute("for", id);
+      var input = document.createElement("input");
+      input.id = id;
+      input.name = q.key;
+      input.type = q.type === "single" || q.type === "scale" ? "radio" : "checkbox";
+      input.value = option;
+      input.checked = Array.isArray(selected) ? selected.indexOf(option) !== -1 : selected === option;
+      input.addEventListener("change", function () {
+        if (q.type === "single" || q.type === "scale") {
+          setValue(q.key, option);
+        } else {
+          var values = asArray(valueFor(q.key)).slice();
+          if (input.checked) {
+            if (q.type === "top5" && values.length >= 5) {
+              input.checked = false;
+              toast("Choose up to five");
+              return;
+            }
+            if (values.indexOf(option) === -1) values.push(option);
+          } else {
+            values = values.filter(function (item) { return item !== option; });
+          }
+          setValue(q.key, values);
+          if (q.type === "top5") renderAnswer(q);
+        }
+      });
+      var text = document.createElement("span");
+      text.textContent = option;
+      label.appendChild(input);
+      label.appendChild(text);
+      options.appendChild(label);
+    });
+    mount.appendChild(options);
+    if (q.type === "top5") {
+      var note = document.createElement("p");
+      note.className = "limit-note";
+      note.textContent = "Choose up to five. Current: " + asArray(valueFor(q.key)).length + "/5.";
+      mount.appendChild(note);
+    }
+  }
+  function hasAnswer(q) {
+    var value = valueFor(q.key);
+    if (q.type === "text") return Boolean(String(value || "").trim());
+    if (q.type === "single" || q.type === "scale") return Boolean(value);
+    return asArray(value).length > 0;
+  }
+  function validateCurrent() {
+    var q = currentQuestion();
+    if (hasAnswer(q)) return true;
+    $("validationMsg").textContent = "Answer this question to continue.";
+    $("validationMsg").classList.add("error");
+    return false;
+  }
+  function buildProfile() {
+    var a = state.answers;
+    var memorySignals = 0;
+    var currentTools = asArray(a.current_tools);
+    ["Phone calls / memory", "SMS / WhatsApp", "Whiteboard / paper diary", "Email threads"].forEach(function (tool) {
+      if (currentTools.indexOf(tool) !== -1) memorySignals += 1;
+    });
+    if (asArray(a.head_knowledge).length >= 4) memorySignals += 2;
+    if (a.hard_to_explain === "Yes, often") memorySignals += 2;
+    if (a.hard_to_explain === "Sometimes") memorySignals += 1;
+    var structureSignals = 0;
+    ["OneNote / spreadsheet", "Generic scheduling tool", "Industry dispatch system", "Mixed / partly structured"].forEach(function (tool) {
+      if (currentTools.indexOf(tool) !== -1) structureSignals += 1;
+    });
+    if (asArray(a.reason_required).length >= 4) structureSignals += 1;
+    if (asArray(a.trust).indexOf("Shows reason for recommendation") !== -1) structureSignals += 1;
+    if (asArray(a.human_decisions).indexOf("Final allocation confirmation") !== -1 || asArray(a.human_decisions).indexOf("All decisions") !== -1) structureSignals += 1;
+
+    var band;
+    if (memorySignals >= 5 && structureSignals <= 2) {
+      band = {
+        name: "Low structure / high memory dependency",
+        text: "The allocation logic appears to rely heavily on people remembering context under pressure. DispatchTalon should start with visibility, review triggers, and a simple decision trail."
+      };
+    } else if (memorySignals >= 3 || structureSignals <= 4) {
+      band = {
+        name: "Partly structured / still pressure-heavy",
+        text: "There is some structure, but the pressure points still sit between tools, people, and judgement calls. DispatchTalon should focus on the gaps between suitability, review, and final confirmation."
+      };
+    } else {
+      band = {
+        name: "Strong structure / ready for deeper personalisation",
+        text: "The business already thinks in rules, review points, and human boundaries. DispatchTalon should test deeper suitability logic with a controlled pilot scenario."
+      };
+    }
+
+    var priorities = asArray(a.top_priorities);
+    var triggers = asArray(a.review_triggers).concat(asArray(a.block_dispatch)).filter(function (item, index, arr) {
+      return item && arr.indexOf(item) === index;
+    });
+    var human = asArray(a.human_decisions);
+    var pressure = [];
+    if (Number(a.client_preference || 0) >= 4) pressure.push("client preference strongly influences allocation");
+    if (Number(a.worker_familiarity || 0) >= 4) pressure.push("worker familiarity strongly influences selection");
+    if (a.hard_to_explain === "Yes, often" || a.hard_to_explain === "Sometimes") pressure.push("some decisions may be hard to explain later");
+    if (a.review_trail_help === "Yes" || a.review_trail_help === "Maybe") pressure.push("a visible review trail may reduce pressure on the person making the call");
+
+    return {
+      band: band,
+      businessType: listText(a.work_type, "Not specified"),
+      maturity: "Regular workers: " + (a.worker_count || "not specified") + ". Assets: " + (a.asset_count || "not specified") + ". Current setup: " + listText(a.current_tools, "not specified") + ".",
+      priorities: priorities,
+      triggers: triggers,
+      pressure: pressure.length ? pressure.join(". ") + "." : "No major pressure pattern was specified, but human review should still remain explicit.",
+      human: human,
+      fit: suggestedFit(priorities, triggers, a),
+      avoid: String(a.avoid_fairness || "").trim() || "Do not remove dispatcher judgement, create worker surveillance pressure, or treat recommendations as automatic dispatch approval.",
+      understandFirst: String(a.understand_first || "").trim()
+    };
+  }
+  function suggestedFit(priorities, triggers, answers) {
+    var parts = [];
+    if (priorities.indexOf("Correct ticket / credential") !== -1 || triggers.indexOf("Expired credential") !== -1) parts.push("credential and ticket visibility");
+    if (priorities.indexOf("Fatigue / workload") !== -1 || triggers.indexOf("Fatigue risk") !== -1) parts.push("fatigue and workload review");
+    if (priorities.indexOf("Asset suitability") !== -1 || triggers.indexOf("Unsuitable asset") !== -1) parts.push("asset-fit review before dispatch");
+    if (priorities.indexOf("Site experience") !== -1) parts.push("site-experience context");
+    if (priorities.indexOf("Client familiarity") !== -1) parts.push("client preference visibility");
+    if (!parts.length) parts.push("allocation priority mapping and human-confirmed review trail");
+    if (answers.understand_first) parts.push("custom logic around: " + answers.understand_first);
+    return "Suggested DispatchTalon fit: start with " + parts.slice(0, 4).join(", ") + ".";
+  }
+  function buildSummary(profile) {
+    var company = $("leadCompany") ? $("leadCompany").value.trim() : "";
+    var label = company || "This business";
+    return label + " appears to prioritise " + listText(profile.priorities, "allocation visibility") + " when allocating workers/assets. Main review triggers include " + listText(profile.triggers, "review-before-dispatch conditions") + ". Human-confirmed boundaries include " + listText(profile.human, "final dispatcher confirmation") + ". This suggests DispatchTalon should initially focus on " + profile.fit.replace(/^Suggested DispatchTalon fit: start with /, "") + " Profile band: " + profile.band.name + ". Do-not-automate notes: " + profile.avoid;
+  }
+  function renderResult() {
+    var profile = buildProfile();
+    state.profile = profile;
+    saveState();
+    $("progressFill").style.width = "100%";
+    $("percentLabel").textContent = "100%";
+    $("bandName").textContent = profile.band.name;
+    $("bandText").textContent = profile.band.text;
+    $("businessType").textContent = profile.businessType;
+    $("maturitySnapshot").textContent = profile.maturity;
+    addListItems($("priorityList"), profile.priorities, "No priorities selected");
+    addListItems($("triggerList"), profile.triggers, "No review triggers selected");
+    $("pressureText").textContent = profile.pressure;
+    addListItems($("humanList"), profile.human, "Final allocation confirmation");
+    $("fitText").textContent = profile.fit;
+    $("avoidText").textContent = profile.avoid;
+    $("summaryBox").textContent = buildDetailedSummary(profile);
+    populateHiddenFields();
+  }
+  function buildDetailedSummary(profile) {
+    var lines = [];
+    lines.push("DispatchTalon - Personalisation Profile Draft");
+    lines.push("");
+    lines.push("Business type: " + profile.businessType);
+    lines.push("Allocation maturity snapshot: " + profile.maturity);
+    lines.push("Profile band: " + profile.band.name);
+    lines.push("Profile interpretation: " + profile.band.text);
+    lines.push("");
+    lines.push("Top allocation priorities: " + listText(profile.priorities, "not specified"));
+    lines.push("Highest review triggers: " + listText(profile.triggers, "not specified"));
+    lines.push("Fairness / pressure indicators: " + profile.pressure);
+    lines.push("Human-confirmation boundaries: " + listText(profile.human, "not specified"));
+    lines.push("Personalisation opportunity: " + profile.fit);
+    lines.push("Do-not-automate notes: " + profile.avoid);
+    lines.push("What DispatchTalon should understand first: " + (profile.understandFirst || "not specified"));
+    lines.push("");
+    lines.push("Boundary: DispatchTalon is decision-support. Review is required before dispatch.");
+    return lines.join("\n");
+  }
+  function getUTM() {
+    var p = new URLSearchParams(window.location.search);
+    return {
+      source: p.get("utm_source") || "",
+      medium: p.get("utm_medium") || "",
+      campaign: p.get("utm_campaign") || "",
+      content: p.get("utm_content") || ""
+    };
+  }
+  function populateHiddenFields() {
+    var profile = state.profile || buildProfile();
+    var u = getUTM();
+    $("h_band").value = profile.band.name;
+    $("h_summary").value = buildDetailedSummary(profile);
+    $("h_answers").value = JSON.stringify(QUESTIONS.map(function (q) {
+      return { key: q.key, section: q.section, question: q.title, answer: state.answers[q.key] || null };
+    }));
+    $("h_ts").value = new Date().toISOString();
+    $("h_utm_source").value = u.source;
+    $("h_utm_medium").value = u.medium;
+    $("h_utm_campaign").value = u.campaign;
+    $("h_utm_content").value = u.content;
+    $("h_source").value = u.source || document.referrer || "direct";
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } finally { document.body.removeChild(ta); }
+    return Promise.resolve();
+  }
+  function makeMailto() {
+    var profile = state.profile || buildProfile();
+    var body = "DispatchTalon Personalisation Profile\n\n" + buildDetailedSummary(profile);
+    body += "\n\nName: " + ($("leadName").value || "-");
+    body += "\nCompany: " + ($("leadCompany").value || "-");
+    body += "\nRole: " + ($("leadRole").value || "-");
+    body += "\nEmail: " + ($("leadEmail").value || "-");
+    body += "\nPhone: " + ($("leadPhone").value || "-");
+    body += "\nLocation: " + ($("leadLocation").value || "-");
+    return "mailto:sales@pressuresystems.au?subject=" + encodeURIComponent("DispatchTalon personalisation profile") + "&body=" + encodeURIComponent(body);
+  }
+  function resetProfile() {
+    state = { index: 0, answers: {} };
+    try { localStorage.removeItem(STORAGE_KEY); } catch (err) {}
+    hide("result");
+    hide("lead");
+    show("intro");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    $("startBtn").addEventListener("click", function () {
+      hide("intro");
+      show("quiz");
+      renderQuestion();
+      $("quiz").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    $("questionForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (!validateCurrent()) return;
+      if (state.index >= QUESTIONS.length - 1) {
+        hide("quiz");
+        show("result");
+        renderResult();
+        $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      state.index += 1;
+      saveState();
+      renderQuestion();
+    });
+    $("backBtn").addEventListener("click", function () {
+      if (state.index === 0) return;
+      state.index -= 1;
+      saveState();
+      renderQuestion();
+    });
+    $("copySummaryBtn").addEventListener("click", function () {
+      copyText($("summaryBox").textContent).then(function () { toast("Summary copied"); });
+    });
+    $("sendContextBtn").addEventListener("click", function () {
+      populateHiddenFields();
+      show("lead");
+      $("lead").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    $("restartBtn").addEventListener("click", resetProfile);
+    $("leadCompany").addEventListener("input", populateHiddenFields);
+    $("leadForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+      var form = event.target;
+      var submit = $("submitBtn");
+      var status = $("formStatus");
+      var fallback = $("fallbackMail");
+      populateHiddenFields();
+      status.textContent = "";
+      status.className = "form-status";
+      fallback.classList.add("hidden");
+      if (!form.checkValidity()) {
+        status.textContent = "Complete the required fields and permission checkbox.";
+        status.classList.add("error");
+        form.reportValidity();
+        return;
+      }
+      var action = form.getAttribute("action");
+      if (!action) {
+        fallback.href = makeMailto();
+        fallback.classList.remove("hidden");
+        status.textContent = "No endpoint is configured. Use the email draft or copy the summary.";
+        status.classList.add("error");
+        return;
+      }
+      submit.disabled = true;
+      submit.textContent = "Sending...";
+      fetch(action, {
+        method: "POST",
+        body: new FormData(form),
+        headers: { Accept: "application/json" }
+      }).then(function (response) {
+        if (!response.ok) throw new Error("Submission failed");
+        form.classList.add("hidden");
+        $("thankYou").classList.remove("hidden");
+        $("thankYou").focus();
+      }).catch(function () {
+        submit.disabled = false;
+        submit.textContent = "Send my personalisation profile";
+        fallback.href = makeMailto();
+        fallback.classList.remove("hidden");
+        status.textContent = "Could not send through the form endpoint. Open the email draft or copy the summary.";
+        status.classList.add("error");
+      });
+    });
+
+    if (state.index > 0 || Object.keys(state.answers || {}).length) {
+      $("startBtn").textContent = "Continue the profile";
+    }
+  });
+})();
+</script>
+</body>
+</html>
