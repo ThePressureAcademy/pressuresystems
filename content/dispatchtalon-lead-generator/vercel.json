@@ -2,7 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/diagnostic", "destination": "/dispatch-readiness-diagnostic.html" },
-    { "source": "/diagnostic/", "destination": "/dispatch-readiness-diagnostic.html" }
+    { "source": "/diagnostic/", "destination": "/dispatch-readiness-diagnostic.html" },
+    { "source": "/personalisation", "destination": "/dispatchtalon-personalisation-profile.html" },
+    { "source": "/personalisation/", "destination": "/dispatchtalon-personalisation-profile.html" }
   ],
   "redirects": [
     { "source": "/", "destination": "/diagnostic/", "permanent": false }
