@@ -1,11 +1,11 @@
 {
   "name": "Pressure Systems",
   "short_name": "Pressure Systems",
-  "description": "Pressure Systems audits and repairs trust-damaging websites for operator-led businesses.",
+  "description": "Pressure Systems designs, engineers, and integrates operational systems, diagnostics, AI-supported workflows, and decision-support tools.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F7F3EC",
-  "theme_color": "#1F2528",
+  "background_color": "#08111D",
+  "theme_color": "#08111D",
   "icons": [
     {
       "src": "assets/logos/pressure-systems-favicon.svg",
