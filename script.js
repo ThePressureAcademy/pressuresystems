@@ -103,15 +103,15 @@
   }
 
   function buildMailto(formData) {
-    const business = formData.get("business") || "Pressure Systems Audit enquiry";
-    const subject = "Pressure Systems Audit enquiry - " + business;
+    const business = formData.get("business") || "Pressure Systems systems review";
+    const subject = "Pressure Systems systems review - " + business;
     const body = [
       "Name: " + (formData.get("name") || ""),
       "Business: " + business,
       "Email: " + (formData.get("email") || ""),
       "Website: " + (formData.get("website") || ""),
       "",
-      "What feels wrong:",
+      "Pressure point to structure:",
       "" + (formData.get("issue") || ""),
       "",
       "Desired outcome:",
@@ -159,7 +159,7 @@
       if (endpoint) {
         await submitToEndpoint(formData);
         form.reset();
-        setStatus("Thanks. Your audit request has been sent.", "success");
+        setStatus("Thanks. Your systems review request has been sent.", "success");
       } else {
         window.location.href = buildMailto(formData);
         setStatus("Your email draft should be open now. If not, use the direct contact line in this section.", "info");
