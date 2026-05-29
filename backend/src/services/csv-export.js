@@ -232,10 +232,11 @@ function credentialMap(db, companyId, workerIds = []) {
   if (!workerIds.length) return new Map();
   const placeholders = workerIds.map(() => '?').join(',');
   const rows = db.prepare(`
-    SELECT worker_id, type, status, expiry_date
+    SELECT worker_id, COALESCE(credential_name_snapshot, type) AS type, status, expiry_date
     FROM credentials
     WHERE company_id = ?
       AND worker_id IN (${placeholders})
+      AND COALESCE(active, 1) = 1
     ORDER BY type ASC, expiry_date ASC
   `).all(companyId, ...workerIds);
 

@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS credentials (
   id           TEXT PRIMARY KEY,
   worker_id    TEXT NOT NULL REFERENCES workers(id),
   company_id   TEXT NOT NULL REFERENCES companies(id),
+  credential_type_id TEXT,
+  credential_name_snapshot TEXT,
   type         TEXT NOT NULL,
   identifier   TEXT,
   issuing_body TEXT,
@@ -100,8 +102,29 @@ CREATE TABLE IF NOT EXISTS credentials (
                  'valid', 'expiring_soon', 'expired', 'pending_verification'
                )),
   notes        TEXT,
+  active       INTEGER NOT NULL DEFAULT 1,
   created_at   TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS credential_types (
+  id                 TEXT PRIMARY KEY,
+  company_id         TEXT NOT NULL REFERENCES companies(id),
+  name               TEXT NOT NULL,
+  normalized_key     TEXT NOT NULL,
+  category           TEXT NOT NULL DEFAULT 'other'
+                     CHECK (category IN (
+                       'site_access', 'licence', 'high_risk_work', 'induction',
+                       'VOC', 'medical', 'client_requirement', 'other'
+                     )),
+  region             TEXT,
+  description        TEXT,
+  is_default         INTEGER NOT NULL DEFAULT 0,
+  active             INTEGER NOT NULL DEFAULT 1,
+  created_by_user_id TEXT REFERENCES users(id),
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(company_id, normalized_key)
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -522,6 +545,44 @@ CREATE TABLE IF NOT EXISTS source_uploads (
   CHECK (tenant_id = company_id)
 );
 
+CREATE TABLE IF NOT EXISTS site_logs (
+  id                 TEXT PRIMARY KEY,
+  company_id         TEXT NOT NULL REFERENCES companies(id),
+  date               TEXT NOT NULL,
+  site_name          TEXT NOT NULL,
+  job_id             TEXT REFERENCES jobs(id),
+  job_name           TEXT,
+  client_name        TEXT,
+  location           TEXT,
+  notes              TEXT,
+  created_by_user_id TEXT REFERENCES users(id),
+  updated_by_user_id TEXT REFERENCES users(id),
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS site_log_entries (
+  id                   TEXT PRIMARY KEY,
+  company_id           TEXT NOT NULL REFERENCES companies(id),
+  site_log_id          TEXT NOT NULL REFERENCES site_logs(id) ON DELETE CASCADE,
+  worker_id            TEXT NOT NULL REFERENCES workers(id),
+  worker_name_snapshot TEXT NOT NULL,
+  role                 TEXT,
+  company_asset_id     INTEGER REFERENCES company_assets(id),
+  asset_name_snapshot  TEXT,
+  sign_in_time         TEXT,
+  sign_out_time        TEXT,
+  status               TEXT NOT NULL DEFAULT 'scheduled'
+                       CHECK (status IN (
+                         'scheduled', 'signed_in', 'signed_out', 'absent', 'removed', 'manual_entry'
+                       )),
+  notes                TEXT,
+  created_by_user_id   TEXT REFERENCES users(id),
+  updated_by_user_id   TEXT REFERENCES users(id),
+  created_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at           TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS audit_events (
   id            TEXT PRIMARY KEY,
   company_id    TEXT NOT NULL REFERENCES companies(id),
@@ -558,6 +619,16 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'worker_updated',
                   'worker_roles_updated',
                   'worker_credentials_updated',
+                  'credential_type_created',
+                  'credential_type_updated',
+                  'credential_type_archived',
+                  'site_log_created',
+                  'site_log_updated',
+                  'site_log_entry_added',
+                  'site_log_entry_updated',
+                  'site_log_worker_signed_in',
+                  'site_log_worker_signed_out',
+                  'site_log_entry_removed',
                   'worker_preferences_updated',
                   'job_created',
                   'job_updated',
@@ -625,6 +696,8 @@ CREATE INDEX IF NOT EXISTS idx_users_company        ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_workers_company      ON workers(company_id);
 CREATE INDEX IF NOT EXISTS idx_credentials_worker   ON credentials(worker_id);
 CREATE INDEX IF NOT EXISTS idx_credentials_company  ON credentials(company_id);
+CREATE INDEX IF NOT EXISTS idx_credentials_type     ON credentials(company_id, credential_type_id, active);
+CREATE INDEX IF NOT EXISTS idx_credential_types_company ON credential_types(company_id, active, normalized_key);
 CREATE INDEX IF NOT EXISTS idx_fatigue_worker       ON fatigue_records(worker_id);
 CREATE INDEX IF NOT EXISTS idx_fatigue_company_date ON fatigue_records(company_id, shift_start);
 CREATE INDEX IF NOT EXISTS idx_jobs_company         ON jobs(company_id);
@@ -684,6 +757,12 @@ CREATE INDEX IF NOT EXISTS idx_job_asset_assignments_job
   ON job_asset_assignments(company_id, job_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_job_asset_assignments_unique
   ON job_asset_assignments(company_id, job_id, company_asset_id);
+CREATE INDEX IF NOT EXISTS idx_site_logs_company_date
+  ON site_logs(company_id, date, site_name);
+CREATE INDEX IF NOT EXISTS idx_site_log_entries_log
+  ON site_log_entries(company_id, site_log_id, status);
+CREATE INDEX IF NOT EXISTS idx_site_log_entries_worker
+  ON site_log_entries(company_id, worker_id, sign_in_time, sign_out_time);
 CREATE INDEX IF NOT EXISTS idx_audit_company        ON audit_events(company_id);
 CREATE INDEX IF NOT EXISTS idx_audit_job            ON audit_events(job_id);
 CREATE INDEX IF NOT EXISTS idx_audit_worker         ON audit_events(worker_id);

@@ -42,6 +42,8 @@ function getCompanyResetPreview(db, companyId, scope) {
     credentials: count(db, `SELECT COUNT(*) AS n FROM credentials WHERE company_id = ?`, companyId),
     fatigue_records: count(db, `SELECT COUNT(*) AS n FROM fatigue_records WHERE company_id = ?`, companyId),
     worker_preferences: count(db, `SELECT COUNT(*) AS n FROM worker_task_preferences WHERE company_id = ?`, companyId),
+    site_logs: count(db, `SELECT COUNT(*) AS n FROM site_logs WHERE company_id = ?`, companyId),
+    credential_types: count(db, `SELECT COUNT(*) AS n FROM credential_types WHERE company_id = ? AND active = 1`, companyId),
     active_allocations: count(db, `SELECT COUNT(*) AS n FROM allocations WHERE company_id = ? AND status != 'cancelled'`, companyId),
     allocation_notifications: count(db, `SELECT COUNT(*) AS n FROM allocation_notifications WHERE company_id = ? AND status != 'cancelled'`, companyId),
     job_imports: count(db, `SELECT COUNT(*) AS n FROM job_imports WHERE company_id = ?`, companyId),
@@ -50,6 +52,7 @@ function getCompanyResetPreview(db, companyId, scope) {
     job_asset_assignments: count(db, `SELECT COUNT(*) AS n FROM job_asset_assignments WHERE company_id = ?`, companyId),
     company_assets: count(db, `SELECT COUNT(*) AS n FROM company_assets WHERE company_id = ? AND asset_status != 'retired'`, companyId),
     catalogue_selections: count(db, `SELECT COUNT(*) AS n FROM company_catalogue_selections WHERE company_id = ?`, companyId),
+    source_uploads: count(db, `SELECT COUNT(*) AS n FROM source_uploads WHERE company_id = ? AND deleted_at IS NULL`, companyId),
     audit_events: count(db, `SELECT COUNT(*) AS n FROM audit_events WHERE company_id = ?`, companyId),
     users: count(db, `SELECT COUNT(*) AS n FROM users WHERE company_id = ?`, companyId)
   };
@@ -60,25 +63,26 @@ function getCompanyResetPreview(db, companyId, scope) {
       'Cancels allocations linked to this company.',
       'Cancels allocation notification records linked to this company.',
       'Clears job requirements, job imports, transport planning rows, and job asset assignments.',
-      'Keeps workers, users, company profile, global catalogues, and audit events.'
+      'Keeps workers, Daily Site Log records, source document uploads, users, company profile, global catalogues, and audit events.'
     ],
     workers: [
       'Archives active workers and marks them inactive.',
       'Cancels allocations linked to this company.',
       'Cancels allocation notification records linked to this company.',
       'Clears worker credentials, fatigue records, and task preferences.',
-      'Keeps jobs unallocated, users, company profile, global catalogues, and audit events.'
+      'Keeps jobs unallocated, Daily Site Log records, custom credential types, source document uploads, users, company profile, global catalogues, and audit events.'
     ],
     setup: [
       'Clears Our Business catalogue selections.',
       'Clears company assets and job asset assignments.',
+      'Archives custom credential types for this company.',
       'Resets operating mode to Plant + labour so setup is required again.',
-      'Keeps users, workers, jobs, global catalogues, and audit events.'
+      'Keeps users, workers, jobs, Daily Site Log records, source document uploads, global catalogues, and audit events.'
     ],
     all: [
       'Archives active jobs and workers.',
-      'Cancels allocations and allocation notifications, then clears imports, requirements, credentials, fatigue records, preferences, assets, and setup selections.',
-      'Keeps users, company profile, global catalogues, crane model catalogue, and audit reset events.',
+      'Cancels allocations and allocation notifications, then clears imports, requirements, credentials, fatigue records, preferences, site logs, assets, and setup selections.',
+      'Keeps users, company profile, source document uploads, global catalogues, crane model catalogue, and audit reset events.',
       'This is not a backup or restore system.'
     ]
   };
@@ -153,7 +157,14 @@ function clearSetup(db, companyId) {
   db.prepare(`DELETE FROM job_asset_assignments WHERE company_id = ?`).run(companyId);
   db.prepare(`DELETE FROM company_assets WHERE company_id = ?`).run(companyId);
   db.prepare(`DELETE FROM company_catalogue_selections WHERE company_id = ?`).run(companyId);
+  db.prepare(`UPDATE credential_types SET active = 0, updated_at = ? WHERE company_id = ?`)
+    .run(new Date().toISOString(), companyId);
   db.prepare(`UPDATE companies SET operating_mode = 'plant_and_labour' WHERE id = ?`).run(companyId);
+}
+
+function clearSiteLogs(db, companyId) {
+  db.prepare(`DELETE FROM site_log_entries WHERE company_id = ?`).run(companyId);
+  db.prepare(`DELETE FROM site_logs WHERE company_id = ?`).run(companyId);
 }
 
 function performCompanyReset(db, user, scope, confirmation) {
@@ -190,6 +201,7 @@ function performCompanyReset(db, user, scope, confirmation) {
 
     if (scope === 'jobs' || scope === 'all') clearJobs(db, user.company_id, user.id, now);
     if (scope === 'workers' || scope === 'all') clearWorkers(db, user.company_id, user.id, now);
+    if (scope === 'all') clearSiteLogs(db, user.company_id);
     if (scope === 'setup' || scope === 'all') clearSetup(db, user.company_id);
 
     const after = getCompanyResetPreview(db, user.company_id, scope);

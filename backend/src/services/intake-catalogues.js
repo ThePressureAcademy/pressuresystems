@@ -502,6 +502,7 @@ function normalizeCredentialType(value) {
   if (!key) return null;
   if (CREDENTIAL_ALIASES[key]) return CREDENTIAL_ALIASES[key];
   if (CREDENTIAL_LABELS[key]) return key;
+  if (key.startsWith('custom_')) return key;
   if (key.startsWith('credential_hrwl_')) {
     const suffix = key.replace('credential_hrwl_', '').replace(/^co$/, 'c0');
     const candidate = `hrwl_${suffix}`;

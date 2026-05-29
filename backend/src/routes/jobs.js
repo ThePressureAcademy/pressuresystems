@@ -143,7 +143,7 @@ function fetchSmartRankData(db, companyId) {
   });
 
   const allCredentials = db.prepare(
-    `SELECT * FROM credentials WHERE company_id = ?`
+    `SELECT * FROM credentials WHERE company_id = ? AND COALESCE(active, 1) = 1`
   ).all(companyId);
   const credentialsByWorker = {};
   for (const credential of allCredentials) {

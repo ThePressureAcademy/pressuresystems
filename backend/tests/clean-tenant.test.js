@@ -127,9 +127,9 @@ describe('clean tenant defaults', () => {
     assert.equal(catalogue.status, 200);
     assert.equal(catalogue.body.configured, false);
     assert.equal(catalogue.body.enabled_count, 0);
-    assert.ok(catalogue.body.recommended_count > 0);
+    assert.ok(catalogue.body.common_default_count > 0);
     assert.equal(catalogue.body.items.some((item) => item.is_enabled), false);
-    assert.ok(catalogue.body.items.some((item) => item.recommended_default));
+    assert.ok(catalogue.body.items.some((item) => item.common_default));
   });
 
   test('asset creation requires Plant + labour mode and a selected equipment or transport class', async () => {

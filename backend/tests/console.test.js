@@ -47,6 +47,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, />Import workers</);
     assert.match(res.text, /href="#\/schedule"/);
     assert.match(res.text, />Schedule</);
+    assert.match(res.text, /href="#\/site-log"/);
+    assert.match(res.text, />Daily Site Log</);
     assert.match(res.text, /href="#\/jobs"/);
     assert.match(res.text, /href="#\/our-business"/);
     assert.match(res.text, />Our Business</);
@@ -65,6 +67,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /\.credential-tile/);
     assert.match(res.text, /\.source-upload-card/);
     assert.match(res.text, /\.source-upload-boundary/);
+    assert.match(res.text, /\.credential-type-manager/);
+    assert.match(res.text, /\.daily-log-entry/);
   });
 
   test('GET /console/app.js returns the SPA bundle', async () => {
@@ -73,6 +77,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.headers['content-type'], /javascript/);
     assert.match(res.text, /renderDashboard/);
     assert.match(res.text, /renderSchedule/);
+    assert.match(res.text, /renderSiteLog/);
     assert.match(res.text, /renderWorkerImport/);
     assert.match(res.text, /renderJobBriefImport/);
     assert.match(res.text, /renderSmartRank/);
@@ -108,7 +113,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Test portal expired/);
     assert.match(res.text, /Contact Pressure Systems to extend access/);
     assert.match(res.text, /Remove worker from active dispatch\?/);
-    assert.match(res.text, /This will remove the worker from active dispatch and SmartRank recommendations\. Existing audit history will be kept\./);
+    assert.match(res.text, /This will remove the worker from active dispatch and SmartRank ranking\. Existing audit history will be kept\./);
     assert.match(res.text, /\/workers\/\$\{workerId\}\/remove/);
     assert.match(res.text, /Dispatch calendar/);
     assert.match(res.text, /Scheduled date/);
@@ -117,6 +122,14 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Schedule status/);
     assert.match(res.text, /Apply timezone/);
     assert.match(res.text, /double-booking is blocked or warned in SmartRank/i);
+    assert.match(res.text, /Daily Site Log/);
+    assert.match(res.text, /Historical onsite lookup/);
+    assert.match(res.text, /Print daily report/);
+    assert.match(res.text, /Generated from DispatchTalon pilot records\. Review before operational use\./);
+    assert.match(res.text, /No site log has been created for this date yet\./);
+    assert.match(res.text, /Start by adding a site\/job, then add workers to the log\./);
+    assert.match(res.text, /Sign in/);
+    assert.match(res.text, /Sign out/);
     assert.match(res.text, /Import job brief/);
     assert.match(res.text, /Paste or upload job details/);
     assert.match(res.text, /Review extracted job details/);
@@ -200,6 +213,10 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderCredentialTile/);
     assert.match(res.text, /credential-tile/);
     assert.match(res.text, /credential-tile__meta/);
+    assert.match(res.text, /Manage credential types/);
+    assert.match(res.text, /Add custom credential type/);
+    assert.match(res.text, /NZ SiteSafe/);
+    assert.match(res.text, /Credential type added/);
     assert.match(res.text, /Add credential/);
     assert.match(res.text, /Crane \/ equipment classes/);
     assert.match(res.text, /Site conditions/);
@@ -311,10 +328,14 @@ describe('Pilot console — static asset serving', () => {
       'renderCompanyResetPanel', // guarded company-scoped reset controls
       'renderWorkersList',   // workers list
       'renderWorkerImport',  // CSV / TSV import flow
+      'renderSiteLog',       // daily site log and historical onsite lookup
+      'renderSiteLogEntry',  // sign in / sign out worker row cards
+      'buildSiteLogEntryForm', // add worker to daily log
       'renderJobBriefImport',// job brief import flow
       'renderNewWorker',     // create worker
       'renderWorkerDetail',  // worker detail (also renders credentials + fatigue)
       'renderCredentialTile', // collapsible worker credential tiles
+      'buildCredentialTypeManager', // tenant custom credential type manager
       'renderJobsList',      // jobs list
       'renderNewJob',        // create job
       'renderJobDetail',     // job detail

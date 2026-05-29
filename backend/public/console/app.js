@@ -682,6 +682,7 @@ let companyCatalogueCache = null;
 let companyAssetsCache = null;
 let companySetupStateCache = null;
 let intakeOptionsCache = null;
+let credentialTypesCache = null;
 
 const LABOUR_ONLY_CATALOGUE_CATEGORIES = new Set(['credential', 'voc', 'civil', 'rail', 'energy']);
 const OUR_BUSINESS_SECTION_KEYS = [
@@ -781,6 +782,12 @@ async function loadIntakeOptions(force = false) {
   if (intakeOptionsCache && !force) return intakeOptionsCache;
   intakeOptionsCache = await api('GET', '/company/intake-options');
   return intakeOptionsCache;
+}
+
+async function loadCredentialTypes(force = false) {
+  if (credentialTypesCache && !force) return credentialTypesCache;
+  credentialTypesCache = await api('GET', '/credential-types');
+  return credentialTypesCache;
 }
 
 function boolLabel(value) {
@@ -1006,6 +1013,7 @@ function logout() {
   companyCatalogueCache = null;
   companyAssetsCache = null;
   companySetupStateCache = null;
+  credentialTypesCache = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(PASSWORD_REMINDER_DISMISSED_KEY);
@@ -1190,6 +1198,7 @@ function router() {
     'our-business': () => renderOurBusiness(renderCycle),
     'source-uploads': () => renderSourceUploads(renderCycle),
     schedule: () => renderSchedule(renderCycle),
+    'site-log': () => renderSiteLog(renderCycle),
     workers: () => {
       if (rest[0] === 'import') return renderWorkerImport(renderCycle);
       return rest[0] ? renderWorkerDetail(rest[0], renderCycle) : renderWorkersList(renderCycle);
@@ -1284,7 +1293,12 @@ function credPill(status) {
     expired: 'pill-bad',
     pending_verification: 'pill-info',
   };
-  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, formatDisplayLabel(status));
+  const labelMap = {
+    valid: 'Current',
+    expiring_soon: 'Expiring soon',
+    pending_verification: 'Needs review'
+  };
+  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, labelMap[status] || formatDisplayLabel(status));
 }
 
 function renderTagList(tags, emptyLabel = '-', labelLookup = null) {
@@ -1399,7 +1413,7 @@ function renderRequirementChecklist(catalogue, options = {}) {
       card.appendChild(el('label', { class: 'check-row' },
         box,
         el('span', {}, item.label),
-        item.recommended_default ? el('span', { class: 'pill pill-info' }, requirementMarkerLabel(item)) : null
+        item.common_default ? el('span', { class: 'pill pill-info' }, requirementMarkerLabel(item)) : null
       ));
     }
 
@@ -2561,25 +2575,25 @@ const RESET_OPTIONS = [
     scope: 'jobs',
     label: 'Clear jobs only',
     phrase: 'CLEAR JOBS',
-    description: 'Archives active jobs, clears job requirements/imports/asset assignments, and cancels company allocations. Workers remain.'
+    description: 'Archives active jobs, clears job requirements/imports/asset assignments, and cancels company allocations. Workers, Daily Site Log records, custom credential types, worker credentials, and source uploads remain.'
   },
   {
     scope: 'workers',
     label: 'Clear workers only',
     phrase: 'CLEAR WORKERS',
-    description: 'Archives active workers, clears worker credentials/fatigue/preferences, and cancels company allocations. Jobs remain unallocated.'
+    description: 'Archives active workers, clears worker credentials/fatigue/preferences, and cancels company allocations. Jobs, Daily Site Log records, custom credential types, and source uploads remain.'
   },
   {
     scope: 'setup',
     label: 'Clear Our Business setup only',
     phrase: 'CLEAR SETUP',
-    description: 'Clears catalogue selections and company assets, then returns Our Business to setup-required state. Users, jobs, and workers remain.'
+    description: 'Clears catalogue selections, company assets, job asset assignments, and archives custom credential types. Users, jobs, workers, Daily Site Log records, worker credentials, and source uploads remain.'
   },
   {
     scope: 'all',
     label: 'Clear all company operational data',
     phrase: 'CLEAR COMPANY DATA',
-    description: 'Archives active jobs/workers and clears operational setup, imports, requirements, credentials, fatigue, preferences, assets, and allocations. Users remain.'
+    description: 'Archives active jobs/workers and clears operational setup, imports, requirements, worker credentials, fatigue, preferences, Daily Site Log records, assets, and allocations. Users and source uploads remain.'
   }
 ];
 
@@ -2593,7 +2607,10 @@ function renderResetCountList(counts = {}) {
     ['active_allocations', 'active allocations'],
     ['allocation_notifications', 'allocation notifications'],
     ['job_imports', 'job imports'],
+    ['site_logs', 'Daily Site Log records'],
     ['catalogue_selections', 'setup selections'],
+    ['credential_types', 'active custom credential types'],
+    ['source_uploads', 'source uploads kept'],
     ['audit_events', 'audit events'],
     ['users', 'company users kept']
   ];
@@ -3354,6 +3371,371 @@ function buildSecurityPanel() {
   return panel;
 }
 
+function toDateTimeLocalValue(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (part) => String(part).padStart(2, '0');
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join('-') + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function dateTimeLocalToIso(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function siteLogStatusPill(status) {
+  const map = {
+    scheduled: 'pill-info',
+    signed_in: 'pill-ok',
+    signed_out: 'pill-muted',
+    absent: 'pill-warn',
+    removed: 'pill-bad',
+    manual_entry: 'pill-warn'
+  };
+  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, formatDisplayLabel(status));
+}
+
+function siteLogPrintFooter() {
+  return el('div', { class: 'daily-log-print-footer' },
+    'Generated from DispatchTalon pilot records. Review before operational use.'
+  );
+}
+
+async function renderSiteLog(renderCycle) {
+  const view = document.getElementById('view');
+  view.innerHTML = '';
+  const { query } = getHashState();
+  const date = query.get('date') || isoDateInTimeZone(new Date(), state.user?.company?.timezone || detectBrowserTimeZone());
+  const site = query.get('site') || '';
+  const worker = query.get('worker') || '';
+  const status = query.get('status') || '';
+  const params = new URLSearchParams({ date });
+  if (site) params.set('site', site);
+  if (worker) params.set('worker', worker);
+  if (status) params.set('status', status);
+
+  const [profile, siteLogPayload, workers, jobs, assetsPayload, intakeOptions] = await Promise.all([
+    loadCompanyProfile(),
+    api('GET', `/site-logs?${params.toString()}`),
+    api('GET', '/workers'),
+    api('GET', '/jobs').catch(() => []),
+    loadCompanyAssets().catch(() => ({ assets: [] })),
+    loadIntakeOptions()
+  ]);
+  if (isStaleRender(renderCycle)) return;
+
+  const logs = siteLogPayload.logs || [];
+  view.appendChild(el('div', { class: 'toolbar daily-log-toolbar' },
+    el('div', {},
+      el('p', { class: 'eyebrow' }, 'Daily Site Log'),
+      el('h2', {}, 'Staff diary and onsite history'),
+      el('p', { class: 'small muted' },
+        'Record who was onsite, when they signed in and out, and what role, plant, or site context was attached. This is an operational record, not payroll or compliance approval.'
+      )
+    ),
+    el('div', { class: 'button-row' },
+      el('button', {
+        type: 'button',
+        class: 'secondary',
+        onclick: () => window.print()
+      }, 'Print daily report')
+    )
+  ));
+
+  const filters = el('form', { class: 'panel daily-log-filters' });
+  filters.appendChild(el('h3', {}, 'Historical onsite lookup'));
+  filters.appendChild(el('div', { class: 'row' },
+    buildInput('date', 'Date', { type: 'date', value: date, required: true }),
+    buildInput('site', 'Site / job contains', { value: site, placeholder: 'Site, job, or client' }),
+    buildInput('worker', 'Worker contains', { value: worker, placeholder: 'Worker name' }),
+    buildSelect('status', 'Status', [
+      { value: '', label: 'All statuses' },
+      'scheduled',
+      'signed_in',
+      'signed_out',
+      'absent',
+      'manual_entry'
+    ], { value: status })
+  ));
+  filters.appendChild(el('div', { class: 'button-row' },
+    el('button', { type: 'submit' }, 'Lookup onsite history'),
+    el('a', { href: `#/site-log?date=${encodeURIComponent(isoDateInTimeZone(new Date(), profile.timezone || detectBrowserTimeZone()))}` },
+      el('button', { type: 'button', class: 'secondary' }, 'Today')
+    )
+  ));
+  filters.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const fd = new FormData(filters);
+    const next = new URLSearchParams();
+    next.set('date', fd.get('date'));
+    if (fd.get('site')) next.set('site', fd.get('site'));
+    if (fd.get('worker')) next.set('worker', fd.get('worker'));
+    if (fd.get('status')) next.set('status', fd.get('status'));
+    location.hash = `#/site-log?${next.toString()}`;
+  });
+  view.appendChild(filters);
+
+  view.appendChild(buildSiteLogCreatePanel({ date, jobs }));
+
+  const report = el('section', { class: 'daily-log-report', 'aria-label': 'Printable Daily Site Log' },
+    el('div', { class: 'daily-log-report-head' },
+      el('div', {},
+        el('p', { class: 'eyebrow' }, profile.display_name || profile.name || 'Company'),
+        el('h2', {}, 'Daily Site Log'),
+        el('p', { class: 'small muted' }, `Date: ${date} | Generated: ${fmtDate(new Date().toISOString())}`)
+      ),
+      el('span', { class: 'pill pill-info' }, `${logs.reduce((total, log) => total + (log.entries || []).length, 0)} entries`)
+    )
+  );
+
+  if (logs.length === 0) {
+    report.appendChild(el('div', { class: 'empty' },
+      'No site log has been created for this date yet.',
+      el('br'),
+      'Start by adding a site/job, then add workers to the log.'
+    ));
+  } else {
+    logs.forEach((log) => {
+      report.appendChild(renderSiteLogCard(log, {
+        workers,
+        assets: assetsPayload.assets || [],
+        intakeOptions
+      }));
+    });
+  }
+  report.appendChild(siteLogPrintFooter());
+  view.appendChild(report);
+}
+
+function buildSiteLogCreatePanel({ date, jobs = [] }) {
+  const panel = el('form', { class: 'panel daily-log-create-panel' });
+  const err = el('div', { class: 'error' });
+  const jobOptions = [{ value: '', label: 'No linked job' }, ...(jobs || []).map((job) => ({
+    value: job.id,
+    label: [job.site_name, job.client_name, job.date].filter(Boolean).join(' / ')
+  }))];
+  panel.appendChild(el('h3', {}, 'Create daily site log'));
+  panel.appendChild(el('p', { class: 'small muted' },
+    'Use this when a site diary needs to exist before workers are signed in. Existing jobs can be linked, but a standalone site log is also supported.'
+  ));
+  panel.appendChild(el('div', { class: 'row' },
+    buildInput('date', 'Date', { type: 'date', value: date, required: true }),
+    buildSelect('job_id', 'Linked job (optional)', jobOptions),
+    buildInput('site_name', 'Site / job name', { placeholder: 'Example: Queen St shutdown' }),
+    buildInput('client_name', 'Client (optional)'),
+    buildInput('location', 'Location (optional)')
+  ));
+  panel.appendChild(buildTextarea('notes', 'Daily notes', { placeholder: 'Weather, access, handover, site context' }));
+  panel.appendChild(err);
+  const submit = el('button', { type: 'submit' }, 'Create site log');
+  panel.appendChild(submit);
+  panel.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(panel);
+    setButtonBusy(submit, true, 'Create site log', 'Creating...');
+    try {
+      await api('POST', '/site-logs', {
+        date: fd.get('date'),
+        job_id: fd.get('job_id') || null,
+        site_name: fd.get('site_name') || null,
+        client_name: fd.get('client_name') || null,
+        location: fd.get('location') || null,
+        notes: fd.get('notes') || null
+      });
+      toast('Daily site log created', 'success');
+      location.hash = `#/site-log?date=${encodeURIComponent(fd.get('date'))}`;
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not create site log';
+    } finally {
+      setButtonBusy(submit, false, 'Create site log', 'Creating...');
+    }
+  });
+  return panel;
+}
+
+function renderSiteLogCard(log, context = {}) {
+  const card = el('article', { class: 'panel daily-log-card' });
+  card.appendChild(el('div', { class: 'daily-log-card-head' },
+    el('div', {},
+      el('h3', {}, log.site_name || 'Site log'),
+      el('p', { class: 'small muted' },
+        [log.client_name, log.location, log.job_name].filter(Boolean).join(' | ') || 'No client or location recorded.'
+      )
+    ),
+    el('span', { class: 'pill pill-info' }, `${(log.entries || []).length} worker(s)`)
+  ));
+  if (log.notes) card.appendChild(el('p', { class: 'small' }, log.notes));
+  card.appendChild(buildSiteLogEntryForm(log, context));
+
+  const entries = el('div', { class: 'daily-log-entry-list' });
+  if (!log.entries || log.entries.length === 0) {
+    entries.appendChild(el('div', { class: 'empty' }, 'No workers added to this site log yet.'));
+  } else {
+    log.entries.forEach((entry) => entries.appendChild(renderSiteLogEntry(log, entry)));
+  }
+  card.appendChild(entries);
+  return card;
+}
+
+function buildSiteLogEntryForm(log, { workers = [], assets = [], intakeOptions = {} }) {
+  const form = el('form', { class: 'daily-log-entry-form' });
+  const err = el('div', { class: 'error' });
+  const workerOptions = [{ value: '', label: 'Select worker' }, ...workers.map((worker) => ({
+    value: worker.id,
+    label: [worker.name, labelsFromValues(worker.roles || [worker.role]).join(', ')].filter(Boolean).join(' / ')
+  }))];
+  const assetOptions = [{ value: '', label: 'No assigned plant / asset' }, ...assets.map((asset) => ({
+    value: asset.id,
+    label: asset.display_name || asset.asset_number
+  }))];
+  form.appendChild(el('h3', {}, 'Add worker to log'));
+  form.appendChild(el('div', { class: 'row' },
+    buildSelect('worker_id', 'Worker', workerOptions, { required: true }),
+    buildGroupedSelect('role', 'Role / trade', intakeOptions.worker_role_groups || [], { placeholder: 'Use worker role' }),
+    buildSelect('company_asset_id', 'Assigned plant / asset', assetOptions),
+    buildSelect('status', 'Initial status', ['scheduled', 'manual_entry'], { value: 'scheduled' })
+  ));
+  form.appendChild(buildTextarea('notes', 'Notes', { placeholder: 'Optional site diary note for this worker' }));
+  form.appendChild(err);
+  const submit = el('button', { type: 'submit', class: 'secondary' }, 'Add worker');
+  form.appendChild(submit);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    setButtonBusy(submit, true, 'Add worker', 'Adding...');
+    try {
+      await api('POST', `/site-logs/${log.id}/entries`, {
+        worker_id: fd.get('worker_id'),
+        role: fd.get('role') || null,
+        company_asset_id: fd.get('company_asset_id') || null,
+        status: fd.get('status') || 'scheduled',
+        notes: fd.get('notes') || null
+      });
+      toast('Worker added to site log', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not add worker to site log';
+    } finally {
+      setButtonBusy(submit, false, 'Add worker', 'Adding...');
+    }
+  });
+  return form;
+}
+
+function renderSiteLogEntry(log, entry) {
+  const row = el('div', { class: `daily-log-entry daily-log-entry--${entry.status}` });
+  row.appendChild(el('div', { class: 'daily-log-entry-main' },
+    el('strong', {}, entry.worker_name || 'Worker'),
+    el('span', { class: 'small muted' }, [
+      entry.role_label || formatDisplayLabel(entry.role) || 'Role not set',
+      entry.asset_name || null
+    ].filter(Boolean).join(' | '))
+  ));
+  row.appendChild(el('div', { class: 'daily-log-entry-times' },
+    el('span', {}, `In: ${entry.sign_in_time ? fmtDate(entry.sign_in_time) : '-'}`),
+    el('span', {}, `Out: ${entry.sign_out_time ? fmtDate(entry.sign_out_time) : '-'}`)
+  ));
+  row.appendChild(el('div', { class: 'daily-log-entry-status' }, siteLogStatusPill(entry.status)));
+
+  const actions = el('div', { class: 'button-row daily-log-entry-actions' });
+  if (!['signed_in', 'signed_out', 'removed'].includes(entry.status)) {
+    actions.appendChild(el('button', {
+      type: 'button',
+      onclick: async () => {
+        try {
+          await api('POST', `/site-logs/${log.id}/entries/${entry.id}/sign-in`, {});
+          toast('Worker signed in.', 'success');
+          router();
+        } catch (error) {
+          toast(error.error || 'Could not sign worker in', 'error');
+        }
+      }
+    }, 'Sign in'));
+  }
+  if (entry.status === 'signed_in') {
+    actions.appendChild(el('button', {
+      type: 'button',
+      onclick: async () => {
+        try {
+          await api('POST', `/site-logs/${log.id}/entries/${entry.id}/sign-out`, {});
+          toast('Worker signed out.', 'success');
+          router();
+        } catch (error) {
+          toast(error.error || 'Could not sign worker out', 'error');
+        }
+      }
+    }, 'Sign out'));
+  }
+  if (entry.status !== 'removed') {
+    actions.appendChild(el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: async () => {
+        const reason = window.prompt('Optional removal note');
+        try {
+          await api('POST', `/site-logs/${log.id}/entries/${entry.id}/remove`, { notes: reason || null });
+          toast('Site log entry removed', 'success');
+          router();
+        } catch (error) {
+          toast(error.error || 'Could not remove site log entry', 'error');
+        }
+      }
+    }, 'Remove'));
+  }
+  row.appendChild(actions);
+
+  if (entry.status === 'removed') {
+    row.appendChild(el('p', { class: 'small muted daily-log-entry-note' },
+      'Removed entries are locked out of normal sign-in, sign-out, and time-edit workflows.'
+    ));
+  } else {
+    const edit = el('details', { class: 'daily-log-entry-edit' },
+      el('summary', {}, 'Edit time / note')
+    );
+    const form = el('form', {});
+    const err = el('div', { class: 'error' });
+    form.appendChild(el('div', { class: 'row' },
+      buildInput('sign_in_time', 'Sign-in time', { type: 'datetime-local', value: toDateTimeLocalValue(entry.sign_in_time) }),
+      buildInput('sign_out_time', 'Sign-out time', { type: 'datetime-local', value: toDateTimeLocalValue(entry.sign_out_time) }),
+      buildSelect('status', 'Status', ['scheduled', 'signed_in', 'signed_out', 'absent', 'manual_entry'], { value: entry.status })
+    ));
+    form.appendChild(buildTextarea('notes', 'Notes', { value: entry.notes || '' }));
+    form.appendChild(err);
+    form.appendChild(el('button', { type: 'submit', class: 'secondary' }, 'Save entry'));
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      err.textContent = '';
+      const fd = new FormData(form);
+      try {
+        await api('PATCH', `/site-logs/${log.id}/entries/${entry.id}`, {
+          sign_in_time: dateTimeLocalToIso(fd.get('sign_in_time')),
+          sign_out_time: dateTimeLocalToIso(fd.get('sign_out_time')),
+          status: fd.get('status'),
+          notes: fd.get('notes') || null
+        });
+        toast('Site log entry updated', 'success');
+        router();
+      } catch (error) {
+        err.textContent = error.error || 'Could not update site log entry';
+      }
+    });
+    edit.appendChild(form);
+    row.appendChild(edit);
+  }
+  if (entry.notes) row.appendChild(el('p', { class: 'small muted daily-log-entry-note' }, entry.notes));
+  return row;
+}
+
 async function renderSchedule(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
@@ -3753,12 +4135,13 @@ async function renderWorkerDetail(workerId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [worker, credentials, fatigue, preferences, intakeOptions] = await Promise.all([
+  const [worker, credentials, fatigue, preferences, intakeOptions, credentialTypes] = await Promise.all([
     api('GET', `/workers/${workerId}`),
     api('GET', `/workers/${workerId}/credentials`),
     api('GET', `/workers/${workerId}/fatigue-records`),
     api('GET', `/workers/${workerId}/preferences`),
-    loadIntakeOptions()
+    loadIntakeOptions(),
+    loadCredentialTypes()
   ]);
   if (isStaleRender(renderCycle)) return;
   const workerArchived = Boolean(worker.archived_at);
@@ -3850,7 +4233,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
     const removeSubmit = el('button', { type: 'submit', class: 'danger' }, 'Remove worker');
     removePanel.appendChild(el('h3', {}, 'Remove worker from active dispatch?'));
     removePanel.appendChild(el('p', { class: 'small muted' },
-      'This will remove the worker from active dispatch and SmartRank recommendations. Existing audit history will be kept.'
+      'This will remove the worker from active dispatch and SmartRank ranking. Existing audit history will be kept.'
     ));
     removePanel.appendChild(buildTextarea('reason', 'Reason (optional)', {
       placeholder: 'Optional internal note for why this worker is being removed from active dispatch'
@@ -3864,7 +4247,7 @@ async function renderWorkerDetail(workerId, renderCycle) {
       event.preventDefault();
       removeErr.textContent = '';
       const confirmed = window.confirm(
-        'Remove worker from active dispatch?\n\nThis will remove the worker from active dispatch and SmartRank recommendations. Existing audit history will be kept.'
+        'Remove worker from active dispatch?\n\nThis will remove the worker from active dispatch and SmartRank ranking. Existing audit history will be kept.'
       );
       if (!confirmed) return;
 
@@ -4007,7 +4390,8 @@ async function renderWorkerDetail(workerId, renderCycle) {
       'Archived workers keep existing credential history, but new credential entries are disabled in the active pilot workflow.'
     ));
   } else {
-    credPanel.appendChild(buildCredentialForm(workerId, intakeOptions));
+    credPanel.appendChild(buildCredentialTypeManager(credentialTypes));
+    credPanel.appendChild(buildCredentialForm(workerId, intakeOptions, credentialTypes));
   }
   view.appendChild(credPanel);
 
@@ -4052,50 +4436,179 @@ async function renderWorkerDetail(workerId, renderCycle) {
 function renderCredentialTile(credential) {
   const status = credential.status || '';
   const tile = el('details', { class: 'credential-tile' });
+  const label = credential.type_label || formatDisplayLabel(credential.type) || 'Credential';
   tile.appendChild(el('summary', {},
     el('span', { class: 'credential-tile__title' },
-      el('strong', {}, formatDisplayLabel(credential.type) || 'Credential'),
+      el('strong', {}, label),
       el('span', { class: 'small muted' }, credential.identifier || 'No identifier recorded')
     ),
     el('span', { class: 'credential-tile__meta' },
       status ? credPill(status) : el('span', { class: 'pill pill-warn' }, 'Needs review'),
       credential.expiry_date ? el('span', { class: 'small muted' }, `Expires ${fmtDateOnly(credential.expiry_date)}`) : el('span', { class: 'small muted' }, 'No expiry recorded'),
-      el('span', { class: `pill credential-tile__status ${credential.verified ? 'pill-ok' : 'pill-warn'}` }, credential.verified ? 'Verified' : 'Not verified')
+      el('span', { class: `pill credential-tile__status ${credential.verified ? 'pill-ok' : 'pill-warn'}` }, credential.verified ? 'Confirmed' : 'Needs confirmation')
     ),
     el('span', { class: 'tile-disclosure-label' }, 'Details')
   ));
 
   tile.appendChild(el('div', { class: 'credential-tile__body' },
     el('div', { class: 'kv' },
-      el('div', {}, 'Credential details'), el('div', {}, formatDisplayLabel(credential.type) || '-'),
+      el('div', {}, 'Credential type'), el('div', {}, label),
       el('div', {}, 'Identifier'), el('div', {}, credential.identifier || '-'),
       el('div', {}, 'Issuing body'), el('div', {}, credential.issuing_body || '-'),
       el('div', {}, 'Issued'), el('div', {}, fmtDateOnly(credential.issue_date)),
       el('div', {}, 'Expires'), el('div', {}, fmtDateOnly(credential.expiry_date)),
       el('div', {}, 'Status'), el('div', {}, status ? credPill(status) : 'Needs review'),
-      el('div', {}, 'Verified'), el('div', {}, credential.verified ? 'Yes' : 'No')
+      el('div', {}, 'Review state'), el('div', {}, credential.verified ? 'Confirmed' : 'Needs confirmation')
     )
   ));
 
   return tile;
 }
 
-function buildCredentialForm(workerId, intakeOptions = {}) {
-  const form = el('form', { style: 'margin-top:16px;' });
-  const errBox = el('div', { class: 'error' });
-  const credentialGroups = intakeOptions.credential_groups || [{
+function credentialTypeGroupsForForm(intakeOptions = {}, credentialTypes = {}) {
+  const groups = (intakeOptions.credential_groups || [{
     group: 'Credentials',
     options: CREDENTIAL_OPTIONS.map((value) => ({ value, label: formatDisplayLabel(value) }))
-  }];
+  }]).map((group) => ({
+    group: group.group,
+    options: (group.options || []).map((option) => ({
+      value: option.value,
+      label: option.label
+    }))
+  }));
+  if ((credentialTypes.custom || []).length) {
+    groups.push({
+      group: 'Business-specific credential',
+      options: credentialTypes.custom
+        .filter((item) => item.active !== false)
+        .map((item) => ({ value: item.id, label: item.label || item.name }))
+    });
+  }
+  return groups;
+}
+
+function buildCredentialTypeManager(credentialTypes = {}) {
+  const panel = el('details', { class: 'credential-type-manager' },
+    el('summary', {}, 'Manage credential types')
+  );
+  panel.appendChild(el('p', { class: 'small muted' },
+    'Add business-specific credential or licence types such as NZ SiteSafe. These are tenant credential types and do not change global DispatchTalon defaults.'
+  ));
+
+  const list = el('div', { class: 'credential-type-list' });
+  const custom = credentialTypes.custom || [];
+  if (custom.length === 0) {
+    list.appendChild(el('div', { class: 'empty' }, 'No custom credential types added yet.'));
+  } else {
+    custom.forEach((item) => {
+      list.appendChild(el('div', { class: 'credential-type-row' },
+        el('div', {},
+          el('strong', {}, item.name || item.label),
+          el('div', { class: 'small muted' }, [formatDisplayLabel(item.category), item.region].filter(Boolean).join(' / ') || 'Business-specific credential')
+        ),
+        el('div', { class: 'button-row' },
+          el('button', {
+            type: 'button',
+            class: 'secondary',
+            onclick: () => {
+              const form = panel.querySelector('form');
+              form.elements.credential_type_id.value = item.id;
+              form.elements.name.value = item.name || item.label || '';
+              form.elements.category.value = item.category || 'other';
+              form.elements.region.value = item.region || '';
+              form.elements.description.value = item.description || '';
+              form.querySelector('[data-mode]').textContent = 'Edit custom credential type';
+            }
+          }, 'Edit'),
+          item.active === false ? el('span', { class: 'pill pill-muted' }, 'Archived') : el('button', {
+            type: 'button',
+            class: 'secondary',
+            onclick: async () => {
+              try {
+                await api('POST', `/credential-types/${item.id}/archive`, {});
+                credentialTypesCache = null;
+                toast('Credential type archived', 'success');
+                router();
+              } catch (error) {
+                toast(error.error || 'Could not archive credential type', 'error');
+              }
+            }
+          }, 'Archive')
+        )
+      ));
+    });
+  }
+  panel.appendChild(list);
+
+  const form = el('form', { class: 'credential-type-form' });
+  const err = el('div', { class: 'error' });
+  form.appendChild(el('h3', { 'data-mode': 'true' }, 'Add custom credential type'));
+  form.appendChild(el('input', { type: 'hidden', name: 'credential_type_id' }));
+  form.appendChild(el('div', { class: 'row' },
+    buildInput('name', 'Credential type name', { placeholder: 'NZ SiteSafe', required: true }),
+    buildSelect('category', 'Category', ['site_access', 'licence', 'high_risk_work', 'induction', 'VOC', 'medical', 'client_requirement', 'other'], { value: 'site_access' }),
+    buildInput('region', 'Region (optional)', { placeholder: 'NZ, AU, QLD' })
+  ));
+  form.appendChild(buildTextarea('description', 'Description (optional)', { placeholder: 'Optional internal note for this credential type' }));
+  form.appendChild(err);
+  form.appendChild(el('div', { class: 'button-row' },
+    el('button', { type: 'submit' }, 'Save credential type'),
+    el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: () => {
+        form.reset();
+        form.elements.credential_type_id.value = '';
+        form.querySelector('[data-mode]').textContent = 'Add custom credential type';
+      }
+    }, 'Clear')
+  ));
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    const credentialTypeId = String(fd.get('credential_type_id') || '');
+    const payload = {
+      name: fd.get('name'),
+      category: fd.get('category'),
+      region: fd.get('region') || null,
+      description: fd.get('description') || null
+    };
+    try {
+      if (credentialTypeId) {
+        await api('PATCH', `/credential-types/${credentialTypeId}`, payload);
+        toast('Credential type updated', 'success');
+      } else {
+        await api('POST', '/credential-types', payload);
+        toast('Credential type added', 'success');
+      }
+      credentialTypesCache = null;
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not save credential type';
+    }
+  });
+  panel.appendChild(form);
+  return panel;
+}
+
+function buildCredentialForm(workerId, intakeOptions = {}, credentialTypes = {}) {
+  const form = el('form', { style: 'margin-top:16px;' });
+  const errBox = el('div', { class: 'error' });
+  const credentialGroups = credentialTypeGroupsForForm(intakeOptions, credentialTypes);
   form.appendChild(el('h3', {}, 'Add credential'));
   form.appendChild(el('div', { class: 'row' },
-    buildGroupedSelect('type', 'Type', credentialGroups, { required: true }),
+    buildGroupedSelect('type', 'Credential type', credentialGroups, { required: true }),
     buildInput('identifier', 'Identifier'),
     buildInput('issuing_body', 'Issuing body'),
     buildInput('issue_date', 'Issue date', { type: 'date' }),
     buildInput('expiry_date', 'Expiry date', { type: 'date' }),
-    buildSelect('verified', 'Verified', ['false', 'true'])
+    buildSelect('verified', 'Review state', [
+      { value: 'false', label: 'Needs confirmation' },
+      { value: 'true', label: 'Confirmed' }
+    ])
   ));
+  form.appendChild(buildTextarea('notes', 'Notes', { placeholder: 'Optional credential register note' }));
   form.appendChild(errBox);
   form.appendChild(el('button', { type: 'submit' }, 'Add credential'));
   form.addEventListener('submit', async (event) => {
@@ -4104,12 +4617,14 @@ function buildCredentialForm(workerId, intakeOptions = {}) {
     const fd = new FormData(form);
     try {
       await api('POST', `/workers/${workerId}/credentials`, {
-        type: fd.get('type'),
+        type: fd.get('type') && !String(fd.get('type')).includes('-') ? fd.get('type') : null,
+        credential_type_id: fd.get('type') && String(fd.get('type')).includes('-') ? fd.get('type') : null,
         identifier: fd.get('identifier') || null,
         issuing_body: fd.get('issuing_body') || null,
         issue_date: fd.get('issue_date') || null,
         expiry_date: fd.get('expiry_date') || null,
-        verified: fd.get('verified') === 'true'
+        verified: fd.get('verified') === 'true',
+        notes: fd.get('notes') || null
       });
       toast('Credential added', 'success');
       router();
@@ -6128,7 +6643,7 @@ async function renderInternalPilotMonitor(renderCycle) {
     el('p', { class: 'small muted' },
       'This table intentionally shows counts, dates, event categories, engagement stage, and follow-up prompts only. It does not expose operational payloads or customer job content.'
     ),
-    renderPilotActivityTable(companies)
+    el('div', { class: 'business-table-wrapper' }, renderPilotActivityTable(companies))
   ));
 
   view.appendChild(renderInternalSourceUploadsTable(sourceUploadData));

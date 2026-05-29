@@ -186,7 +186,7 @@ const CATALOGUE_ITEMS = [
   item('transport', 'Transport', 'SPMT_MODULAR_TRANSPORT', 'SPMT / Modular Transport', 'transport_spmt_modular_transport', 'Specialist heavy transport planning item; review required.', 'medium')
 ];
 
-const RECOMMENDED_DEFAULT_KEYS = new Set([
+const COMMON_DEFAULT_KEYS = new Set([
   'credential_white_card',
   'credential_hrwl_c6',
   'credential_hrwl_dg',
@@ -456,7 +456,7 @@ function getCompanyOperatingMode(db, companyId) {
 }
 
 function defaultKeysForOperatingMode(mode) {
-  return mode === 'labour_only' ? LABOUR_ONLY_DEFAULT_KEYS : RECOMMENDED_DEFAULT_KEYS;
+  return mode === 'labour_only' ? LABOUR_ONLY_DEFAULT_KEYS : COMMON_DEFAULT_KEYS;
 }
 
 function listCompanyCatalogueSelections(db, companyId) {
@@ -484,7 +484,7 @@ function listCompanyCatalogueSelections(db, companyId) {
       ...serializeItem(row, enabled),
       display_order: row.display_order,
       selection_notes: row.selection_notes,
-      recommended_default: defaultKeys.has(row.normalized_key)
+      common_default: defaultKeys.has(row.normalized_key)
     };
   });
 
@@ -494,7 +494,7 @@ function listCompanyCatalogueSelections(db, companyId) {
     items,
     grouped: groupItems(items),
     enabled_count: items.filter((itemRow) => itemRow.is_enabled).length,
-    recommended_count: items.filter((itemRow) => itemRow.recommended_default).length,
+    common_default_count: items.filter((itemRow) => itemRow.common_default).length,
     requires_setup: !configured
   };
 }
@@ -825,7 +825,7 @@ module.exports = {
   LABOUR_ONLY_DEFAULT_KEYS,
   LABOUR_REQUIREMENT_CATEGORIES,
   PLANT_REQUIREMENT_CATEGORIES,
-  RECOMMENDED_DEFAULT_KEYS,
+  COMMON_DEFAULT_KEYS,
   applyStructuredRequirementsToJob,
   addCustomRequirementToJob,
   getCompanyOperatingMode,

@@ -55,6 +55,9 @@ function buildCompanySetupState(db, companyId) {
     assets: countCompanyRowsWhere(db, 'company_assets', companyId, `asset_status != 'retired'`),
     allocations: countCompanyRowsWhere(db, 'allocations', companyId, `status != 'cancelled'`),
     job_imports: countCompanyRows(db, 'job_imports', companyId),
+    site_logs: countCompanyRows(db, 'site_logs', companyId),
+    credential_types: countCompanyRowsWhere(db, 'credential_types', companyId, 'active = 1'),
+    source_uploads: countCompanyRowsWhere(db, 'source_uploads', companyId, 'deleted_at IS NULL'),
     catalogue_selections: countCompanyRows(db, 'company_catalogue_selections', companyId),
     audit_events: countCompanyRows(db, 'audit_events', companyId)
   };
@@ -65,7 +68,9 @@ function buildCompanySetupState(db, companyId) {
     'fatigue_records',
     'assets',
     'allocations',
-    'job_imports'
+    'job_imports',
+    'site_logs',
+    'credential_types'
   ].some((key) => counts[key] > 0);
 
   return {
@@ -73,7 +78,7 @@ function buildCompanySetupState(db, companyId) {
     operating_mode: catalogue.operating_mode,
     catalogue_configured: Boolean(catalogue.configured),
     enabled_catalogue_count: catalogue.enabled_count,
-    recommended_catalogue_count: catalogue.recommended_count || 0,
+    common_default_catalogue_count: catalogue.common_default_count || 0,
     counts,
     is_first_run: !catalogue.configured && !hasOperationalData,
     next_actions: [

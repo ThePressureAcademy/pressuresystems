@@ -205,7 +205,7 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(other.body.configured, false);
     assert.equal(other.body.enabled_count, 0);
     assert.equal(
-      other.body.items.some((item) => item.normalized_key === 'transport_semi_trailer' && item.recommended_default && !item.is_enabled),
+      other.body.items.some((item) => item.normalized_key === 'transport_semi_trailer' && item.common_default && !item.is_enabled),
       true
     );
   });
@@ -238,15 +238,15 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(otherProfile.body.operating_mode, 'plant_and_labour');
   });
 
-  test('fresh company receives recommended catalogue markers without saved enabled selections', async () => {
+  test('fresh company receives common default catalogue markers without saved enabled selections', async () => {
     const before = await request.get('/api/company/catalogue-selections').set(auth());
     assert.equal(before.status, 200);
     assert.equal(before.body.operating_mode, 'plant_and_labour');
     assert.equal(before.body.configured, false);
     assert.equal(before.body.enabled_count, 0);
-    assert.equal(before.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').recommended_default, true);
+    assert.equal(before.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').common_default, true);
     assert.equal(before.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled, false);
-    assert.equal(before.body.items.find((item) => item.normalized_key === 'transport_low_loader').recommended_default, true);
+    assert.equal(before.body.items.find((item) => item.normalized_key === 'transport_low_loader').common_default, true);
     assert.equal(before.body.items.find((item) => item.normalized_key === 'transport_low_loader').is_enabled, false);
 
     const switched = await request.patch('/api/company/profile').set(auth()).send({
@@ -259,9 +259,9 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(labour.body.operating_mode, 'labour_only');
     assert.equal(labour.body.configured, false);
     assert.equal(labour.body.enabled_count, 0);
-    assert.equal(labour.body.items.find((item) => item.normalized_key === 'credential_hrwl_c6').recommended_default, true);
+    assert.equal(labour.body.items.find((item) => item.normalized_key === 'credential_hrwl_c6').common_default, true);
     assert.equal(labour.body.items.find((item) => item.normalized_key === 'credential_hrwl_c6').is_enabled, false);
-    assert.equal(labour.body.items.find((item) => item.normalized_key === 'civil_telehandler').recommended_default, true);
+    assert.equal(labour.body.items.find((item) => item.normalized_key === 'civil_telehandler').common_default, true);
     assert.equal(labour.body.items.find((item) => item.normalized_key === 'civil_telehandler').is_enabled, false);
     assert.equal(labour.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled, false);
     assert.equal(labour.body.items.find((item) => item.normalized_key === 'transport_low_loader').is_enabled, false);
@@ -270,7 +270,7 @@ describe('Job intake requirement catalogue', () => {
     assert.equal(other.status, 200);
     assert.equal(other.body.operating_mode, 'plant_and_labour');
     assert.equal(other.body.enabled_count, 0);
-    assert.equal(other.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').recommended_default, true);
+    assert.equal(other.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').common_default, true);
     assert.equal(other.body.items.find((item) => item.normalized_key === 'equipment_mobile_crane_100t').is_enabled, false);
   });
 

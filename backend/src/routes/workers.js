@@ -18,6 +18,7 @@ const {
   normalizeWorkerRoles,
   workerRoleLabel
 } = require('../services/intake-catalogues');
+const { resolveCredentialTypeSelection } = require('../services/credential-types');
 
 const router = express.Router();
 
@@ -96,9 +97,14 @@ function computeCredStatus(type, expiryDate, today = new Date()) {
 
 function serializeCredential(credential) {
   if (!credential) return null;
+  const label = credential.credential_name_snapshot
+    || credential.credential_type_name
+    || credentialDisplayLabel(credential.type);
   return {
     ...credential,
-    type_label: credentialDisplayLabel(credential.type)
+    active: credential.active == null ? true : Boolean(credential.active),
+    type_label: label,
+    status_label: credential.status === 'valid' ? 'Current' : credentialDisplayLabel(credential.status)
   };
 }
 
@@ -876,11 +882,20 @@ router.get('/:id/credentials', requireAuth, (req, res) => {
   if (!worker) return res.status(404).json({ error: 'Worker not found' });
 
   const credentials = db.prepare(`
-    SELECT *
-    FROM credentials
-    WHERE worker_id = ?
-    ORDER BY type, expiry_date DESC
-  `).all(req.params.id);
+    SELECT
+      c.*,
+      ct.name AS credential_type_name,
+      ct.category AS credential_type_category,
+      ct.region AS credential_type_region
+    FROM credentials c
+    LEFT JOIN credential_types ct
+      ON ct.id = c.credential_type_id
+      AND ct.company_id = c.company_id
+    WHERE c.worker_id = ?
+      AND c.company_id = ?
+      AND COALESCE(c.active, 1) = 1
+    ORDER BY COALESCE(c.credential_name_snapshot, ct.name, c.type), c.expiry_date DESC
+  `).all(req.params.id, req.user.company_id);
 
   res.json(credentials.map(serializeCredential));
 });
@@ -891,27 +906,31 @@ router.post('/:id/credentials', requireAuth, requireRole('admin', 'dispatcher'),
   const worker = ensureWorker(db, req.params.id, req.user.company_id);
   if (!ensureActiveWorkerOrResponse(res, worker)) return;
 
-  const { type, identifier, issuing_body, issue_date, expiry_date, verified, notes } = req.body;
+  const { type, credential_type_id, identifier, issuing_body, issue_date, expiry_date, verified, notes } = req.body;
 
-  if (!type) return res.status(400).json({ error: 'type is required' });
-  const normalizedType = normalizeCredentialType(type);
-  if (!normalizedType || !VALID_CRED_TYPES.includes(normalizedType)) {
-    return res.status(400).json({ error: 'credential type is not recognised' });
+  if (!type && !credential_type_id) return res.status(400).json({ error: 'credential type is required' });
+  let resolvedType;
+  try {
+    resolvedType = resolveCredentialTypeSelection(db, req.user.company_id, { type, credential_type_id });
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message || 'credential type is not recognised' });
   }
 
-  const status = computeCredStatus(normalizedType, expiry_date);
+  const status = computeCredStatus(resolvedType.type, expiry_date);
   const id = randomUUID();
 
   db.prepare(`
     INSERT INTO credentials (
-      id, worker_id, company_id, type, identifier, issuing_body,
-      issue_date, expiry_date, verified, status, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, worker_id, company_id, credential_type_id, credential_name_snapshot,
+      type, identifier, issuing_body, issue_date, expiry_date, verified, status, notes, active
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
   `).run(
     id,
     req.params.id,
     req.user.company_id,
-    normalizedType,
+    resolvedType.credential_type_id,
+    resolvedType.label,
+    resolvedType.type,
     identifier || null,
     issuing_body || null,
     issue_date || null,
@@ -929,13 +948,18 @@ router.post('/:id/credentials', requireAuth, requireRole('admin', 'dispatcher'),
     payload: {
       action: 'credential_created',
       credential_id: id,
-      type: normalizedType,
-      label: credentialDisplayLabel(normalizedType),
+      type: resolvedType.type,
+      label: resolvedType.label,
       status
     }
   });
 
-  res.status(201).json(serializeCredential(db.prepare(`SELECT * FROM credentials WHERE id = ?`).get(id)));
+  res.status(201).json(serializeCredential(db.prepare(`
+    SELECT c.*, ct.name AS credential_type_name
+    FROM credentials c
+    LEFT JOIN credential_types ct ON ct.id = c.credential_type_id AND ct.company_id = c.company_id
+    WHERE c.id = ?
+  `).get(id)));
 });
 
 // PATCH /api/workers/:id/credentials/:credId
@@ -951,11 +975,20 @@ router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'disp
 
   if (!credential) return res.status(404).json({ error: 'Credential not found' });
 
-  const nextType = hasOwn(req.body, 'type')
-    ? normalizeCredentialType(req.body.type)
-    : credential.type;
-  if (!nextType || !VALID_CRED_TYPES.includes(nextType)) {
-    return res.status(400).json({ error: 'credential type is not recognised' });
+  let resolvedType = {
+    credential_type_id: credential.credential_type_id || null,
+    type: credential.type,
+    label: credential.credential_name_snapshot || credentialDisplayLabel(credential.type)
+  };
+  if (hasOwn(req.body, 'type') || hasOwn(req.body, 'credential_type_id')) {
+    try {
+      resolvedType = resolveCredentialTypeSelection(db, req.user.company_id, {
+        type: req.body.type,
+        credential_type_id: req.body.credential_type_id
+      });
+    } catch (error) {
+      return res.status(error.status || 400).json({ error: error.message || 'credential type is not recognised' });
+    }
   }
   const nextIdentifier = hasOwn(req.body, 'identifier') ? normalizeNullableText(req.body.identifier) : credential.identifier;
   const nextIssuingBody = hasOwn(req.body, 'issuing_body') ? normalizeNullableText(req.body.issuing_body) : credential.issuing_body;
@@ -963,12 +996,14 @@ router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'disp
   const nextExpiryDate = hasOwn(req.body, 'expiry_date') ? normalizeNullableText(req.body.expiry_date) : credential.expiry_date;
   const nextVerified = hasOwn(req.body, 'verified') ? (req.body.verified ? 1 : 0) : credential.verified;
   const nextNotes = hasOwn(req.body, 'notes') ? normalizeNullableText(req.body.notes) : credential.notes;
-  const nextStatus = computeCredStatus(nextType, nextExpiryDate);
+  const nextStatus = computeCredStatus(resolvedType.type, nextExpiryDate);
   const now = new Date().toISOString();
 
   db.prepare(`
     UPDATE credentials
-    SET type = ?,
+    SET credential_type_id = ?,
+        credential_name_snapshot = ?,
+        type = ?,
         identifier = ?,
         issuing_body = ?,
         issue_date = ?,
@@ -979,7 +1014,9 @@ router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'disp
         updated_at = ?
     WHERE id = ?
   `).run(
-    nextType,
+    resolvedType.credential_type_id,
+    resolvedType.label,
+    resolvedType.type,
     nextIdentifier,
     nextIssuingBody,
     nextIssueDate,
@@ -999,15 +1036,20 @@ router.patch('/:id/credentials/:credId', requireAuth, requireRole('admin', 'disp
     payload: {
       action: 'credential_updated',
       credential_id: req.params.credId,
-      type: nextType,
-      label: credentialDisplayLabel(nextType),
-      changed_fields: ['type', 'identifier', 'issuing_body', 'issue_date', 'expiry_date', 'verified', 'notes']
+      type: resolvedType.type,
+      label: resolvedType.label,
+      changed_fields: ['type', 'credential_type_id', 'identifier', 'issuing_body', 'issue_date', 'expiry_date', 'verified', 'notes']
         .filter((field) => hasOwn(req.body, field)),
       status: nextStatus
     }
   });
 
-  res.json(serializeCredential(db.prepare(`SELECT * FROM credentials WHERE id = ?`).get(req.params.credId)));
+  res.json(serializeCredential(db.prepare(`
+    SELECT c.*, ct.name AS credential_type_name
+    FROM credentials c
+    LEFT JOIN credential_types ct ON ct.id = c.credential_type_id AND ct.company_id = c.company_id
+    WHERE c.id = ?
+  `).get(req.params.credId)));
 });
 
 // GET /api/workers/:id/fatigue-records

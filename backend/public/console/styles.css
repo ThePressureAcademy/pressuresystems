@@ -242,7 +242,12 @@ label > span {
 }
 
 /* ─── App shell ─── */
-.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 
 .topbar {
   background: var(--panel);
@@ -333,6 +338,7 @@ main#view {
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
+  min-width: 0;
 }
 
 /* ─── Cards / panels ─── */
@@ -342,6 +348,7 @@ main#view {
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
+  min-width: 0;
 }
 .panel h2 { margin-top: 0; }
 .panel h3 { margin-top: 0; font-size: 15px; color: var(--muted); font-weight: 500; }
@@ -809,12 +816,133 @@ details.asset-row.asset-tile {
   padding: 10px;
 }
 
+.credential-type-manager {
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.credential-type-manager summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.credential-type-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.credential-type-row {
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  padding: 10px;
+}
+
+.credential-type-form {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
 .credential-tile summary {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   cursor: pointer;
+}
+
+.daily-log-toolbar,
+.daily-log-report-head,
+.daily-log-card-head,
+.daily-log-entry {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.daily-log-filters,
+.daily-log-create-panel,
+.daily-log-report {
+  border-left: 4px solid var(--accent);
+}
+
+.daily-log-report {
+  display: grid;
+  gap: 14px;
+}
+
+.daily-log-card {
+  background: rgba(255,255,255,0.025);
+}
+
+.daily-log-entry-form {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 12px 0;
+  padding: 12px;
+}
+
+.daily-log-entry-list {
+  display: grid;
+  gap: 10px;
+}
+
+.daily-log-entry {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: 10px;
+  flex-wrap: wrap;
+  padding: 12px;
+}
+
+.daily-log-entry--signed_in { border-left-color: var(--ok); }
+.daily-log-entry--signed_out { border-left-color: var(--muted); }
+.daily-log-entry--absent,
+.daily-log-entry--manual_entry { border-left-color: var(--warn); }
+.daily-log-entry--removed { border-left-color: var(--bad); opacity: 0.72; }
+
+.daily-log-entry-main {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.daily-log-entry-times {
+  color: var(--muted);
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.daily-log-entry-edit {
+  flex-basis: 100%;
+  margin-top: 8px;
+}
+
+.daily-log-entry-edit summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.daily-log-print-footer {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+  padding-top: 10px;
 }
 
 .asset-group summary:focus-visible,
@@ -1133,11 +1261,21 @@ details.asset-row.asset-tile {
 }
 
 .business-table-wrapper {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .business-verification-table {
   min-width: 860px;
+}
+
+.business-table-wrapper table {
+  min-width: 760px;
 }
 
 .business-nested-detail {
@@ -1565,6 +1703,16 @@ ul.tag-list li {
     display: grid;
   }
 
+  .credential-type-row,
+  .daily-log-card-head,
+  .daily-log-entry,
+  .daily-log-report-head,
+  .daily-log-toolbar {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .tile-disclosure-label {
     justify-self: start;
   }
@@ -1595,6 +1743,11 @@ ul.tag-list li {
   .topbar,
   .toast,
   button,
+  .daily-log-filters,
+  .daily-log-create-panel,
+  .daily-log-entry-actions,
+  .daily-log-entry-edit,
+  .daily-log-entry-form,
   .security-actions {
     display: none !important;
   }
@@ -1611,9 +1764,16 @@ ul.tag-list li {
 
   .panel,
   .metric-tile,
+  .daily-log-card,
+  .daily-log-entry,
+  .daily-log-report,
   .read-only-banner,
   .security-banner {
     border-color: #c7ccd4 !important;
+  }
+
+  .daily-log-print-footer {
+    color: #222 !important;
   }
 
   a {

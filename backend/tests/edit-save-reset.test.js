@@ -411,6 +411,31 @@ describe('company data reset controls', () => {
     seedPreference(db, company.companyId, workerId);
     seedAllocation(db, company.companyId, jobId, workerId, company.userId);
     seedEnabledAsset(company.companyId);
+    const sourceUploadId = randomUUID();
+    db.prepare(`
+      INSERT INTO source_uploads (
+        id, tenant_id, company_id, uploaded_by_user_id, uploaded_by_email,
+        original_filename, stored_key, file_size_bytes, mime_type, extension, category
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      sourceUploadId,
+      company.companyId,
+      company.companyId,
+      company.userId,
+      'edit-save-reset-admin@example.com',
+      'worker-list.csv',
+      `${randomUUID()}.csv`,
+      12,
+      'text/csv',
+      'csv',
+      'worker_list'
+    );
+    const siteLogId = randomUUID();
+    db.prepare(`
+      INSERT INTO site_logs (
+        id, company_id, date, site_name, created_by_user_id, updated_by_user_id
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `).run(siteLogId, company.companyId, '2026-06-06', 'Reset test site', company.userId, company.userId);
 
     const res = await request
       .post('/api/company/reset')
@@ -422,9 +447,12 @@ describe('company data reset controls', () => {
     assert.equal(res.body.after_counts.workers, 0);
     assert.equal(res.body.after_counts.company_assets, 0);
     assert.equal(res.body.after_counts.catalogue_selections, 0);
+    assert.equal(res.body.after_counts.site_logs, 0);
+    assert.equal(res.body.after_counts.source_uploads, 1);
     assert.equal(res.body.after_counts.users, 1);
     assert.ok(db.prepare(`SELECT id FROM companies WHERE id = ?`).get(company.companyId));
     assert.ok(db.prepare(`SELECT id FROM requirement_catalogue_items LIMIT 1`).get());
+    assert.ok(db.prepare(`SELECT id FROM source_uploads WHERE id = ? AND deleted_at IS NULL`).get(sourceUploadId));
 
     const events = db.prepare(`
       SELECT event_type
