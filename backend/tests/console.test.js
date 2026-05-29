@@ -50,6 +50,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /href="#\/jobs"/);
     assert.match(res.text, /href="#\/our-business"/);
     assert.match(res.text, />Our Business</);
+    assert.match(res.text, /href="#\/source-uploads"/);
+    assert.match(res.text, />Setup Uploads</);
     assert.match(res.text, /href="#\/exports"/);
     assert.match(res.text, />Exports</);
   });
@@ -61,6 +63,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /metric-tile/);
     assert.match(res.text, /\.asset-tile/);
     assert.match(res.text, /\.credential-tile/);
+    assert.match(res.text, /\.source-upload-card/);
+    assert.match(res.text, /\.source-upload-boundary/);
   });
 
   test('GET /console/app.js returns the SPA bundle', async () => {
@@ -75,8 +79,21 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderAllocate/);
     assert.match(res.text, /renderAudit/);
     assert.match(res.text, /renderInternalPilotMonitor/);
+    assert.match(res.text, /renderSourceUploads/);
+    assert.match(res.text, /\/api\/source-uploads/);
+    assert.match(res.text, /Assisted Source Document Upload/);
+    assert.match(res.text, /Upload what you have/);
+    assert.match(res.text, /CSV is fastest/);
+    assert.match(res.text, /for pilot setup review/);
+    assert.match(res.text, /No live records have been updated yet/);
+    assert.match(res.text, /will not automatically update live records/);
+    assert.match(res.text, /CSV, XLS, XLSX, PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP/);
+    assert.match(res.text, /SOURCE_UPLOAD_MAX_FILE_SIZE_BYTES/);
+    assert.match(res.text, /SOURCE_UPLOAD_MAX_FILES/);
     assert.match(res.text, /Internal Pilot Monitor/);
     assert.match(res.text, /\/internal\/pilot-activity/);
+    assert.match(res.text, /Assisted source uploads/);
+    assert.match(res.text, /Updating status does not publish data into live records/);
     assert.match(res.text, /does not expose operational payloads or customer job content/);
     assert.match(res.text, /worker names, emails, phone numbers, job descriptions, client names, site addresses/i);
     assert.match(res.text, /Status \/ Result/);
@@ -123,6 +140,10 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Credentials \/ VOCs/);
     assert.match(res.text, /Equipment classes/);
     assert.match(res.text, /Transport classes/);
+    assert.match(res.text, /Credential type/);
+    assert.match(res.text, /Site requirement/);
+    assert.match(res.text, /Requirement type/);
+    assert.match(res.text, /Common setup markers/);
     assert.match(res.text, /Rail \/ energy \/ specialist requirements/);
     assert.match(res.text, /Labour-only mode/);
     assert.match(res.text, /Plant and asset register hidden/);
@@ -174,6 +195,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Role coverage suggestion/);
     assert.match(res.text, /Role coverage to confirm for this worker/);
     assert.match(res.text, /Combined-role allocation is decision support only/);
+    assert.match(res.text, /top-ranked/);
     assert.match(res.text, /Required credentials and VOCs/);
     assert.match(res.text, /renderCredentialTile/);
     assert.match(res.text, /credential-tile/);
@@ -205,6 +227,29 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /NHVR \/ state notice or permit check may be required/);
     assert.equal(/Task tags:|tower_crane|night_shift/i.test(res.text), false);
     assert.equal(/\bapproved\b|compliant|legal to travel|safe to dispatch|engineered lift confirmed/i.test(res.text), false);
+  });
+
+  test('credential and requirement listing copy avoids recommendation language', () => {
+    const appPath = path.join(__dirname, '../public/console/app.js');
+    const appSource = fs.readFileSync(appPath, 'utf8');
+    const sourceWithoutInternalMarker = appSource.replace(/recommended_default/g, 'setup_default_marker');
+    const bannedListingCopy = [
+      /Recommended credentials/i,
+      /Recommended for this worker/i,
+      /Recommended site licences/i,
+      /Recommended for this job/i,
+      /Recommended credential list/i,
+      /Recommended custom licence/i,
+      /\brecommended\b[\s\S]{0,120}\b(credential|licen[cs]e|ticket|site requirement|company requirement|requirement catalogue)\b/i,
+      /\b(credential|licen[cs]e|ticket|site requirement|company requirement|requirement catalogue)\b[\s\S]{0,120}\brecommended\b/i
+    ];
+    for (const pattern of bannedListingCopy) {
+      assert.doesNotMatch(sourceWithoutInternalMarker, pattern);
+    }
+    assert.match(appSource, /Credential type/);
+    assert.match(appSource, /Site requirement/);
+    assert.match(appSource, /Requirement type/);
+    assert.match(appSource, /Common setup markers/);
   });
 
   test('console app bundle parses as JavaScript', () => {

@@ -40,6 +40,31 @@ const CREDENTIAL_OPTIONS = [
   'other'
 ];
 
+const SOURCE_UPLOAD_ACCEPT = '.csv,.xlsx,.xls,.pdf,.doc,.docx,.png,.jpg,.jpeg,.webp';
+const SOURCE_UPLOAD_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const SOURCE_UPLOAD_MAX_FILES = 5;
+const SOURCE_UPLOAD_CATEGORIES = [
+  { value: 'worker_list', label: 'Worker list' },
+  { value: 'asset_plant_list', label: 'Asset / plant list' },
+  { value: 'credential_ticket_records', label: 'Credential / ticket records' },
+  { value: 'roster_allocation_sheet', label: 'Roster / allocation sheet' },
+  { value: 'job_history', label: 'Job history' },
+  { value: 'client_site_notes', label: 'Client / site notes' },
+  { value: 'equipment_list', label: 'Equipment list' },
+  { value: 'insurance_compliance_schedule', label: 'Insurance / compliance schedule' },
+  { value: 'internal_report', label: 'Internal report' },
+  { value: 'other', label: 'Other' }
+];
+const SOURCE_UPLOAD_STATUS_CLASSES = {
+  pending_review: 'pill-warn',
+  under_review: 'pill-info',
+  needs_clarification: 'pill-warn',
+  ready_for_structuring: 'pill-info',
+  structured: 'pill-ok',
+  rejected: 'pill-bad',
+  deleted: 'pill-muted'
+};
+
 const EXPORT_SECTIONS = [
   {
     title: 'Operational exports',
@@ -497,6 +522,95 @@ async function api(method, path, body) {
     throw { status: res.status, error: friendlyErrorMessage((data && data.error) || `HTTP ${res.status}`), data };
   }
   return data;
+}
+
+function humanFileSize(bytes) {
+  const value = Number(bytes || 0);
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size >= 10 || unitIndex === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function sourceUploadStatusPill(status, label = null) {
+  return el('span', {
+    class: `pill ${SOURCE_UPLOAD_STATUS_CLASSES[status] || 'pill-muted'}`
+  }, label || formatDisplayLabel(status));
+}
+
+async function uploadSourceDocument(file, { category, notes, batchCount, authorised, reviewOnly }) {
+  const headers = {
+    'Content-Type': 'application/octet-stream',
+    'X-Source-Upload-Filename': encodeURIComponent(file.name || 'source-document'),
+    'X-Source-Upload-Mime-Type': file.type || 'application/octet-stream',
+    'X-Source-Upload-Category': encodeURIComponent(category || ''),
+    'X-Source-Upload-Notes': encodeURIComponent(notes || ''),
+    'X-Source-Upload-Batch-Count': String(batchCount || 1),
+    'X-Source-Upload-Authorised': authorised ? 'true' : 'false',
+    'X-Source-Upload-Review-Only': reviewOnly ? 'true' : 'false'
+  };
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+
+  const res = await fetch('/api/source-uploads', {
+    method: 'POST',
+    headers,
+    body: await file.arrayBuffer()
+  });
+  const text = await res.text();
+  let data = null;
+  if (text) {
+    try { data = JSON.parse(text); }
+    catch { data = { error: text }; }
+  }
+  if (res.status === 401 && state.token) {
+    logout();
+    throw new Error('Session expired. Please sign in again.');
+  }
+  if (!res.ok) {
+    if (res.status === 403 && data?.must_change_password) showPasswordChange();
+    throw new Error(friendlyErrorMessage(data?.error || `HTTP ${res.status}`));
+  }
+  return data;
+}
+
+async function downloadSourceUpload(id, filename, button) {
+  const idleLabel = button?.textContent || 'Download';
+  setButtonBusy(button, true, idleLabel, 'Preparing...');
+  try {
+    const headers = {};
+    if (state.token) headers.Authorization = `Bearer ${state.token}`;
+    const res = await fetch(`/api/source-uploads/${encodeURIComponent(id)}/download`, { headers });
+    const blob = await res.blob();
+    if (res.status === 401 && state.token) {
+      logout();
+      throw new Error('Session expired. Please sign in again.');
+    }
+    if (!res.ok) {
+      let message = `HTTP ${res.status}`;
+      try {
+        const data = JSON.parse(await blob.text());
+        message = data.error || message;
+      } catch {
+        // Keep generic download error.
+      }
+      throw new Error(friendlyErrorMessage(message));
+    }
+    const url = URL.createObjectURL(blob);
+    const link = el('a', { href: url, download: filename || 'source-document' });
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    toast(err.message || 'Source document download failed', 'error');
+  } finally {
+    setButtonBusy(button, false, idleLabel, 'Preparing...');
+  }
 }
 
 function exportFilterQuery() {
@@ -1074,6 +1188,7 @@ function router() {
   const routes = {
     dashboard: () => renderDashboard(renderCycle),
     'our-business': () => renderOurBusiness(renderCycle),
+    'source-uploads': () => renderSourceUploads(renderCycle),
     schedule: () => renderSchedule(renderCycle),
     workers: () => {
       if (rest[0] === 'import') return renderWorkerImport(renderCycle);
@@ -1215,6 +1330,13 @@ function enabledCatalogueOnly(catalogue = {}) {
   };
 }
 
+function requirementMarkerLabel(item = {}) {
+  if (['credential', 'voc'].includes(item.category)) return 'Credential type';
+  if (['civil', 'rail', 'energy'].includes(item.category)) return 'Site requirement';
+  if (['equipment', 'transport'].includes(item.category)) return 'Requirement type';
+  return 'Setup item';
+}
+
 function operatingMode(profile = companyProfileCache || state.user?.company || {}) {
   return profile.operating_mode === 'labour_only' ? 'labour_only' : 'plant_and_labour';
 }
@@ -1277,7 +1399,7 @@ function renderRequirementChecklist(catalogue, options = {}) {
       card.appendChild(el('label', { class: 'check-row' },
         box,
         el('span', {}, item.label),
-        item.recommended_default ? el('span', { class: 'pill pill-info' }, 'recommended') : null
+        item.recommended_default ? el('span', { class: 'pill pill-info' }, requirementMarkerLabel(item)) : null
       ));
     }
 
@@ -1633,8 +1755,14 @@ function renderBuildMyBusinessPanel(setupState = {}) {
       href: '#/workers/import',
       action: 'Import workers'
     },
+    {
+      title: '4. Upload source records',
+      body: 'Use assisted setup if your worker, asset, credential, roster, or job data is still in PDFs, Word documents, spreadsheets, or reports.',
+      href: '#/source-uploads',
+      action: 'Upload records'
+    },
     ...(isPlantAndLabour ? [{
-      title: '4. Add assets',
+      title: '5. Add assets',
       body: counts.assets > 0
         ? `${counts.assets} plant number(s) registered.`
         : 'Enable equipment or transport classes, then add plant numbers under each class.',
@@ -1642,7 +1770,7 @@ function renderBuildMyBusinessPanel(setupState = {}) {
       action: 'Build asset register'
     }] : []),
     {
-      title: isPlantAndLabour ? '5. Create first job' : '4. Create first job',
+      title: isPlantAndLabour ? '6. Create first job' : '5. Create first job',
       body: counts.jobs > 0
         ? `${counts.jobs} job(s) created.`
         : 'Import a job brief, create manually, or skip until a real job is ready.',
@@ -1655,7 +1783,7 @@ function renderBuildMyBusinessPanel(setupState = {}) {
     el('div', {},
       el('h3', {}, 'Build My Business'),
       el('p', { class: 'small muted' },
-        'Start clean: choose your mode, save the requirements your company uses, then add workers, assets where applicable, and jobs.'
+        'Start clean: choose your mode, save the requirements your company uses, then add workers, upload existing source records if needed, assets where applicable, and jobs.'
       )
     ),
     setupState.is_first_run
@@ -1692,6 +1820,7 @@ async function renderDashboard(renderCycle) {
     el('h2', {}, 'Pilot dashboard'),
     el('div', { class: 'button-row' },
       el('a', { href: '#/workers/import' }, el('button', {}, 'Import workers')),
+      el('a', { href: '#/source-uploads' }, el('button', { class: 'secondary' }, 'Upload source records')),
       el('a', { href: '#/new-worker' }, el('button', { class: 'secondary' }, '+ New worker')),
       el('a', { href: '#/new-job' }, el('button', { class: 'secondary' }, '+ New job'))
     )
@@ -1728,6 +1857,231 @@ async function renderDashboard(renderCycle) {
     ),
     auditEventsTable(audit.events)
   ));
+}
+
+function renderSourceUploadBoundary() {
+  return el('div', { class: 'panel source-upload-boundary' },
+    el('strong', {}, 'Assisted review boundary: '),
+    'These are source documents for pilot setup review. Uploads do not update live workers, assets, credentials, jobs, allocations, or compliance records. ',
+    'The DispatchTalon team reviews the file, suggests structure, and the business confirms what should be used before anything is added to the pilot setup.'
+  );
+}
+
+function renderSourceUploadList(uploads = {}, options = {}) {
+  const rows = uploads.uploads || uploads || [];
+  const panel = el('div', { class: 'panel source-upload-list-panel' });
+  panel.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h3', {}, options.title || 'Uploaded files'),
+      el('p', { class: 'small muted' }, options.summary || 'Status shows where each source document sits in the assisted setup review process.')
+    )
+  ));
+
+  if (!rows.length) {
+    panel.appendChild(el('div', { class: 'empty' },
+      'No source documents uploaded yet. CSV remains fastest, but PDF, Word, Excel, roster, credential, equipment, and image records can be uploaded for assisted pilot setup review.'
+    ));
+    return panel;
+  }
+
+  const list = el('div', { class: 'source-upload-list' });
+  for (const upload of rows) {
+    const card = el('article', { class: 'source-upload-card' },
+      el('div', { class: 'source-upload-card__main' },
+        el('div', {},
+          el('strong', {}, upload.original_filename || 'Source document'),
+          el('div', { class: 'small muted' },
+            `${upload.category_label || formatDisplayLabel(upload.category)} | ${humanFileSize(upload.file_size_bytes)} | uploaded ${fmtDate(upload.created_at)}`
+          )
+        ),
+        sourceUploadStatusPill(upload.review_status, upload.review_status_label)
+      ),
+      upload.notes
+        ? el('p', { class: 'small source-upload-note' }, upload.notes)
+        : null,
+      upload.review_notes
+        ? el('p', { class: 'small muted source-upload-note' }, `Review note: ${upload.review_notes}`)
+        : null,
+      el('div', { class: 'small muted' },
+        upload.review_status === 'pending_review'
+          ? 'Next step: DispatchTalon review. No live records have been updated.'
+          : 'Next step depends on DispatchTalon review and business confirmation.'
+      )
+    );
+
+    if (options.allowDelete) {
+      const removeButton = el('button', { type: 'button', class: 'secondary' }, 'Remove upload');
+      removeButton.addEventListener('click', async () => {
+        if (!window.confirm('Remove this uploaded source document from the pilot setup queue?')) return;
+        try {
+          await api('DELETE', `/source-uploads/${encodeURIComponent(upload.id)}`);
+          toast('Source upload removed', 'success');
+          router();
+        } catch (err) {
+          toast(err.error || 'Could not remove source upload', 'error');
+        }
+      });
+      card.appendChild(el('div', { class: 'button-row' }, removeButton));
+    }
+    list.appendChild(card);
+  }
+  panel.appendChild(list);
+  return panel;
+}
+
+function renderSourceUploadNextSteps() {
+  return el('div', { class: 'panel source-upload-next' },
+    el('h3', {}, 'What happens next'),
+    el('ol', { class: 'source-upload-steps' },
+      el('li', {}, 'Upload the source document.'),
+      el('li', {}, 'DispatchTalon reviews the file.'),
+      el('li', {}, 'We identify possible workers, assets, credentials, or setup data.'),
+      el('li', {}, 'You confirm what should be used.'),
+      el('li', {}, 'Only confirmed information is added to your pilot setup.')
+    ),
+    el('p', { class: 'small muted' },
+      'This is the pilot setup process, not a live extraction or save workflow.'
+    )
+  );
+}
+
+async function renderSourceUploads(renderCycle) {
+  const view = document.getElementById('view');
+  view.innerHTML = '';
+
+  view.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h2', {}, 'Pilot Setup Uploads'),
+      el('p', { class: 'muted' }, 'Upload source records for assisted DispatchTalon pilot setup review.')
+    ),
+    el('div', { class: 'button-row' },
+      el('a', { href: '#/dashboard' }, el('button', { class: 'secondary' }, '< Dashboard')),
+      el('a', { href: '#/workers/import' }, el('button', { class: 'secondary' }, 'CSV worker import'))
+    )
+  ));
+
+  const data = await api('GET', '/source-uploads');
+  if (isStaleRender(renderCycle)) return;
+
+  view.appendChild(el('section', { class: 'panel source-upload-hero' },
+    el('div', { class: 'source-upload-eyebrow' }, 'Assisted Source Document Upload'),
+    el('h3', {}, 'Upload what you have.'),
+    el('p', {},
+      'CSV is fastest, but if your information is sitting in a PDF, Word document, spreadsheet, roster, credential list, equipment list, or internal report, upload it for pilot setup review.'
+    ),
+    el('p', { class: 'muted' },
+      'DispatchTalon will help turn existing business records into structured worker, asset, and credential data.'
+    )
+  ));
+
+  view.appendChild(renderSourceUploadBoundary());
+
+  const form = el('form', { class: 'panel source-upload-form' });
+  const fileInput = el('input', {
+    type: 'file',
+    name: 'files',
+    accept: SOURCE_UPLOAD_ACCEPT,
+    multiple: 'true',
+    required: 'true'
+  });
+  const categoryField = buildSelect('category', 'What does this document contain?', [
+    { value: '', label: 'Select document category' },
+    ...SOURCE_UPLOAD_CATEGORIES
+  ], { required: 'true' });
+  const notesInput = el('textarea', {
+    name: 'notes',
+    placeholder: 'Example: This spreadsheet has plant and asset numbers. These PDFs have tickets and expiry dates.'
+  });
+  const authorisedInput = el('input', { type: 'checkbox', name: 'authorised' });
+  const reviewOnlyInput = el('input', { type: 'checkbox', name: 'review_only' });
+  const submitButton = el('button', { type: 'submit' }, 'Upload for pilot setup review');
+  const errorBox = el('div', { class: 'error', role: 'alert' });
+  const resultBox = el('div', { class: 'success hidden', role: 'status' });
+
+  form.appendChild(el('h3', {}, 'Upload source documents'));
+  form.appendChild(el('p', { class: 'small muted' },
+    'Accepted file types: CSV, XLS, XLSX, PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP. Limit: 10MB per file, up to 5 files per batch, 50MB per tenant during pilot.'
+  ));
+  form.appendChild(buildFileField('Source file(s)', fileInput));
+  form.appendChild(categoryField);
+  form.appendChild(buildTextareaField('Optional notes', notesInput));
+  form.appendChild(el('label', { class: 'check-row consent-row' },
+    authorisedInput,
+    el('span', {}, 'I understand this file may contain business or worker information. I confirm I am authorised to share it with DispatchTalon for pilot setup review.')
+  ));
+  form.appendChild(el('label', { class: 'check-row consent-row' },
+    reviewOnlyInput,
+    el('span', {}, 'I understand this upload is for assisted review only and will not automatically update live records.')
+  ));
+  form.appendChild(errorBox);
+  form.appendChild(resultBox);
+  form.appendChild(el('div', { class: 'button-row' }, submitButton));
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorBox.textContent = '';
+    resultBox.classList.add('hidden');
+    resultBox.textContent = '';
+
+    const files = Array.from(fileInput.files || []);
+    const fd = new FormData(form);
+    const category = String(fd.get('category') || '').trim();
+    const notes = String(fd.get('notes') || '').trim();
+    if (!files.length) {
+      errorBox.textContent = 'Choose at least one source document before uploading.';
+      return;
+    }
+    if (files.length > SOURCE_UPLOAD_MAX_FILES) {
+      errorBox.textContent = 'Upload up to 5 files in one pilot setup batch.';
+      return;
+    }
+    if (!category) {
+      errorBox.textContent = 'Select what this document contains before uploading.';
+      return;
+    }
+    if (!authorisedInput.checked || !reviewOnlyInput.checked) {
+      errorBox.textContent = 'Confirm the privacy and assisted-review statements before uploading.';
+      return;
+    }
+    const tooLarge = files.find((file) => file.size > SOURCE_UPLOAD_MAX_FILE_SIZE_BYTES);
+    if (tooLarge) {
+      errorBox.textContent = `${tooLarge.name} is too large. Upload files up to 10MB.`;
+      return;
+    }
+
+    setButtonBusy(submitButton, true, 'Upload for pilot setup review', 'Uploading...');
+    try {
+      for (const file of files) {
+        await uploadSourceDocument(file, {
+          category,
+          notes,
+          batchCount: files.length,
+          authorised: authorisedInput.checked,
+          reviewOnly: reviewOnlyInput.checked
+        });
+      }
+      resultBox.textContent = 'Your file has been uploaded for pilot setup review. The DispatchTalon team will review the source document and help turn relevant worker, asset, or credential information into structured pilot data. No live records have been updated yet.';
+      resultBox.classList.remove('hidden');
+      toast('Uploaded for review', 'success');
+      fileInput.value = '';
+      notesInput.value = '';
+      const refreshed = await api('GET', '/source-uploads');
+      if (!isStaleRender(renderCycle)) {
+        uploadListHost.innerHTML = '';
+        uploadListHost.appendChild(renderSourceUploadList(refreshed, { allowDelete: true }));
+      }
+    } catch (err) {
+      errorBox.textContent = err.message || err.error || 'Upload failed. Try again or contact DispatchTalon.';
+    } finally {
+      setButtonBusy(submitButton, false, 'Upload for pilot setup review', 'Uploading...');
+    }
+  });
+
+  view.appendChild(form);
+  view.appendChild(renderSourceUploadNextSteps());
+  const uploadListHost = el('div');
+  uploadListHost.appendChild(renderSourceUploadList(data, { allowDelete: true }));
+  view.appendChild(uploadListHost);
 }
 
 function renderOperatingModePanel(profile = {}) {
@@ -2091,8 +2445,8 @@ async function renderOurBusiness(renderCycle) {
   if (!catalogue.configured) {
     form.appendChild(el('div', { class: 'read-only-banner' },
       mode === 'labour_only'
-        ? 'No company requirements have been saved yet. Labour-only recommendations are marked, but nothing is enabled until you save this setup.'
-        : 'No company requirements have been saved yet. Recommended items are marked, but nothing is enabled until you save this setup.'
+        ? 'No company requirements have been saved yet. Labour-only setup markers are shown, but nothing is enabled until you save this setup.'
+        : 'No company requirements have been saved yet. Common setup markers are shown, but nothing is enabled until you save this setup.'
     ));
   }
 
@@ -2393,7 +2747,7 @@ function renderTowerCraneCapabilitySummary() {
 }
 
 function renderTowerCraneNextAction() {
-  return renderBusinessAccordion('Next Recommended Action',
+  return renderBusinessAccordion('Next Review Action',
     'Select one crane business, verify source evidence, then generate a clean page preview.',
     [
       el('ol', { class: 'business-action-list' },
@@ -3233,7 +3587,8 @@ async function renderWorkerImport(renderCycle) {
     el('p', {}, 'Paste a TSV table from Excel/Google Sheets or load a CSV file. Preview first, then confirm the import.'),
     el('div', { class: 'button-row' },
       el('a', { href: '/samples/employee-import-sample.csv', target: '_blank' }, el('button', { type: 'button', class: 'secondary' }, 'Open sample CSV')),
-      el('a', { href: '/samples/employee-import-sample.tsv', target: '_blank' }, el('button', { type: 'button', class: 'secondary' }, 'Open sample TSV'))
+      el('a', { href: '/samples/employee-import-sample.tsv', target: '_blank' }, el('button', { type: 'button', class: 'secondary' }, 'Open sample TSV')),
+      el('a', { href: '#/source-uploads' }, el('button', { type: 'button', class: 'secondary' }, 'Upload source documents instead'))
     )
   ));
 
@@ -3859,6 +4214,7 @@ function renderJobBriefImport(renderCycle) {
   sourceForm.appendChild(sourceError);
   sourceForm.appendChild(el('div', { class: 'button-row' },
     el('button', { type: 'submit' }, 'Import job brief'),
+    el('a', { href: '#/source-uploads' }, el('button', { type: 'button', class: 'secondary' }, 'Upload source documents')),
     el('a', { href: '#/jobs' }, el('button', { type: 'button', class: 'secondary' }, 'Cancel import'))
   ));
 
@@ -5162,7 +5518,7 @@ function renderRankCard(jobId, ranked, isTop) {
     el('div', {},
       el('div', { class: 'rank-name' },
         `#${ranked.rank} ${ranked.worker.name}`,
-        isTop ? el('span', { class: 'pill pill-ok', style: 'margin-left:8px;' }, 'recommended') : null
+        isTop ? el('span', { class: 'pill pill-ok', style: 'margin-left:8px;' }, 'top-ranked') : null
       ),
       el('div', { class: 'rank-meta' },
         `${labelsFromValues(ranked.worker.roles || [ranked.worker.role], null).join(', ')} / ${formatDisplayLabel(ranked.worker.employment_type)} / ${formatDisplayLabel(ranked.worker.status)}`
@@ -5654,6 +6010,92 @@ function renderPilotActivityTable(companies = []) {
   return table;
 }
 
+function renderInternalSourceUploadsTable(data = {}) {
+  const uploads = data.uploads || [];
+  const statuses = data.review_statuses || {};
+  const panel = el('div', { class: 'panel' },
+    el('div', { class: 'toolbar' },
+      el('div', {},
+        el('h3', {}, 'Assisted source uploads'),
+        el('p', { class: 'small muted' },
+          'Internal review queue. Download is restricted to internal admin users. Updating status does not publish data into live records.'
+        )
+      )
+    )
+  );
+
+  if (!uploads.length) {
+    panel.appendChild(el('div', { class: 'empty' }, 'No pilot setup source documents are pending review.'));
+    return panel;
+  }
+
+  const wrapper = el('div', { class: 'business-table-wrapper' });
+  const table = el('table', { class: 'source-upload-admin-table' });
+  table.appendChild(el('thead', {}, el('tr', {},
+    el('th', {}, 'Tenant'),
+    el('th', {}, 'Uploader'),
+    el('th', {}, 'Document'),
+    el('th', {}, 'Category'),
+    el('th', {}, 'Status'),
+    el('th', {}, 'Review notes'),
+    el('th', {}, 'Actions')
+  )));
+  const tbody = el('tbody');
+
+  for (const upload of uploads) {
+    const statusSelect = el('select', { 'aria-label': `Review status for ${upload.original_filename}` });
+    for (const [value, label] of Object.entries(statuses)) {
+      if (value === 'deleted') continue;
+      const option = el('option', { value }, label);
+      if (value === upload.review_status) option.selected = true;
+      statusSelect.appendChild(option);
+    }
+    const notes = el('textarea', {
+      placeholder: 'Internal review notes',
+      'aria-label': `Review notes for ${upload.original_filename}`
+    });
+    notes.value = upload.review_notes || '';
+
+    const updateButton = el('button', { type: 'button', class: 'secondary' }, 'Update');
+    updateButton.addEventListener('click', async () => {
+      try {
+        await api('PATCH', `/source-uploads/${encodeURIComponent(upload.id)}/status`, {
+          review_status: statusSelect.value,
+          review_notes: notes.value
+        });
+        toast('Source upload status updated', 'success');
+        router();
+      } catch (err) {
+        toast(err.error || 'Could not update source upload status', 'error');
+      }
+    });
+
+    const downloadButton = el('button', { type: 'button', class: 'secondary' }, 'Download');
+    downloadButton.addEventListener('click', () => downloadSourceUpload(upload.id, upload.original_filename, downloadButton));
+
+    tbody.appendChild(el('tr', {},
+      el('td', {}, upload.tenant_id || upload.company_id || '-'),
+      el('td', {},
+        el('div', {}, upload.uploaded_by_email || '-'),
+        el('div', { class: 'small muted' }, fmtDate(upload.created_at))
+      ),
+      el('td', {},
+        el('div', {}, upload.original_filename || '-'),
+        el('div', { class: 'small muted' }, `${humanFileSize(upload.file_size_bytes)} | ${upload.mime_type || '-'}`)
+      ),
+      el('td', {}, upload.category_label || formatDisplayLabel(upload.category)),
+      el('td', {}, statusSelect),
+      el('td', {}, notes),
+      el('td', {}, el('div', { class: 'button-row' }, updateButton, downloadButton))
+    ));
+  }
+
+  table.appendChild(tbody);
+  wrapper.appendChild(table);
+  panel.appendChild(wrapper);
+  return panel;
+}
+
 async function renderInternalPilotMonitor(renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
@@ -5662,7 +6104,10 @@ async function renderInternalPilotMonitor(renderCycle) {
     el('p', { class: 'muted' }, 'Founder-only usage signals. Aggregates activity without exposing job, worker, client, site, contact, or note details.')
   ));
 
-  const monitor = await api('GET', '/internal/pilot-activity?status=all&days=14');
+  const [monitor, sourceUploadData] = await Promise.all([
+    api('GET', '/internal/pilot-activity?status=all&days=14'),
+    api('GET', '/source-uploads?scope=all')
+  ]);
   if (isStaleRender(renderCycle)) return;
 
   const companies = monitor.companies || [];
@@ -5685,6 +6130,8 @@ async function renderInternalPilotMonitor(renderCycle) {
     ),
     renderPilotActivityTable(companies)
   ));
+
+  view.appendChild(renderInternalSourceUploadsTable(sourceUploadData));
 
   view.appendChild(el('div', { class: 'panel small muted' },
     el('strong', {}, 'Privacy boundary: '),

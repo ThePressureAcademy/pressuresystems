@@ -24,6 +24,7 @@ app.use('/api/schedule',     require('./routes/schedule'));
 app.use('/api/audit-events', require('./routes/audit-events'));
 app.use('/api/metrics',      require('./routes/metrics'));
 app.use('/api/exports',      require('./routes/exports'));
+app.use('/api/source-uploads', require('./routes/source-uploads'));
 app.use('/api/internal',     require('./routes/internal'));
 
 // 404 for unknown API paths

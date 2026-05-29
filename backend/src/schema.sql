@@ -489,6 +489,39 @@ CREATE TABLE IF NOT EXISTS job_asset_assignments (
   UNIQUE(company_id, job_id, company_asset_id)
 );
 
+CREATE TABLE IF NOT EXISTS source_uploads (
+  id                   TEXT PRIMARY KEY,
+  tenant_id            TEXT NOT NULL,
+  company_id           TEXT NOT NULL REFERENCES companies(id),
+  uploaded_by_user_id  TEXT REFERENCES users(id),
+  uploaded_by_email    TEXT,
+  original_filename    TEXT NOT NULL,
+  stored_key           TEXT NOT NULL UNIQUE,
+  file_size_bytes      INTEGER NOT NULL CHECK (file_size_bytes >= 0),
+  mime_type            TEXT NOT NULL,
+  extension            TEXT NOT NULL,
+  category             TEXT NOT NULL
+                       CHECK (category IN (
+                         'worker_list', 'asset_plant_list', 'credential_ticket_records',
+                         'roster_allocation_sheet', 'job_history', 'client_site_notes',
+                         'equipment_list', 'insurance_compliance_schedule',
+                         'internal_report', 'other'
+                       )),
+  notes                TEXT,
+  review_status        TEXT NOT NULL DEFAULT 'pending_review'
+                       CHECK (review_status IN (
+                         'pending_review', 'under_review', 'needs_clarification',
+                         'ready_for_structuring', 'structured', 'rejected', 'deleted'
+                       )),
+  review_notes         TEXT,
+  created_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  reviewed_at          TEXT,
+  reviewed_by_user_id  TEXT REFERENCES users(id),
+  deleted_at           TEXT,
+  deleted_by_user_id   TEXT REFERENCES users(id),
+  CHECK (tenant_id = company_id)
+);
+
 CREATE TABLE IF NOT EXISTS audit_events (
   id            TEXT PRIMARY KEY,
   company_id    TEXT NOT NULL REFERENCES companies(id),
@@ -542,6 +575,9 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'company_asset_updated',
                   'company_asset_archived',
                   'company_reset_previewed',
+                  'source_upload_created',
+                  'source_upload_status_updated',
+                  'source_upload_deleted',
                   'job_requirements_updated',
                   'job_required_roles_updated',
                   'job_credentials_updated',
@@ -606,6 +642,8 @@ CREATE INDEX IF NOT EXISTS idx_allocation_role_coverages_alloc  ON allocation_ro
 CREATE INDEX IF NOT EXISTS idx_allocation_role_coverages_worker ON allocation_role_coverages(company_id, worker_id);
 CREATE INDEX IF NOT EXISTS idx_job_imports_company  ON job_imports(company_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_job_imports_status   ON job_imports(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_source_uploads_company ON source_uploads(company_id, review_status, created_at);
+CREATE INDEX IF NOT EXISTS idx_source_uploads_status  ON source_uploads(review_status, created_at);
 CREATE INDEX IF NOT EXISTS idx_preferences_worker   ON worker_task_preferences(worker_id);
 CREATE INDEX IF NOT EXISTS idx_preferences_company  ON worker_task_preferences(company_id, task_tag);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_preferences_worker_tag_source
