@@ -696,7 +696,6 @@ CREATE INDEX IF NOT EXISTS idx_users_company        ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_workers_company      ON workers(company_id);
 CREATE INDEX IF NOT EXISTS idx_credentials_worker   ON credentials(worker_id);
 CREATE INDEX IF NOT EXISTS idx_credentials_company  ON credentials(company_id);
-CREATE INDEX IF NOT EXISTS idx_credentials_type     ON credentials(company_id, credential_type_id, active);
 CREATE INDEX IF NOT EXISTS idx_credential_types_company ON credential_types(company_id, active, normalized_key);
 CREATE INDEX IF NOT EXISTS idx_fatigue_worker       ON fatigue_records(worker_id);
 CREATE INDEX IF NOT EXISTS idx_fatigue_company_date ON fatigue_records(company_id, shift_start);
