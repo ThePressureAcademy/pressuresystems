@@ -1344,13 +1344,6 @@ function enabledCatalogueOnly(catalogue = {}) {
   };
 }
 
-function requirementMarkerLabel(item = {}) {
-  if (['credential', 'voc'].includes(item.category)) return 'Credential type';
-  if (['civil', 'rail', 'energy'].includes(item.category)) return 'Site requirement';
-  if (['equipment', 'transport'].includes(item.category)) return 'Requirement type';
-  return 'Setup item';
-}
-
 function operatingMode(profile = companyProfileCache || state.user?.company || {}) {
   return profile.operating_mode === 'labour_only' ? 'labour_only' : 'plant_and_labour';
 }
@@ -1412,8 +1405,7 @@ function renderRequirementChecklist(catalogue, options = {}) {
       checkboxes.push(box);
       card.appendChild(el('label', { class: 'check-row' },
         box,
-        el('span', {}, item.label),
-        item.common_default ? el('span', { class: 'pill pill-info' }, requirementMarkerLabel(item)) : null
+        el('span', {}, item.label)
       ));
     }
 
@@ -2459,8 +2451,8 @@ async function renderOurBusiness(renderCycle) {
   if (!catalogue.configured) {
     form.appendChild(el('div', { class: 'read-only-banner' },
       mode === 'labour_only'
-        ? 'No company requirements have been saved yet. Labour-only setup markers are shown, but nothing is enabled until you save this setup.'
-        : 'No company requirements have been saved yet. Common setup markers are shown, but nothing is enabled until you save this setup.'
+        ? 'No company requirements have been saved yet. Labour-only setup items are shown, but nothing is enabled until you save this setup.'
+        : 'No company requirements have been saved yet. Common setup items are shown, but nothing is enabled until you save this setup.'
     ));
   }
 

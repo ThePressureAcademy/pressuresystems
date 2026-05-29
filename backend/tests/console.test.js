@@ -153,10 +153,9 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Credentials \/ VOCs/);
     assert.match(res.text, /Equipment classes/);
     assert.match(res.text, /Transport classes/);
-    assert.match(res.text, /Credential type/);
-    assert.match(res.text, /Site requirement/);
-    assert.match(res.text, /Requirement type/);
-    assert.match(res.text, /Common setup markers/);
+    assert.doesNotMatch(res.text, /requirementMarkerLabel/);
+    assert.doesNotMatch(res.text, /item\.common_default\s*\?\s*el\('span',\s*\{\s*class:\s*'pill pill-info'/);
+    assert.match(res.text, /Common setup items/);
     assert.match(res.text, /Rail \/ energy \/ specialist requirements/);
     assert.match(res.text, /Labour-only mode/);
     assert.match(res.text, /Plant and asset register hidden/);
@@ -264,9 +263,23 @@ describe('Pilot console — static asset serving', () => {
       assert.doesNotMatch(sourceWithoutInternalMarker, pattern);
     }
     assert.match(appSource, /Credential type/);
-    assert.match(appSource, /Site requirement/);
-    assert.match(appSource, /Requirement type/);
-    assert.match(appSource, /Common setup markers/);
+    assert.doesNotMatch(appSource, /requirementMarkerLabel/);
+    assert.doesNotMatch(appSource, /item\.common_default\s*\?\s*el\('span',\s*\{\s*class:\s*'pill pill-info'/);
+    assert.match(appSource, /Common setup items/);
+  });
+
+  test('company requirement catalogue item rows do not render type pills', () => {
+    const appPath = path.join(__dirname, '../public/console/app.js');
+    const appSource = fs.readFileSync(appPath, 'utf8');
+    const checklistSource = appSource.slice(
+      appSource.indexOf('function renderRequirementChecklist'),
+      appSource.indexOf('function optionLabelLookup')
+    );
+
+    assert.match(checklistSource, /class: 'check-row'/);
+    assert.match(checklistSource, /item\.label/);
+    assert.doesNotMatch(checklistSource, /pill pill-info/);
+    assert.doesNotMatch(checklistSource, /Credential type|Site requirement|Requirement type|Setup item/);
   });
 
   test('console app bundle parses as JavaScript', () => {
