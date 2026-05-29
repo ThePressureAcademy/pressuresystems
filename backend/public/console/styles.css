@@ -1041,6 +1041,14 @@ details.asset-row.asset-tile {
   display: block;
 }
 
+.mode-card-title {
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
 .build-business-panel {
   border-left: 4px solid var(--info);
 }

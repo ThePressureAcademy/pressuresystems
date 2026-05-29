@@ -358,6 +358,14 @@ function titleCase(value) {
   }).join(' ');
 }
 
+function formatTimezoneLabel(value) {
+  return String(value || '')
+    .split('/')
+    .filter((part) => part !== '')
+    .map((part) => titleCase(part))
+    .join(' / ');
+}
+
 function optionLabel(value) {
   if (value && typeof value === 'object') return value.label || formatDisplayLabel(value.value);
   return formatDisplayLabel(value);
@@ -2102,12 +2110,12 @@ function renderOperatingModePanel(profile = {}) {
   const options = [
     {
       value: 'labour_only',
-      label: 'Labour only',
+      label: 'LABOUR ONLY',
       description: 'Use DispatchTalon for people, credentials, VOCs, scheduling, SmartRank, and audit. Hide plant and crane planning by default.'
     },
     {
       value: 'plant_and_labour',
-      label: 'Plant + labour',
+      label: 'PLANT + LABOUR',
       description: 'Use DispatchTalon for workers, equipment, plant assets, crane planning, transport review, scheduling, SmartRank, and audit.'
     }
   ];
@@ -2117,7 +2125,7 @@ function renderOperatingModePanel(profile = {}) {
     return el('label', { class: 'mode-card' },
       input,
       el('span', {},
-        el('strong', {}, option.label),
+        el('strong', { class: 'mode-card-title' }, option.label),
         el('span', { class: 'small muted' }, option.description)
       )
     );
@@ -2159,14 +2167,19 @@ function renderDefaultTimezonePanel(profile, intakeOptions = {}) {
   const form = el('form', { class: 'panel' });
   const errBox = el('div', { class: 'error' });
   const success = el('div', { class: 'status-note hidden' });
-  const timezones = intakeOptions.timezones?.length ? intakeOptions.timezones : COMMON_TIMEZONES;
+  const currentTimezone = profile.timezone || 'Australia/Brisbane';
+  const configuredTimezones = intakeOptions.timezones?.length ? intakeOptions.timezones : COMMON_TIMEZONES;
+  const timezones = configuredTimezones.some((timezone) => String(timezone) === String(currentTimezone))
+    ? configuredTimezones
+    : [currentTimezone, ...configuredTimezones];
 
   form.appendChild(el('h3', {}, 'Default timezone'));
   form.appendChild(el('div', { class: 'small muted', style: 'margin-bottom:10px;' },
     'New jobs default to this timezone. Dispatchers can still override timezone per job.'
   ));
   form.appendChild(buildSelect('timezone', 'Company default timezone', timezones, {
-    value: profile.timezone || 'Australia/Brisbane'
+    value: currentTimezone,
+    labelFormatter: formatTimezoneLabel
   }));
   form.appendChild(errBox);
   form.appendChild(success);
@@ -2421,7 +2434,7 @@ async function renderOurBusiness(renderCycle) {
     {
       context,
       status: profile.timezone ? 'Saved' : 'Needs review',
-      countLabel: profile.timezone || 'No timezone saved'
+      countLabel: profile.timezone ? formatTimezoneLabel(profile.timezone) : 'No timezone saved'
     }
   ));
   view.appendChild(renderOurBusinessSection(
@@ -6774,10 +6787,14 @@ function buildTextarea(name, label, attrs = {}) {
 }
 
 function buildSelect(name, label, options, attrs = {}) {
-  const select = el('select', { name, ...attrs });
+  const { labelFormatter, ...selectAttrs } = attrs;
+  const select = el('select', { name, ...selectAttrs });
   for (const option of options) {
     const value = String(optionValue(option));
-    const node = el('option', { value }, optionLabel(option));
+    const labelText = typeof labelFormatter === 'function'
+      ? labelFormatter(value, option)
+      : optionLabel(option);
+    const node = el('option', { value }, labelText);
     if (attrs.value != null && String(attrs.value) === value) node.selected = true;
     select.appendChild(node);
   }

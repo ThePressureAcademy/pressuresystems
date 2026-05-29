@@ -69,6 +69,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /\.source-upload-boundary/);
     assert.match(res.text, /\.credential-type-manager/);
     assert.match(res.text, /\.daily-log-entry/);
+    assert.match(res.text, /\.mode-card-title/);
   });
 
   test('GET /console/app.js returns the SPA bundle', async () => {
@@ -141,8 +142,10 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Select travel state/);
     assert.match(res.text, /Our Business/);
     assert.match(res.text, /Operating mode/);
-    assert.match(res.text, /Labour only/);
-    assert.match(res.text, /Plant \+ labour/);
+    assert.match(res.text, /LABOUR ONLY/);
+    assert.match(res.text, /PLANT \+ LABOUR/);
+    assert.match(res.text, /Use DispatchTalon for people, credentials, VOCs, scheduling, SmartRank, and audit\. Hide plant and crane planning by default\./);
+    assert.match(res.text, /Use DispatchTalon for workers, equipment, plant assets, crane planning, transport review, scheduling, SmartRank, and audit\./);
     assert.match(res.text, /OUR_BUSINESS_DISCLOSURE_KEY/);
     assert.match(res.text, /renderOurBusinessSection/);
     assert.match(res.text, /our-business-section/);
@@ -222,6 +225,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Additional job requirements \/ notes/);
     assert.match(res.text, /Additional travel required exceeding 100km/);
     assert.match(res.text, /Default timezone/);
+    assert.match(res.text, /formatTimezoneLabel/);
+    assert.match(res.text, /labelFormatter: formatTimezoneLabel/);
     assert.match(res.text, /option-picker/);
     assert.match(res.text, /formatDisplayLabel/);
     assert.match(res.text, /Worker update did not return the saved worker/);
@@ -280,6 +285,30 @@ describe('Pilot console — static asset serving', () => {
     assert.match(checklistSource, /item\.label/);
     assert.doesNotMatch(checklistSource, /pill pill-info/);
     assert.doesNotMatch(checklistSource, /Credential type|Site requirement|Requirement type|Setup item/);
+  });
+
+  test('our business timezone and operating mode display polish is render-only', () => {
+    const appPath = path.join(__dirname, '../public/console/app.js');
+    const cssPath = path.join(__dirname, '../public/console/styles.css');
+    const appSource = fs.readFileSync(appPath, 'utf8');
+    const cssSource = fs.readFileSync(cssPath, 'utf8');
+
+    assert.match(appSource, /function formatTimezoneLabel/);
+    assert.match(appSource, /split\('\/'\)/);
+    assert.match(appSource, /join\(' \/ '\)/);
+    assert.match(appSource, /labelFormatter: formatTimezoneLabel/);
+    assert.match(appSource, /const currentTimezone = profile\.timezone \|\| 'Australia\/Brisbane'/);
+    assert.match(appSource, /\[currentTimezone, \.\.\.configuredTimezones\]/);
+    assert.match(appSource, /value:\s*currentTimezone/);
+    assert.match(appSource, /countLabel: profile\.timezone \? formatTimezoneLabel\(profile\.timezone\) : 'No timezone saved'/);
+    assert.match(appSource, /label: 'LABOUR ONLY'/);
+    assert.match(appSource, /label: 'PLANT \+ LABOUR'/);
+    assert.match(appSource, /Use DispatchTalon for people, credentials, VOCs, scheduling, SmartRank, and audit\. Hide plant and crane planning by default\./);
+    assert.match(appSource, /Use DispatchTalon for workers, equipment, plant assets, crane planning, transport review, scheduling, SmartRank, and audit\./);
+    assert.match(cssSource, /\.mode-card-title/);
+    assert.match(cssSource, /font-weight:\s*800/);
+    assert.match(cssSource, /text-transform:\s*uppercase/);
+    assert.doesNotMatch(appSource, /timezone:\s*formatTimezoneLabel/);
   });
 
   test('console app bundle parses as JavaScript', () => {
