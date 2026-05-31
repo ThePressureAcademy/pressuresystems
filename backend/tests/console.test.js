@@ -97,6 +97,16 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderInternalPilotMonitor/);
     assert.match(res.text, /renderSourceUploads/);
     assert.match(res.text, /\/api\/source-uploads/);
+    assert.match(res.text, /renderRouteCheck/);
+    assert.match(res.text, /renderJobRouteCheckPanel/);
+    assert.match(res.text, /\/route-checks\/config/);
+    assert.match(res.text, /\/jobs\/\$\{job\.id\}\/route-check\/evaluate/);
+    assert.match(res.text, /RouteCheck boundary/);
+    assert.match(res.text, /manual route\/access review/i);
+    assert.match(res.text, /does not confirm route compliance/i);
+    assert.match(res.text, /No map, permit, or routing-provider integration is called in this MVP/i);
+    assert.match(res.text, /Dispatch review recorded/);
+    assert.doesNotMatch(res.text, /legal to travel|safe route guaranteed|compliant route guaranteed|safety certified route/i);
     assert.match(res.text, /Assisted Source Document Upload/);
     assert.match(res.text, /Upload what you have/);
     assert.match(res.text, /CSV is fastest/);
@@ -263,6 +273,24 @@ describe('Pilot console — static asset serving', () => {
     assert.equal(/\bapproved\b|compliant|legal to travel|safe to dispatch|engineered lift confirmed/i.test(res.text), false);
   });
 
+  test('RouteCheck trial route is hidden unless feature flag is enabled', async () => {
+    const previous = process.env.ROUTECHECK_ENABLED;
+    try {
+      delete process.env.ROUTECHECK_ENABLED;
+      const disabled = await supertest(app).get('/routecheck');
+      assert.equal(disabled.status, 404);
+
+      process.env.ROUTECHECK_ENABLED = 'true';
+      const enabled = await supertest(app).get('/routecheck');
+      assert.equal(enabled.status, 302);
+      assert.equal(enabled.headers.location, '/console/#/routecheck');
+      assert.match(enabled.headers['x-robots-tag'], /noindex/i);
+    } finally {
+      if (previous == null) delete process.env.ROUTECHECK_ENABLED;
+      else process.env.ROUTECHECK_ENABLED = previous;
+    }
+  });
+
   test('credential and requirement listing copy avoids recommendation language', () => {
     const appPath = path.join(__dirname, '../public/console/app.js');
     const appSource = fs.readFileSync(appPath, 'utf8');
@@ -394,6 +422,8 @@ describe('Pilot console — static asset serving', () => {
       'renderJobsList',      // jobs list
       'renderNewJob',        // create job
       'renderJobDetail',     // job detail
+      'renderRouteCheck',    // feature-flagged route/access review dashboard
+      'renderJobRouteCheckPanel', // job detail RouteCheck panel
       'renderSmartRank',     // smartrank
       'renderAllocate',      // allocation confirmation
       'buildSmartRankReviewFactorPanel', // placement review factor management

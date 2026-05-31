@@ -545,6 +545,121 @@ CREATE TABLE IF NOT EXISTS source_uploads (
   CHECK (tenant_id = company_id)
 );
 
+CREATE TABLE IF NOT EXISTS vehicle_profiles (
+  id                           TEXT PRIMARY KEY,
+  company_id                   TEXT NOT NULL REFERENCES companies(id),
+  asset_id                     INTEGER NOT NULL REFERENCES company_assets(id) ON DELETE CASCADE,
+  width_m                      REAL,
+  height_m                     REAL,
+  length_m                     REAL,
+  gross_weight_kg              INTEGER,
+  axle_config                  TEXT,
+  vehicle_class                TEXT,
+  permit_category              TEXT,
+  default_route_check_required INTEGER NOT NULL DEFAULT 0,
+  notes                        TEXT,
+  created_at                   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at                   TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(company_id, asset_id)
+);
+
+CREATE TABLE IF NOT EXISTS route_checks (
+  id                         TEXT PRIMARY KEY,
+  company_id                 TEXT NOT NULL REFERENCES companies(id),
+  job_id                     TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  asset_id                   INTEGER REFERENCES company_assets(id),
+  operator_user_id           TEXT REFERENCES users(id),
+  status                     TEXT NOT NULL DEFAULT 'not_checked'
+                             CHECK (status IN (
+                               'not_required', 'required', 'not_checked',
+                               'opened_in_routing_tool', 'checked', 'issue_flagged',
+                               'permit_required', 'approved_for_dispatch',
+                               'sent_to_operator', 'operator_acknowledged', 'blocked'
+                             )),
+  risk_level                 TEXT DEFAULT 'medium'
+                             CHECK (risk_level IN ('low', 'medium', 'high', 'critical')),
+  risk_score                 INTEGER DEFAULT 0,
+  route_required             INTEGER DEFAULT 1,
+  permit_status              TEXT DEFAULT 'unknown'
+                             CHECK (permit_status IN ('unknown', 'not_required', 'required', 'confirmed')),
+  external_provider          TEXT,
+  external_route_url         TEXT,
+  checked_by_user_id         TEXT REFERENCES users(id),
+  checked_at                 TEXT,
+  approved_by_user_id        TEXT REFERENCES users(id),
+  approved_at                TEXT,
+  operator_ack_required      INTEGER DEFAULT 1,
+  operator_acknowledged_at   TEXT,
+  blocked_reason             TEXT,
+  override_used              INTEGER DEFAULT 0,
+  override_reason            TEXT,
+  created_at                 TEXT,
+  updated_at                 TEXT
+);
+
+CREATE TABLE IF NOT EXISTS route_check_events (
+  id              TEXT PRIMARY KEY,
+  route_check_id  TEXT NOT NULL REFERENCES route_checks(id) ON DELETE CASCADE,
+  event_type      TEXT NOT NULL,
+  from_status     TEXT,
+  to_status       TEXT,
+  user_id         TEXT REFERENCES users(id),
+  event_note      TEXT,
+  metadata_json   TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS route_notes (
+  id                 TEXT PRIMARY KEY,
+  route_check_id     TEXT NOT NULL REFERENCES route_checks(id) ON DELETE CASCADE,
+  note_type          TEXT NOT NULL
+                     CHECK (note_type IN (
+                       'route', 'permit', 'site_access', 'hazard',
+                       'operator_feedback', 'management', 'override'
+                     )),
+  note_text          TEXT NOT NULL,
+  visibility         TEXT DEFAULT 'dispatcher_operator',
+  created_by_user_id TEXT REFERENCES users(id),
+  created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS external_route_links (
+  id                  TEXT PRIMARY KEY,
+  route_check_id      TEXT NOT NULL REFERENCES route_checks(id) ON DELETE CASCADE,
+  provider_name       TEXT NOT NULL,
+  route_url           TEXT NOT NULL,
+  origin_address      TEXT,
+  destination_address TEXT,
+  created_by_user_id  TEXT REFERENCES users(id),
+  created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS operator_acknowledgements (
+  id                 TEXT PRIMARY KEY,
+  route_check_id     TEXT NOT NULL REFERENCES route_checks(id) ON DELETE CASCADE,
+  operator_user_id   TEXT NOT NULL REFERENCES users(id),
+  ack_status         TEXT NOT NULL
+                     CHECK (ack_status IN ('confirmed', 'issue_found', 'need_call', 'not_acknowledged')),
+  ack_note           TEXT,
+  acknowledged_at    TEXT,
+  created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS permit_records (
+  id                   TEXT PRIMARY KEY,
+  route_check_id       TEXT NOT NULL REFERENCES route_checks(id) ON DELETE CASCADE,
+  permit_required      INTEGER DEFAULT 0,
+  permit_reference     TEXT,
+  permit_status        TEXT DEFAULT 'unknown'
+                       CHECK (permit_status IN ('unknown', 'not_required', 'required', 'confirmed')),
+  permit_expiry_at     TEXT,
+  permit_notes         TEXT,
+  confirmed_by_user_id TEXT REFERENCES users(id),
+  confirmed_at         TEXT,
+  created_at           TEXT,
+  updated_at           TEXT
+);
+
 CREATE TABLE IF NOT EXISTS site_logs (
   id                 TEXT PRIMARY KEY,
   company_id         TEXT NOT NULL REFERENCES companies(id),
@@ -698,6 +813,17 @@ CREATE TABLE IF NOT EXISTS audit_events (
                   'source_upload_created',
                   'source_upload_status_updated',
                   'source_upload_deleted',
+                  'route_check_created',
+                  'route_check_status_changed',
+                  'route_check_external_link_added',
+                  'route_check_note_added',
+                  'route_check_permit_updated',
+                  'route_check_issue_flagged',
+                  'route_check_approved',
+                  'route_check_sent_to_operator',
+                  'route_check_operator_acknowledged',
+                  'route_check_operator_issue_flagged',
+                  'route_check_override_used',
                   'job_requirements_updated',
                   'job_required_roles_updated',
                   'job_credentials_updated',
@@ -765,6 +891,15 @@ CREATE INDEX IF NOT EXISTS idx_job_imports_company  ON job_imports(company_id, c
 CREATE INDEX IF NOT EXISTS idx_job_imports_status   ON job_imports(company_id, status);
 CREATE INDEX IF NOT EXISTS idx_source_uploads_company ON source_uploads(company_id, review_status, created_at);
 CREATE INDEX IF NOT EXISTS idx_source_uploads_status  ON source_uploads(review_status, created_at);
+CREATE INDEX IF NOT EXISTS idx_vehicle_profiles_asset ON vehicle_profiles(company_id, asset_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_profiles_class ON vehicle_profiles(company_id, vehicle_class);
+CREATE INDEX IF NOT EXISTS idx_route_checks_job       ON route_checks(company_id, job_id);
+CREATE INDEX IF NOT EXISTS idx_route_checks_status    ON route_checks(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_route_checks_risk      ON route_checks(company_id, risk_level);
+CREATE INDEX IF NOT EXISTS idx_route_checks_asset     ON route_checks(company_id, asset_id);
+CREATE INDEX IF NOT EXISTS idx_route_checks_operator  ON route_checks(company_id, operator_user_id);
+CREATE INDEX IF NOT EXISTS idx_route_check_events_route ON route_check_events(route_check_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_route_check_events_type  ON route_check_events(event_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_preferences_worker   ON worker_task_preferences(worker_id);
 CREATE INDEX IF NOT EXISTS idx_preferences_company  ON worker_task_preferences(company_id, task_tag);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_preferences_worker_tag_source
