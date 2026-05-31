@@ -2,7 +2,8 @@
 
 Status: Internal working brief
 Use: Positioning, sales preparation, advisor review, investor/grant preparation
-External use: Requires source verification and copy review before sending
+External use: Requires founder approval and copy review before sending
+Source verification: Initial competitor source-verification pass completed 31 May 2026. See `DISPATCHTALON_COMPETITOR_SOURCE_VERIFICATION_MATRIX_v1.md`.
 
 ## Executive Verdict
 
@@ -14,7 +15,7 @@ The strongest current wedge is:
 
 Most operators already know who is available. The harder question is whether the person, asset, credential state, site requirement, workload context, and decision trail make that allocation reviewable before the job goes out.
 
-Current research suggests DispatchTalon should not claim to be the only dispatch product in the market. The safer and stronger claim is that DispatchTalon is focused on the reasoning layer before dispatch: matching job requirements against people, assets, credentials, site context, and review status in a way a dispatcher can confirm.
+Source verification confirms DispatchTalon should not claim category exclusivity across dispatch, credential, daily-log, fleet, rental, or field-operations software. The safer and stronger claim is that DispatchTalon is focused on a narrower pilot-stage reasoning layer before dispatch: matching job requirements against people, assets, credentials, site context, and review status in a way a dispatcher can confirm.
 
 ## What DispatchTalon Is
 
@@ -67,7 +68,7 @@ This category is more accurate than ERP, scheduling, field service management, o
 
 ## Wedge: Suitability Before Availability
 
-Availability is only the first filter.
+Availability is the starting filter.
 
 DispatchTalon should lead with suitability because industrial allocation often depends on:
 
@@ -86,9 +87,42 @@ The commercial line:
 
 ## Competitor Landscape Summary
 
-Current research suggests the market has several serious adjacent and incumbent systems, but many appear to emphasise dispatch boards, ERP workflows, fleet/rental management, construction project management, or field service operations rather than a focused suitability reasoning layer for smaller heavy-operations dispatch teams.
+The 31 May 2026 source-verification pass confirms the market has several serious adjacent and incumbent systems across crane dispatch, rental ERP, field service, construction resource planning, daily reporting, fleet management, telematics, and credential visibility.
 
-This requires source verification before external use. The statements below should be treated as positioning hypotheses, not final market claims.
+The statements below are now source-informed internal positioning, not public competitive claims. Public use still requires founder approval, copy review, and removal of any detailed competitor characterisation that is not needed for the audience.
+
+## Source-Verification Update
+
+Source verification supports the following cautious conclusions:
+
+- EQUIPR, Assignar / CraneOps, Visual Dispatch / RapidWorks, and Fleet Cost & Care are serious crane/heavy-equipment operations comparisons.
+- Wynne RentalMan and Point of Rental / Syrinx are serious rental/plant-hire ERP comparisons.
+- HCSS, Trimble B2W, and Procore are serious construction resource, scheduling, and daily-reporting comparisons.
+- EquipmentShare T3, Tenna, and Trackunit are serious asset, fleet, telematics, access-control, and equipment intelligence comparisons.
+- AroFlo and Simpro are serious ANZ field-service/trade workflow comparisons.
+- Raken and Procore Site Diary are serious daily-report/site-diary comparisons.
+
+The strongest safe DispatchTalon distinction is not category exclusivity. It is focus: pilot-stage dispatch decision support, human-confirmed SmartRank suitability reasoning, setup relief, Daily Site Log, custom credential types, and reviewable operational records for businesses that are not ready to implement or do not want to start with a full ERP-style system.
+
+## Source Confidence Snapshot
+
+| Competitor | Source confidence | Current safe comparison |
+| --- | --- | --- |
+| EQUIPR | High | Crane hire, rigging, scheduling, dispatch, compliance documentation, operator workflow, and invoicing overlap. |
+| Assignar / CraneOps | High | Crane operations, workforce/equipment scheduling, certifications, compliance/safety, billing, AI job costing, and payroll interpretation overlap. |
+| Visual Dispatch / RapidWorks | High | Crane rental quote-to-invoice workflow, scheduling, dispatch, resource allocation, job tickets, skill tracker, payroll prep, and maintenance overlap. |
+| Fleet Cost & Care / NexGen | High | Crane/heavy-equipment rental management, fleet, maintenance, safety checklist, inspection, invoicing, and integrations overlap. |
+| Wynne RentalMan | High | Enterprise equipment rental lifecycle, asset tracking, maintenance, invoicing, reporting, logistics/dispatch, and crane rental category overlap. |
+| Point of Rental / Syrinx | High | Plant/heavy-equipment hire, mobile tools, inspections, delivery, signatures, customer portal, reporting, and Australian customer-story overlap. |
+| HCSS | High | Heavy-civil scheduling and dispatch of crews, equipment, rentals, materials, tools, notifications, map view, and magnet-board replacement overlap. |
+| Trimble B2W | High | Civil construction scheduling and dispatch of employees, equipment, materials, and trucking overlap. |
+| Procore | High | Resource planning, labour, equipment, certification/training visibility, Site Diary, daily reporting, print/export, and construction platform overlap. |
+| EquipmentShare T3 | High | Fleet tracking, GPS, utilization, maintenance, access control, operator history, safety, and reporting overlap. |
+| Tenna | High | Mixed-fleet equipment management, GPS/BLE, maintenance, inspections, work orders, scheduling/dispatch, safety/compliance, and AI camera overlap. |
+| Trackunit | High | Construction telematics, access management, operator permissions, credentials/training, usage logs, and inspections overlap. |
+| AroFlo | High | ANZ trade/field-service workflow, scheduling, assets, safety/OH&S, forms, timesheets, and certification records overlap. |
+| Simpro | High | Field service management, job management, scheduling, resource management, asset maintenance, invoicing, inventory, and AI-labeled FSM overlap. |
+| Raken | High | Construction daily reports, work logs, time, safety, equipment tracking, PDF reports, certification management, and labour map overlap. |
 
 ## Direct Competitors
 
@@ -116,7 +150,7 @@ These products may not be direct replacements, but buyers may compare them:
 
 ## Enterprise Incumbents
 
-Enterprise products may be present in larger buyers, but they are not the first positioning target:
+Enterprise products may be present in larger buyers, but they are not the initial positioning target:
 
 | Competitor | Apparent Position | Relevance |
 | --- | --- | --- |
@@ -141,7 +175,7 @@ DispatchTalon must beat:
 - disconnected credential folders
 - old job sheets and printed reports
 
-The sale is not only "better software." It is reduced operational dependence on memory and scattered information.
+The sale is not just "better software." It is reduced operational dependence on memory and scattered information.
 
 ## DispatchTalon Differentiation
 
@@ -188,6 +222,6 @@ Use:
 1. Source-verify the competitor table before using it externally.
 2. Collect pilot evidence around logins, site logs, source uploads, daily reports, custom credential types, and SmartRank use.
 3. Ask advisors to challenge the category language and wedge.
-4. Build two versions of external positioning: crane/rigging first, then broader workforce allocation.
+4. Build two versions of external positioning: crane/rigging as the starting wedge, then broader workforce allocation.
 5. Avoid selling broad ERP replacement. Sell dispatch reasoning and setup relief.
 6. Use pilot evidence before making commercial performance claims.

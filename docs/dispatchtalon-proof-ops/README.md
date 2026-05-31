@@ -8,6 +8,8 @@ Purpose: Turn active pilot use into claim-safe commercial evidence
 | File | Use |
 | --- | --- |
 | `DISPATCHTALON_COMPETITIVE_POSITIONING_BRIEF_v1.md` | Internal/external-ready positioning brief after source verification. |
+| `DISPATCHTALON_COMPETITOR_SOURCE_VERIFICATION_MATRIX_v1.md` | Source-verification matrix for competitor claims, confidence labels, and softened claim guidance. |
+| `DISPATCHTALON_ADVISOR_READY_BRIEF_DRAFT_v1.md` | Two-page equivalent advisor-ready draft for founder approval before external use. |
 | `DISPATCHTALON_ADVISOR_BRIEF_v1.md` | Short advisor-ready brief for industry, recruitment, engineering, governance, and commercialisation reviewers. |
 | `DISPATCHTALON_INVESTOR_GRANT_BRIEF_v1.md` | Cautious investor, grant, and R&D preparation brief. |
 | `DISPATCHTALON_PILOT_FEEDBACK_TRACKER_TEMPLATE.csv` | Tracker template for pilot-user activation, workflow evidence, friction, and commercial interest. |
@@ -18,8 +20,10 @@ Purpose: Turn active pilot use into claim-safe commercial evidence
 ## How To Use Each Document
 
 - Use the competitive brief to align positioning before sales, advisor, or investor conversations.
+- Use the source-verification matrix before making any competitor comparison outside internal planning.
+- Use the advisor-ready draft as the starting point for selected advisor review after founder approval.
 - Use the advisor brief when sending review context to selected external advisors.
-- Use the investor/grant brief only as preparation material. It is not a funding claim.
+- Use the investor/grant brief strictly as preparation material. It is not a funding claim.
 - Use the pilot tracker after every pilot interaction.
 - Use the advisor tracker after every advisor interaction.
 - Use the claim-safe language rules before publishing or sending any product claim.
@@ -31,9 +35,9 @@ Purpose: Turn active pilot use into claim-safe commercial evidence
 | --- | --- |
 | Founder / operator | All files. |
 | Pilot-support operator | 30-day plan, pilot tracker, claim-safe language rules. |
-| Advisor | Advisor brief, selected claim-safe boundaries. |
+| Advisor | Advisor-ready draft, advisor brief, selected claim-safe boundaries. |
 | Investor / grant reviewer | Investor/grant brief after founder review. |
-| Sales or outreach operator | Competitive brief, claim-safe language rules, pilot tracker. |
+| Sales or outreach operator | Competitive brief, source-verification matrix, claim-safe language rules, pilot tracker. |
 | Technical reviewer | Advisor brief, investor/grant brief, claim-safe language rules. |
 
 ## What Not To Send Externally
