@@ -992,7 +992,7 @@ function isAdminUser() {
 }
 
 function canManageReviewFactors() {
-  return state.user?.role === 'admin' || state.user?.role === 'supervisor';
+  return state.user?.role === 'admin';
 }
 
 function isInternalAdmin() {
@@ -4590,7 +4590,7 @@ function buildSmartRankReviewFactorPanel(worker, reviewFactors = [], workerArchi
 
   if (!canManageReviewFactors()) {
     panel.appendChild(el('div', { class: 'read-only-banner' },
-      'Review Factor management requires admin or supervisor access. Dispatchers can see placement review context through SmartRank.'
+      'Review Factor management requires admin access in v1. Supervisors and dispatchers can see placement review context through SmartRank.'
     ));
     return panel;
   }
@@ -6476,6 +6476,14 @@ async function renderAllocate(jobId, workerId, renderCycle) {
   panel.appendChild(el('div', { class: 'small muted', style: 'margin-top:6px;' },
     'Review Factors support placement review only. They are not compliance approval, safety approval, or automatic dispatch.'
   ));
+
+  if (ranked.candidate_group === 'review_required' && state.user?.role !== 'admin') {
+    panel.appendChild(el('div', { class: 'read-only-banner', style: 'margin-top:12px;' },
+      'This placement is marked Review required. Admin access is required to confirm this allocation in v1.'
+    ));
+    view.appendChild(panel);
+    return;
+  }
 
   if (requiresReason) {
     form.appendChild(buildTextarea('override_reason', 'Override reason (required)', {

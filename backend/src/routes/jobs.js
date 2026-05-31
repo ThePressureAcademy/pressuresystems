@@ -1889,6 +1889,17 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     ).values()
   );
 
+  const reviewRequiredWarnings = (effectiveWarnings || []).filter((warning) =>
+    warning.type === 'placement_review_required'
+  );
+  if (reviewRequiredWarnings.length > 0 && req.user.role !== 'admin') {
+    return res.status(403).json({
+      error: 'Admin access is required to confirm an allocation with SmartRank Review Factors marked Review required.',
+      warnings: reviewRequiredWarnings,
+      rank
+    });
+  }
+
   const overrideRequired = effectiveWarnings.length > 0 || rank > 1;
   if (overrideRequired && !override_reason) {
     return res.status(422).json({

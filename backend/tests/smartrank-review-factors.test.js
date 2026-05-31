@@ -106,26 +106,36 @@ describe('SmartRank Review Factors v1', () => {
     assert.equal(audit.some((event) => /Confirm site-specific placement context/.test(event.payload)), false);
   });
 
-  test('supervisor can manage Review Factors while dispatcher and viewer are read-only', async () => {
+  test('supervisor, dispatcher, and advisor demo users can view but cannot manage Review Factors', async () => {
     const workerId = seedWorker(db, companyId, { name: 'Scoped Worker' });
     const supervisor = seedUser('supervisor');
     const dispatcher = seedUser('dispatcher');
     const viewer = seedUser('viewer');
-
-    const supervisorCreate = await request.post('/api/smartrank-review-factors').set(auth(supervisor.token)).send(reviewPayload(workerId, {
+    const advisorDemo = seedUser('viewer', {
+      name: 'Advisor Demo',
+      email: 'advisor-demo@example.com'
+    });
+    const created = await request.post('/api/smartrank-review-factors').set(auth()).send(reviewPayload(workerId, {
       severity: 'info'
     }));
-    assert.equal(supervisorCreate.status, 201);
+    assert.equal(created.status, 201);
 
-    const dispatcherList = await request.get(`/api/smartrank-review-factors?worker_id=${workerId}`).set(auth(dispatcher.token));
-    assert.equal(dispatcherList.status, 200);
-    assert.equal(dispatcherList.body.review_factors.length, 1);
+    for (const user of [supervisor, dispatcher, viewer, advisorDemo]) {
+      const listed = await request.get(`/api/smartrank-review-factors?worker_id=${workerId}`).set(auth(user.token));
+      assert.equal(listed.status, 200);
+      assert.equal(listed.body.review_factors.length, 1);
 
-    const dispatcherCreate = await request.post('/api/smartrank-review-factors').set(auth(dispatcher.token)).send(reviewPayload(workerId));
-    assert.equal(dispatcherCreate.status, 403);
+      const create = await request.post('/api/smartrank-review-factors').set(auth(user.token)).send(reviewPayload(workerId));
+      assert.equal(create.status, 403);
 
-    const viewerArchive = await request.post(`/api/smartrank-review-factors/${supervisorCreate.body.id}/archive`).set(auth(viewer.token)).send({});
-    assert.equal(viewerArchive.status, 403);
+      const edit = await request.patch(`/api/smartrank-review-factors/${created.body.id}`).set(auth(user.token)).send(reviewPayload(workerId, {
+        summary: 'Attempted edit should be rejected.'
+      }));
+      assert.equal(edit.status, 403);
+
+      const archive = await request.post(`/api/smartrank-review-factors/${created.body.id}/archive`).set(auth(user.token)).send({});
+      assert.equal(archive.status, 403);
+    }
   });
 
   test('rejects unsafe categories, unsupported hard blocks, missing confirmation, and forbidden wording', async () => {
@@ -181,13 +191,15 @@ describe('SmartRank Review Factors v1', () => {
     assert.equal(crossTenantWorker.status, 404);
   });
 
-  test('requires override reason when a Review Factor moves placement into review required', async () => {
+  test('keeps supervisor and dispatcher SmartRank context visible while Review required override stays admin-only', async () => {
     const workerId = seedWorker(db, companyId, { name: 'Review Required Worker', crane_classes: ['55T'] });
     seedCredential(db, workerId, companyId);
     const jobId = seedJob(db, companyId, adminId, {
       crane_class_required: '55T',
       task_tags: ['panel_lift']
     });
+    const supervisor = seedUser('supervisor');
+    const dispatcher = seedUser('dispatcher');
     const created = await request.post('/api/smartrank-review-factors').set(auth()).send(reviewPayload(workerId, {
       severity: 'requires_review',
       job_type: 'panel_lift'
@@ -202,13 +214,34 @@ describe('SmartRank Review Factors v1', () => {
     assert.equal(rankedEntry.manual_confirmation_required, true);
     assert.equal(rankedEntry.warnings.some((warning) => warning.type === 'placement_review_required'), true);
 
+    const supervisorSmartRank = await request.get(`/api/jobs/${jobId}/smartrank`).set(auth(supervisor.token));
+    assert.equal(supervisorSmartRank.status, 200);
+    assert.equal(supervisorSmartRank.body.groups.review_required.some((entry) => entry.worker.id === workerId), true);
+
+    const dispatcherSmartRank = await request.get(`/api/jobs/${jobId}/smartrank`).set(auth(dispatcher.token));
+    assert.equal(dispatcherSmartRank.status, 200);
+    assert.equal(dispatcherSmartRank.body.groups.review_required.some((entry) => entry.worker.id === workerId), true);
+
+    const supervisorOverride = await request.post(`/api/jobs/${jobId}/allocations`).set(auth(supervisor.token)).send({
+      worker_id: workerId,
+      override_reason: 'Supervisor should not be able to override Review required in v1.'
+    });
+    assert.equal(supervisorOverride.status, 403);
+
+    const dispatcherOverride = await request.post(`/api/jobs/${jobId}/allocations`).set(auth(dispatcher.token)).send({
+      worker_id: workerId,
+      override_reason: 'Dispatcher should not be able to override Review required in v1.'
+    });
+    assert.equal(dispatcherOverride.status, 403);
+    assert.match(dispatcherOverride.body.error, /Admin access is required/i);
+
     const rejected = await request.post(`/api/jobs/${jobId}/allocations`).set(auth()).send({ worker_id: workerId });
     assert.equal(rejected.status, 422);
     assert.match(rejected.body.error, /override_reason/);
 
     const accepted = await request.post(`/api/jobs/${jobId}/allocations`).set(auth()).send({
       worker_id: workerId,
-      override_reason: 'Supervisor confirmed placement review context before allocation.'
+      override_reason: 'Admin confirmed placement review context before allocation.'
     });
     assert.equal(accepted.status, 201);
     assert.equal(accepted.body.smartrank_snapshot.candidate_group, 'review_required');

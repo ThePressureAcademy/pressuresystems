@@ -101,7 +101,9 @@ SmartRank candidate groups are:
 
 Review Factors never create an autonomous assignment. The dispatcher still confirms.
 
-If a candidate has a `requires_review` factor, allocation requires an override reason through the existing allocation confirmation flow.
+If a candidate has a `requires_review` factor, allocation requires an admin override reason through the existing allocation confirmation flow.
+
+In v1, confirming an allocation that carries a `requires_review` Review Factor is admin-only. Supervisor or dispatcher override authority should not be added until the role model is reviewed through RBAC.
 
 If a candidate has a `hard_block` factor, allocation is rejected. No hard-block override workflow is built in v1.
 
@@ -110,7 +112,7 @@ If a candidate has a `hard_block` factor, allocation is rejected. No hard-block 
 Existing pilot roles are used:
 
 - `admin`: create, edit, archive, and view Review Factors.
-- `supervisor`: create, edit, archive, and view Review Factors.
+- `supervisor`: view only in v1. Supervisor write access is future and RBAC-dependent.
 - `dispatcher`: view Review Factors through SmartRank and worker review context.
 - `viewer`: view only where normal tenant pages are visible.
 

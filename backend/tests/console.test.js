@@ -91,7 +91,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /canManageReviewFactors/);
     assert.match(res.text, /\/smartrank-review-factors/);
     assert.match(res.text, /Review Factors support placement review only/);
-    assert.match(res.text, /admin or supervisor access/);
+    assert.match(res.text, /admin access in v1/);
+    assert.match(res.text, /Admin access is required to confirm this allocation in v1/);
     assert.match(res.text, /renderAudit/);
     assert.match(res.text, /renderInternalPilotMonitor/);
     assert.match(res.text, /renderSourceUploads/);

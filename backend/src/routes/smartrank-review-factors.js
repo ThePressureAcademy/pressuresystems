@@ -59,7 +59,7 @@ router.get('/:id', requireAuth, (req, res) => {
   return res.json(factor);
 });
 
-router.post('/', requireAuth, requireRole('admin', 'supervisor'), (req, res) => {
+router.post('/', requireAuth, requireRole('admin'), (req, res) => {
   const db = getDb();
   try {
     const factor = createReviewFactor(db, req.user.company_id, req.user.id, req.body || {});
@@ -76,7 +76,7 @@ router.post('/', requireAuth, requireRole('admin', 'supervisor'), (req, res) => 
   }
 });
 
-router.patch('/:id', requireAuth, requireRole('admin', 'supervisor'), (req, res) => {
+router.patch('/:id', requireAuth, requireRole('admin'), (req, res) => {
   const db = getDb();
   try {
     const factor = updateReviewFactor(db, req.user.company_id, req.params.id, req.body || {});
@@ -94,7 +94,7 @@ router.patch('/:id', requireAuth, requireRole('admin', 'supervisor'), (req, res)
   }
 });
 
-router.post('/:id/archive', requireAuth, requireRole('admin', 'supervisor'), (req, res) => {
+router.post('/:id/archive', requireAuth, requireRole('admin'), (req, res) => {
   const db = getDb();
   const factor = archiveReviewFactor(db, req.user.company_id, req.params.id, req.user.id);
   if (!factor) return res.status(404).json({ error: 'SmartRank Review Factor not found' });
