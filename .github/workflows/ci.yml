@@ -1,0 +1,94 @@
+# Runs on every push and pull request.
+# Tests must pass on every branch. Deploys to Fly.io only when main is updated.
+
+name: CI · Deploy
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs on the same branch when a new commit arrives.
+# Exception: never cancel an active deploy on main — let it finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # ─── Test ──────────────────────────────────────────────────────────────────
+  test:
+    name: Test (Node 20)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  # ─── Deploy ────────────────────────────────────────────────────────────────
+  # Only runs on pushes to main, and only after the test job passes.
+  # Fly builds the Docker image remotely (--remote-only) — no Docker daemon
+  # required on the runner.
+  deploy:
+    name: Deploy → Fly.io (production)
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    environment:
+      name: production
+      url: https://liftiq-pilot.fly.dev/console/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        working-directory: backend
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      # Give the machine time to start and pass Fly's own health checks
+      # before we hit the endpoint ourselves.
+      - name: Wait for machine to start
+        run: sleep 20
+
+      - name: Health check
+        run: |
+          HTTP_STATUS=$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --max-time 10 \
+            https://liftiq-pilot.fly.dev/api/health)
+
+          echo "HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::Health check failed — expected 200, got $HTTP_STATUS"
+            exit 1
+          fi
+
+          echo "::notice::Deployment healthy — https://liftiq-pilot.fly.dev/console/"
