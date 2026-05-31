@@ -349,6 +349,7 @@ main#view {
   padding: 20px;
   margin-bottom: 20px;
   min-width: 0;
+  overflow-x: auto;
 }
 .panel h2 { margin-top: 0; }
 .panel h3 { margin-top: 0; font-size: 15px; color: var(--muted); font-weight: 500; }
@@ -493,6 +494,37 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .rank-card .alerts { margin-top: 10px; font-size: 12px; }
 .rank-card .alerts ul { margin: 4px 0 0 18px; padding: 0; }
 .rank-card .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.review-factor-alerts {
+  border-color: rgba(224,161,90,0.35);
+}
+.review-factor-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.review-factor-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+.review-factor-card.is-archived {
+  opacity: 0.72;
+}
+.review-factor-card__head {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(180px, 1fr) auto;
+}
+.review-factor-card p {
+  margin: 8px 0 0;
+}
+.review-factor-form {
+  border-top: 1px solid var(--border);
+  margin-top: 14px;
+  padding-top: 14px;
+}
 .notification-snapshot { margin-top: 10px; }
 .sms-preview {
   white-space: pre-wrap;
@@ -1712,6 +1744,7 @@ ul.tag-list li {
   }
 
   .credential-type-row,
+  .review-factor-card__head,
   .daily-log-card-head,
   .daily-log-entry,
   .daily-log-report-head,

@@ -19,6 +19,7 @@ app.use('/api/catalogue',    require('./routes/catalogue'));
 app.use('/api/users',        require('./routes/users'));
 app.use('/api/workers',      require('./routes/workers'));
 app.use('/api/credential-types', require('./routes/credential-types'));
+app.use('/api/smartrank-review-factors', require('./routes/smartrank-review-factors'));
 app.use('/api/jobs',         require('./routes/jobs'));
 app.use('/api/site-logs',    require('./routes/site-logs'));
 app.use('/api/crane-models', require('./routes/crane-models'));

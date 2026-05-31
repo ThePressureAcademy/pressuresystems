@@ -255,4 +255,67 @@ describe('rankWorkersForJob', () => {
     assert.equal(ranked[0].preference_signals[0].source, 'learned');
   });
 
+  test('placement Review Factors move candidate into review required without changing score math', () => {
+    const w = worker({ id: 'w-review-factor' });
+    const { ranked, blocked } = rankWorkersForJob(
+      [w],
+      JOB,
+      { [w.id]: validCred(w.id) },
+      {},
+      {},
+      {},
+      {
+        now: NOW,
+        reviewFactorsByWorker: {
+          [w.id]: [{
+            id: 'factor-1',
+            category: 'operations_manager_review',
+            category_label: 'Operations manager review',
+            severity: 'requires_review',
+            severity_label: 'Manual review required',
+            summary: 'Confirm site-specific placement context before allocation.'
+          }]
+        }
+      }
+    );
+
+    assert.equal(blocked.length, 0);
+    assert.equal(ranked[0].candidate_group, 'review_required');
+    assert.equal(ranked[0].manual_confirmation_required, true);
+    assert.equal(ranked[0].review_factors.length, 1);
+    assert.equal(ranked[0].warnings.some((warning) => warning.type === 'placement_review_required'), true);
+    const expectedTotal = Object.values(ranked[0].score_breakdown).reduce((sum, factor) => sum + factor.weighted, 0);
+    assert.ok(Math.abs(ranked[0].score - Math.round(expectedTotal * 10) / 10) < 0.01);
+  });
+
+  test('objective credential Review Factor hard blocks placement', () => {
+    const w = worker({ id: 'w-review-block' });
+    const { ranked, blocked } = rankWorkersForJob(
+      [w],
+      JOB,
+      { [w.id]: validCred(w.id) },
+      {},
+      {},
+      {},
+      {
+        now: NOW,
+        reviewFactorsByWorker: {
+          [w.id]: [{
+            id: 'factor-block',
+            category: 'credential_review',
+            category_label: 'Credential review',
+            severity: 'hard_block',
+            severity_label: 'Hard block',
+            summary: 'Objective credential document requires operations review before assignment.'
+          }]
+        }
+      }
+    );
+
+    assert.equal(ranked.length, 0);
+    assert.equal(blocked.length, 1);
+    assert.equal(blocked[0].blocks.some((block) => block.type === 'placement_review_hard_block'), true);
+    assert.equal(blocked[0].review_factors[0].id, 'factor-block');
+  });
+
 });

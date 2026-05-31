@@ -65,6 +65,35 @@ const SOURCE_UPLOAD_STATUS_CLASSES = {
   deleted: 'pill-muted'
 };
 
+const REVIEW_FACTOR_CATEGORY_OPTIONS = [
+  { value: 'credential_review', label: 'Credential review' },
+  { value: 'site_specific_review', label: 'Site-specific review' },
+  { value: 'client_specific_review', label: 'Client-specific review' },
+  { value: 'equipment_familiarity_review', label: 'Equipment familiarity review' },
+  { value: 'role_experience_review', label: 'Role experience review' },
+  { value: 'supervision_required', label: 'Supervision required' },
+  { value: 'fatigue_workload_review', label: 'Fatigue / workload review' },
+  { value: 'recent_incident_review', label: 'Recent incident review' },
+  { value: 'crew_pairing_review', label: 'Crew pairing review' },
+  { value: 'training_pathway', label: 'Training pathway' },
+  { value: 'worker_preference_or_request', label: 'Worker preference or request' },
+  { value: 'operations_manager_review', label: 'Operations manager review' },
+  { value: 'other_documented_review', label: 'Other documented review' }
+];
+const REVIEW_FACTOR_SEVERITY_OPTIONS = [
+  { value: 'info', label: 'Info' },
+  { value: 'caution', label: 'Caution' },
+  { value: 'requires_review', label: 'Manual review required' },
+  { value: 'hard_block', label: 'Hard block' }
+];
+const REVIEW_FACTOR_APPLY_OPTIONS = [
+  { value: 'worker', label: 'Worker' },
+  { value: 'worker_site', label: 'Worker and site' },
+  { value: 'worker_client', label: 'Worker and client' },
+  { value: 'worker_role', label: 'Worker and role' },
+  { value: 'worker_job_context', label: 'Worker and job context' }
+];
+
 const EXPORT_SECTIONS = [
   {
     title: 'Operational exports',
@@ -960,6 +989,10 @@ function isCompanyAccessBlocked() {
 
 function isAdminUser() {
   return state.user?.role === 'admin';
+}
+
+function canManageReviewFactors() {
+  return state.user?.role === 'admin' || state.user?.role === 'supervisor';
 }
 
 function isInternalAdmin() {
@@ -4140,13 +4173,14 @@ async function renderWorkerDetail(workerId, renderCycle) {
   const view = document.getElementById('view');
   view.innerHTML = '';
 
-  const [worker, credentials, fatigue, preferences, intakeOptions, credentialTypes] = await Promise.all([
+  const [worker, credentials, fatigue, preferences, intakeOptions, credentialTypes, reviewFactorResult] = await Promise.all([
     api('GET', `/workers/${workerId}`),
     api('GET', `/workers/${workerId}/credentials`),
     api('GET', `/workers/${workerId}/fatigue-records`),
     api('GET', `/workers/${workerId}/preferences`),
     loadIntakeOptions(),
-    loadCredentialTypes()
+    loadCredentialTypes(),
+    api('GET', `/smartrank-review-factors?worker_id=${encodeURIComponent(workerId)}&include_inactive=1`)
   ]);
   if (isStaleRender(renderCycle)) return;
   const workerArchived = Boolean(worker.archived_at);
@@ -4381,6 +4415,8 @@ async function renderWorkerDetail(workerId, renderCycle) {
   prefPanel.appendChild(prefForm);
   view.appendChild(prefPanel);
 
+  view.appendChild(buildSmartRankReviewFactorPanel(worker, reviewFactorResult.review_factors || [], workerArchived));
+
   const credPanel = el('div', { class: 'panel' });
   credPanel.appendChild(el('h3', {}, `Credentials (${credentials.length})`));
   if (credentials.length === 0) {
@@ -4436,6 +4472,198 @@ async function renderWorkerDetail(workerId, renderCycle) {
     fatPanel.appendChild(buildFatigueForm(workerId));
   }
   view.appendChild(fatPanel);
+}
+
+function reviewFactorSeverityPill(severity) {
+  const map = {
+    info: 'pill-info',
+    caution: 'pill-warn',
+    requires_review: 'pill-warn',
+    hard_block: 'pill-bad'
+  };
+  return el('span', { class: `pill ${map[severity] || 'pill-muted'}` },
+    severity === 'requires_review' ? 'Review required' : formatDisplayLabel(severity)
+  );
+}
+
+function reviewFactorContextLine(factor = {}) {
+  const parts = [
+    factor.site_name ? `Site: ${factor.site_name}` : null,
+    factor.client_name ? `Client: ${factor.client_name}` : null,
+    factor.role_name ? `Role: ${factor.role_name}` : null,
+    factor.job_type ? `Job context: ${factor.job_type}` : null,
+    factor.expires_at ? `Expires: ${fmtDateOnly(factor.expires_at)}` : null,
+    factor.active === false ? 'Archived' : null
+  ].filter(Boolean);
+  return parts.join(' / ') || 'Applies to this worker across matching placements';
+}
+
+function fillReviewFactorForm(form, factor = {}) {
+  form.elements.review_factor_id.value = factor.id || '';
+  form.elements.category.value = factor.category || 'operations_manager_review';
+  form.elements.severity.value = factor.severity || 'info';
+  form.elements.applies_to_type.value = factor.applies_to_type || 'worker';
+  form.elements.site_name.value = factor.site_name || '';
+  form.elements.client_name.value = factor.client_name || '';
+  form.elements.role_name.value = factor.role_name || '';
+  form.elements.job_type.value = factor.job_type || '';
+  form.elements.summary.value = factor.summary || '';
+  form.elements.notes.value = factor.notes || '';
+  form.elements.review_date.value = factor.review_date || '';
+  form.elements.expires_at.value = factor.expires_at || '';
+  form.elements.confirm_review_boundary.checked = false;
+  form.querySelector('[data-review-factor-mode]').textContent = factor.id
+    ? 'Edit SmartRank Review Factor'
+    : 'Add SmartRank Review Factor';
+}
+
+function reviewFactorPayloadFromForm(form, workerId) {
+  const fd = new FormData(form);
+  return {
+    worker_id: workerId,
+    category: fd.get('category'),
+    severity: fd.get('severity'),
+    applies_to_type: fd.get('applies_to_type'),
+    site_name: fd.get('site_name') || null,
+    client_name: fd.get('client_name') || null,
+    role_name: fd.get('role_name') || null,
+    job_type: fd.get('job_type') || null,
+    summary: fd.get('summary'),
+    notes: fd.get('notes') || null,
+    review_date: fd.get('review_date') || null,
+    expires_at: fd.get('expires_at') || null,
+    confirm_review_boundary: fd.get('confirm_review_boundary') === 'true'
+  };
+}
+
+function buildSmartRankReviewFactorPanel(worker, reviewFactors = [], workerArchived = false) {
+  const panel = el('div', { class: 'panel review-factor-panel' });
+  panel.appendChild(el('h3', {}, 'SmartRank Review Factors'));
+  panel.appendChild(el('p', { class: 'small muted' },
+    'Placement-specific decision support for this worker. These factors rank placement fit, not the person. The dispatcher still confirms the allocation.'
+  ));
+
+  const activeFactors = reviewFactors.filter((factor) => factor.active !== false);
+  const archivedFactors = reviewFactors.filter((factor) => factor.active === false);
+  if (reviewFactors.length === 0) {
+    panel.appendChild(el('div', { class: 'empty' }, 'No SmartRank Review Factors recorded for this worker.'));
+  } else {
+    const list = el('div', { class: 'review-factor-list' });
+    for (const factor of [...activeFactors, ...archivedFactors]) {
+      const actions = el('div', { class: 'button-row' });
+      if (canManageReviewFactors() && !workerArchived && factor.active !== false) {
+        actions.appendChild(el('button', {
+          type: 'button',
+          class: 'secondary',
+          onclick: () => fillReviewFactorForm(panel.querySelector('form'), factor)
+        }, 'Edit'));
+        actions.appendChild(el('button', {
+          type: 'button',
+          class: 'secondary',
+          onclick: async () => {
+            try {
+              await api('POST', `/smartrank-review-factors/${factor.id}/archive`, {});
+              toast('SmartRank Review Factor archived', 'success');
+              router();
+            } catch (error) {
+              toast(error.error || 'Could not archive SmartRank Review Factor', 'error');
+            }
+          }
+        }, 'Archive'));
+      }
+
+      list.appendChild(el('div', { class: `review-factor-card ${factor.active === false ? 'is-archived' : ''}` },
+        el('div', { class: 'review-factor-card__head' },
+          el('div', {},
+            el('strong', {}, factor.category_label || formatDisplayLabel(factor.category)),
+            el('div', { class: 'small muted' }, reviewFactorContextLine(factor))
+          ),
+          reviewFactorSeverityPill(factor.severity)
+        ),
+        el('p', {}, factor.summary),
+        factor.notes ? el('div', { class: 'small muted' }, factor.notes) : null,
+        actions.childNodes.length ? actions : null
+      ));
+    }
+    panel.appendChild(list);
+  }
+
+  if (!canManageReviewFactors()) {
+    panel.appendChild(el('div', { class: 'read-only-banner' },
+      'Review Factor management requires admin or supervisor access. Dispatchers can see placement review context through SmartRank.'
+    ));
+    return panel;
+  }
+
+  if (workerArchived) {
+    panel.appendChild(el('div', { class: 'read-only-banner' },
+      'Archived workers cannot receive new SmartRank Review Factors.'
+    ));
+    return panel;
+  }
+
+  const form = el('form', { class: 'review-factor-form' });
+  const err = el('div', { class: 'error' });
+  form.appendChild(el('h3', { 'data-review-factor-mode': 'true' }, 'Add SmartRank Review Factor'));
+  form.appendChild(el('input', { type: 'hidden', name: 'review_factor_id' }));
+  form.appendChild(el('div', { class: 'source-upload-boundary' },
+    'Use these factors only for documented placement review. Do not record personal labels, medical clearance, protected attributes, or compliance approval.'
+  ));
+  form.appendChild(el('div', { class: 'row' },
+    buildSelect('category', 'Category', REVIEW_FACTOR_CATEGORY_OPTIONS, { required: true, value: 'operations_manager_review' }),
+    buildSelect('severity', 'Severity', REVIEW_FACTOR_SEVERITY_OPTIONS, { required: true, value: 'info' }),
+    buildSelect('applies_to_type', 'Applies to', REVIEW_FACTOR_APPLY_OPTIONS, { required: true, value: 'worker' }),
+    buildInput('review_date', 'Review date', { type: 'date' }),
+    buildInput('expires_at', 'Expires at (optional)', { type: 'date' })
+  ));
+  form.appendChild(el('div', { class: 'row' },
+    buildInput('site_name', 'Site context (optional)'),
+    buildInput('client_name', 'Client context (optional)'),
+    buildInput('role_name', 'Role context (optional)'),
+    buildInput('job_type', 'Job context (optional)')
+  ));
+  form.appendChild(buildTextarea('summary', 'Review summary', {
+    required: true,
+    placeholder: 'Example: Review recent site-specific induction before assigning to this placement.'
+  }));
+  form.appendChild(buildTextarea('notes', 'Internal notes (optional)', {
+    placeholder: 'Keep notes factual, placement-specific, and reviewable.'
+  }));
+  form.appendChild(el('label', { class: 'checkbox-line' },
+    el('input', { type: 'checkbox', name: 'confirm_review_boundary', value: 'true', required: true }),
+    el('span', {}, 'I confirm this is placement-specific decision support, not a personal, medical, compliance, safety, or protected-attribute judgement.')
+  ));
+  form.appendChild(err);
+  form.appendChild(el('div', { class: 'button-row' },
+    el('button', { type: 'submit' }, 'Save Review Factor'),
+    el('button', {
+      type: 'button',
+      class: 'secondary',
+      onclick: () => fillReviewFactorForm(form)
+    }, 'Clear')
+  ));
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const reviewFactorId = String(form.elements.review_factor_id.value || '');
+    const payload = reviewFactorPayloadFromForm(form, worker.id);
+    try {
+      if (reviewFactorId) {
+        await api('PATCH', `/smartrank-review-factors/${reviewFactorId}`, payload);
+        toast('SmartRank Review Factor updated', 'success');
+      } else {
+        await api('POST', '/smartrank-review-factors', payload);
+        toast('SmartRank Review Factor added', 'success');
+      }
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not save SmartRank Review Factor';
+    }
+  });
+
+  panel.appendChild(form);
+  return panel;
 }
 
 function renderCredentialTile(credential) {
@@ -5970,6 +6198,9 @@ async function renderSmartRank(jobId, renderCycle) {
     el('div', { class: 'small muted', style: 'margin-top:8px;' },
       'Confirmed allocation learning may adjust the task preference factor, but it never overrides hard blocks or hides warnings.'
     ),
+    el('div', { class: 'small muted', style: 'margin-top:8px;' },
+      'SmartRank Review Factors show placement-specific context. They rank placement fit, not the person.'
+    ),
     el('div', { class: 'button-row', style: 'margin-top:10px;' },
       el('strong', {}, 'Task context:'),
       renderTagList(result.job.task_tags, 'none')
@@ -6016,9 +6247,22 @@ async function renderSmartRank(jobId, renderCycle) {
   if (result.ranked.length === 0) {
     view.appendChild(el('div', { class: 'panel empty' }, 'No eligible workers for this job.'));
   } else {
-    view.appendChild(el('h3', { style: 'margin-bottom:8px;' }, `Ranked workers (${result.ranked.length})`));
-    for (const ranked of result.ranked) {
-      view.appendChild(renderRankCard(jobId, ranked, ranked.rank === 1));
+    const groups = result.groups || {
+      top_ranked: result.ranked.filter((entry) => entry.candidate_group === 'top_ranked' || entry.rank === 1),
+      suitable: result.ranked.filter((entry) => entry.candidate_group === 'suitable' && entry.rank !== 1),
+      review_required: result.ranked.filter((entry) => entry.candidate_group === 'review_required')
+    };
+    for (const [key, label] of [
+      ['top_ranked', 'Top-ranked'],
+      ['suitable', 'Suitable'],
+      ['review_required', 'Review required']
+    ]) {
+      const entries = groups[key] || [];
+      if (!entries.length) continue;
+      view.appendChild(el('h3', { style: 'margin-bottom:8px; margin-top:18px;' }, `${label} (${entries.length})`));
+      for (const ranked of entries) {
+        view.appendChild(renderRankCard(jobId, ranked, ranked.candidate_group === 'top_ranked'));
+      }
     }
   }
 
@@ -6032,13 +6276,20 @@ async function renderSmartRank(jobId, renderCycle) {
 
 function renderRankCard(jobId, ranked, isTop) {
   const hasWarnings = ranked.warnings && ranked.warnings.length > 0;
-  const card = el('div', { class: `rank-card ${isTop ? 'top' : (hasWarnings ? 'warn' : '')}` });
+  const hasReviewRequired = ranked.candidate_group === 'review_required';
+  const card = el('div', { class: `rank-card ${isTop ? 'top' : ((hasWarnings || hasReviewRequired) ? 'warn' : '')}` });
+  const groupPill = hasReviewRequired
+    ? el('span', { class: 'pill pill-warn', style: 'margin-left:8px;' }, 'Review required')
+    : ranked.candidate_group === 'suitable'
+      ? el('span', { class: 'pill pill-info', style: 'margin-left:8px;' }, 'Suitable')
+      : null;
 
   card.appendChild(el('div', { class: 'rank-head' },
     el('div', {},
       el('div', { class: 'rank-name' },
         `#${ranked.rank} ${ranked.worker.name}`,
-        isTop ? el('span', { class: 'pill pill-ok', style: 'margin-left:8px;' }, 'top-ranked') : null
+        isTop ? el('span', { class: 'pill pill-ok', style: 'margin-left:8px;' }, 'Top-ranked') : null,
+        groupPill
       ),
       el('div', { class: 'rank-meta' },
         `${labelsFromValues(ranked.worker.roles || [ranked.worker.role], null).join(', ')} / ${formatDisplayLabel(ranked.worker.employment_type)} / ${formatDisplayLabel(ranked.worker.status)}`
@@ -6062,6 +6313,19 @@ function renderRankCard(jobId, ranked, isTop) {
   ));
 
   card.appendChild(renderRoleCoverageSummary(ranked.role_coverage));
+
+  if (ranked.review_factors?.length) {
+    const list = el('ul');
+    for (const factor of ranked.review_factors) {
+      list.appendChild(el('li', {},
+        `${factor.severity === 'requires_review' ? 'Review required' : formatDisplayLabel(factor.severity)} - ${factor.category_label || formatDisplayLabel(factor.category)}: ${factor.summary}`
+      ));
+    }
+    card.appendChild(el('div', { class: 'alerts review-factor-alerts' },
+      el('strong', {}, 'SmartRank Review Factors: '),
+      list
+    ));
+  }
 
   card.appendChild(el('details', {},
     el('summary', {}, 'Factor details'),
@@ -6108,6 +6372,16 @@ function renderBlockedCard(blocked) {
     el('strong', {}, 'Block reasons:'),
     list
   ));
+  if (blocked.review_factors?.length) {
+    const factorList = el('ul');
+    for (const factor of blocked.review_factors) {
+      factorList.appendChild(el('li', {}, `${factor.category_label || formatDisplayLabel(factor.category)}: ${factor.summary}`));
+    }
+    card.appendChild(el('div', { class: 'alerts review-factor-alerts' },
+      el('strong', {}, 'Placement review context:'),
+      factorList
+    ));
+  }
   return card;
 }
 
@@ -6147,7 +6421,7 @@ async function renderAllocate(jobId, workerId, renderCycle) {
     return;
   }
 
-  const isTop = ranked.rank === 1;
+  const isTop = ranked.candidate_group === 'top_ranked';
   const hasWarnings = ranked.warnings.length > 0;
   const requiresReason = !isTop || hasWarnings;
 
@@ -6166,6 +6440,18 @@ async function renderAllocate(jobId, workerId, renderCycle) {
     panel.appendChild(el('div', { class: 'alerts', style: 'margin-top:10px;' },
       el('strong', {}, 'Warnings: '),
       list
+    ));
+  }
+  if (ranked.review_factors?.length) {
+    const factorList = el('ul');
+    for (const factor of ranked.review_factors) {
+      factorList.appendChild(el('li', {},
+        `${factor.severity === 'requires_review' ? 'Review required' : formatDisplayLabel(factor.severity)} - ${factor.category_label || formatDisplayLabel(factor.category)}: ${factor.summary}`
+      ));
+    }
+    panel.appendChild(el('div', { class: 'alerts review-factor-alerts', style: 'margin-top:10px;' },
+      el('strong', {}, 'SmartRank Review Factors: '),
+      factorList
     ));
   }
   panel.appendChild(el('div', { class: 'preference-section' },
@@ -6187,12 +6473,15 @@ async function renderAllocate(jobId, workerId, renderCycle) {
   panel.appendChild(el('div', { class: 'small muted', style: 'margin-top:10px;' },
     'Combined-role allocation is decision support only. Confirm job, site, client, company procedure, credentials, schedule, and fatigue context before confirming.'
   ));
+  panel.appendChild(el('div', { class: 'small muted', style: 'margin-top:6px;' },
+    'Review Factors support placement review only. They are not compliance approval, safety approval, or automatic dispatch.'
+  ));
 
   if (requiresReason) {
     form.appendChild(buildTextarea('override_reason', 'Override reason (required)', {
       required: true,
       placeholder: hasWarnings
-        ? 'Explain why this allocation is acceptable despite warnings...'
+        ? 'Record the operational reason this placement remains acceptable after review...'
         : 'Explain why a lower-ranked worker is being selected...'
     }));
   }
@@ -6272,6 +6561,12 @@ async function renderAudit(renderCycle) {
   for (const option of [
     '',
     'smartrank_generated',
+    'smartrank_review_factor_created',
+    'smartrank_review_factor_updated',
+    'smartrank_review_factor_archived',
+    'smartrank_review_factor_applied',
+    'smartrank_review_override_recorded',
+    'smartrank_review_hard_block_attempted',
     'allocation_confirmed',
     'allocation_rejected',
     'allocation_changed',

@@ -5,6 +5,10 @@ const { randomUUID } = require('crypto');
 const { getDb } = require('../db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { rankWorkersForJob } = require('../services/smart-rank');
+const {
+  buildReviewFactorMapForJob,
+  listActiveReviewFactorsForSmartRank
+} = require('../services/smartrank-review-factors');
 const { appendAuditEvent } = require('../services/audit');
 const {
   groupPreferencesByWorker,
@@ -183,12 +187,15 @@ function fetchSmartRankData(db, companyId) {
     WHERE company_id = ?
   `).all(companyId);
 
+  const reviewFactors = listActiveReviewFactorsForSmartRank(db, companyId);
+
   return {
     workers,
     credsByWorker: credentialsByWorker,
     fatigueByWorker,
     allocsByWorker: allocationsByWorker,
-    preferencesByWorker: groupPreferencesByWorker(preferenceRows)
+    preferencesByWorker: groupPreferencesByWorker(preferenceRows),
+    reviewFactors
   };
 }
 
@@ -1532,7 +1539,8 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
     credsByWorker,
     fatigueByWorker,
     allocsByWorker,
-    preferencesByWorker
+    preferencesByWorker,
+    reviewFactors
   } = fetchSmartRankData(db, req.user.company_id);
 
   if (req.query.role) {
@@ -1540,6 +1548,7 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
   }
 
   const roleCompatibilityRules = listRoleCompatibilityRules(db, req.user.company_id);
+  const reviewFactorsByWorker = buildReviewFactorMapForJob(job, workers, reviewFactors);
   const { ranked, blocked, role_coverage_plan } = rankWorkersForJob(
     workers,
     job,
@@ -1547,10 +1556,32 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
     fatigueByWorker,
     allocsByWorker,
     preferencesByWorker,
-    { roleCompatibilityRules }
+    { roleCompatibilityRules, reviewFactorsByWorker }
   );
 
-  const result = { job, ranked, blocked, role_coverage_plan, generated_at: new Date().toISOString() };
+  const reviewFactorIds = Array.from(new Set(
+    [...ranked, ...blocked].flatMap((entry) => (entry.review_factors || []).map((factor) => factor.id))
+  ));
+  const result = {
+    job,
+    ranked,
+    blocked,
+    groups: {
+      top_ranked: ranked.filter((entry) => entry.candidate_group === 'top_ranked'),
+      suitable: ranked.filter((entry) => entry.candidate_group === 'suitable'),
+      review_required: ranked.filter((entry) => entry.candidate_group === 'review_required'),
+      blocked
+    },
+    role_coverage_plan,
+    review_factor_summary: {
+      applied_count: reviewFactorIds.length,
+      review_required_count: ranked.filter((entry) => entry.candidate_group === 'review_required').length,
+      hard_block_count: blocked.filter((entry) =>
+        (entry.blocks || []).some((block) => block.type === 'placement_review_hard_block')
+      ).length
+    },
+    generated_at: new Date().toISOString()
+  };
 
   appendAuditEvent(db, {
     companyId: req.user.company_id,
@@ -1560,10 +1591,26 @@ router.get('/:id/smartrank', requireAuth, requireRole('admin', 'dispatcher', 'su
     payload: {
       ranked_count: ranked.length,
       blocked_count: blocked.length,
+      review_factor_count: reviewFactorIds.length,
+      review_required_count: result.review_factor_summary.review_required_count,
+      review_factor_hard_block_count: result.review_factor_summary.hard_block_count,
       role_coverage_suggested_minimum_headcount: role_coverage_plan.suggested_minimum_headcount,
       role_coverage_review_required: role_coverage_plan.review_required
     }
   });
+
+  if (reviewFactorIds.length > 0) {
+    appendAuditEvent(db, {
+      companyId: req.user.company_id,
+      eventType: 'smartrank_review_factor_applied',
+      userId: req.user.id,
+      jobId: job.id,
+      payload: {
+        applied_count: reviewFactorIds.length,
+        review_factor_ids: reviewFactorIds.slice(0, 20)
+      }
+    });
+  }
 
   if (role_coverage_plan.assignments.length > 0) {
     appendAuditEvent(db, {
@@ -1757,10 +1804,12 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     credsByWorker,
     fatigueByWorker,
     allocsByWorker,
-    preferencesByWorker
+    preferencesByWorker,
+    reviewFactors
   } = fetchSmartRankData(db, req.user.company_id);
 
   const roleCompatibilityRules = listRoleCompatibilityRules(db, req.user.company_id);
+  const reviewFactorsByWorker = buildReviewFactorMapForJob(job, workers, reviewFactors);
   const { ranked, blocked, role_coverage_plan } = rankWorkersForJob(
     workers,
     job,
@@ -1768,7 +1817,7 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     fatigueByWorker,
     allocsByWorker,
     preferencesByWorker,
-    { roleCompatibilityRules }
+    { roleCompatibilityRules, reviewFactorsByWorker }
   );
 
   const blockedEntry = blocked.find((entry) => entry.worker.id === worker_id);
@@ -1781,6 +1830,19 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
       jobId: job.id,
       payload: { reason: 'hard_block', blocks: blockedEntry.blocks }
     });
+    if ((blockedEntry.blocks || []).some((block) => block.type === 'placement_review_hard_block')) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'smartrank_review_hard_block_attempted',
+        userId: req.user.id,
+        workerId: worker_id,
+        jobId: job.id,
+        payload: {
+          review_factor_ids: (blockedEntry.review_factors || []).map((factor) => factor.id),
+          blocks: blockedEntry.blocks
+        }
+      });
+    }
     return res.status(422).json({
       error: 'Worker is hard-blocked and cannot be allocated to this job',
       blocks: blockedEntry.blocks
@@ -1792,7 +1854,16 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     return res.status(422).json({ error: 'Worker is not available for this job' });
   }
 
-  const { rank, score, score_breakdown, warnings, preference_signals } = rankedEntry;
+  const {
+    rank,
+    score,
+    score_breakdown,
+    warnings,
+    preference_signals,
+    review_factors,
+    candidate_group,
+    manual_confirmation_required
+  } = rankedEntry;
   let confirmedRoleCoverage;
   try {
     confirmedRoleCoverage = validateRequestedRoleCoverage(
@@ -1836,6 +1907,9 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
     total_ranked: ranked.length,
     total_blocked: blocked.length,
     score_breakdown,
+    candidate_group,
+    manual_confirmation_required,
+    review_factors: review_factors || [],
     role_coverage: confirmedRoleCoverage,
     role_coverage_plan,
     preference_signals,
@@ -1844,7 +1918,8 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
       worker_id: entry.worker.id,
       worker_name: entry.worker.name,
       score: entry.score,
-      rank: entry.rank
+      rank: entry.rank,
+      candidate_group: entry.candidate_group
     }))
   };
 
@@ -1913,6 +1988,8 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
         warnings_count: effectiveWarnings.length,
         role_coverage: confirmedRoleCoverage.suggested_roles,
         role_coverage_review_required: confirmedRoleCoverage.review_required,
+        candidate_group,
+        review_factor_count: (review_factors || []).length,
         schedule: job.schedule
       }
     });
@@ -1975,6 +2052,25 @@ router.post('/:id/allocations', requireAuth, requireRole('admin', 'dispatcher'),
           warnings: effectiveWarnings,
           override_reason,
           schedule: job.schedule
+        }
+      });
+    }
+
+    const reviewFactorWarnings = (effectiveWarnings || []).filter((warning) =>
+      warning.type === 'placement_review_required' || warning.type === 'placement_review_caution'
+    );
+    if (reviewFactorWarnings.length > 0 && override_reason) {
+      appendAuditEvent(db, {
+        companyId: req.user.company_id,
+        eventType: 'smartrank_review_override_recorded',
+        userId: req.user.id,
+        workerId: worker_id,
+        jobId: job.id,
+        allocationId,
+        payload: {
+          review_factor_ids: reviewFactorWarnings.map((warning) => warning.review_factor_id).filter(Boolean),
+          warning_count: reviewFactorWarnings.length,
+          override_reason
         }
       });
     }
