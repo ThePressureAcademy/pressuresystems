@@ -1,0 +1,2284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIFTIQ — Founding-Partner Call Command Centre</title>
+<style>
+:root {
+  --bg: #0d0f12;
+  --bg-2: #15181d;
+  --bg-3: #1c2028;
+  --bg-hi: #232831;
+  --border: #2a2f38;
+  --border-hi: #3a414c;
+  --text: #e6e8eb;
+  --text-mut: #9aa0a8;
+  --text-dim: #6b727b;
+  --accent: #c66631;
+  --accent-hi: #d97a44;
+  --accent-soft: #3a2317;
+  --ok: #6ba47d;
+  --ok-soft: #1f2f25;
+  --warn: #d3a047;
+  --warn-soft: #322816;
+  --danger: #c0584a;
+  --danger-soft: #321a16;
+  --info: #5a8cba;
+  --info-soft: #1a2a3a;
+  --mono: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bg-hi); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+a { color: var(--accent-hi); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1, h2, h3, h4 { margin: 0; font-weight: 600; }
+p { margin: 0 0 8px; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(180deg, #15181d 0%, #11141a 100%);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 260px 1fr auto;
+  align-items: center;
+  padding: 12px 18px;
+  gap: 18px;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand-mark { color: var(--accent); font-weight: 800; letter-spacing: 1.5px; font-size: 18px; }
+.brand-tag { color: var(--text-mut); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
+.prospect-block { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.prospect-block input {
+  background: var(--bg-3); color: var(--text);
+  border: 1px solid var(--border); padding: 7px 10px;
+  border-radius: 4px; font-size: 13px; min-width: 180px;
+  font-family: inherit;
+}
+.prospect-block input:focus { outline: none; border-color: var(--accent); }
+.prospect-block input::placeholder { color: var(--text-dim); }
+.timer-block { display: flex; align-items: center; gap: 8px; }
+.timer-display {
+  font-family: var(--mono);
+  font-size: 16px; min-width: 90px; text-align: center;
+  padding: 6px 12px; background: var(--bg-3);
+  border-radius: 4px; border: 1px solid var(--border);
+  color: var(--accent-hi); font-weight: 600;
+}
+.timer-display.running { border-color: var(--accent); }
+
+button, .btn {
+  background: var(--bg-3); color: var(--text);
+  border: 1px solid var(--border);
+  padding: 7px 13px; border-radius: 4px;
+  font-size: 13px; cursor: pointer; font-family: inherit;
+  transition: all 0.15s ease;
+}
+button:hover, .btn:hover { background: var(--bg-hi); border-color: var(--border-hi); }
+button:active { transform: translateY(1px); }
+.btn-accent {
+  background: var(--accent); border-color: var(--accent); color: white; font-weight: 600;
+}
+.btn-accent:hover { background: var(--accent-hi); border-color: var(--accent-hi); color: white; }
+.btn-ghost { background: transparent; }
+.btn-sm { padding: 4px 8px; font-size: 12px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.main {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: calc(100vh - 70px);
+}
+.sidebar {
+  background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  padding: 14px 0;
+  position: sticky; top: 70px;
+  height: calc(100vh - 70px);
+  overflow-y: auto;
+}
+.nav-section-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-dim); padding: 18px 18px 6px; font-weight: 600;
+}
+.nav-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 9px 18px; color: var(--text-mut);
+  text-decoration: none; cursor: pointer;
+  border-left: 3px solid transparent;
+  font-size: 13px;
+}
+.nav-item:hover { background: var(--bg-3); color: var(--text); text-decoration: none; }
+.nav-item.active { color: var(--accent-hi); background: var(--bg-3); border-left-color: var(--accent); }
+.nav-badge {
+  font-size: 10px; padding: 1px 7px; border-radius: 10px;
+  background: var(--bg-hi); color: var(--text-dim);
+}
+.nav-item.active .nav-badge { background: var(--accent-soft); color: var(--accent-hi); }
+
+.content {
+  padding: 28px 32px 80px;
+  max-width: 1180px;
+  width: 100%;
+}
+.section-eyebrow { color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+.section-h { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.2px; }
+.section-sub { color: var(--text-mut); margin: 0 0 24px; font-size: 14px; max-width: 720px; }
+
+.card {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 18px; margin-bottom: 14px;
+}
+.card.accent { border-left: 3px solid var(--accent); }
+.card.ok { border-left: 3px solid var(--ok); }
+.card.warn { border-left: 3px solid var(--warn); }
+.card.danger { border-left: 3px solid var(--danger); }
+.card.info { border-left: 3px solid var(--info); }
+.card-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.card-title { margin: 0 0 8px; font-size: 15px; color: var(--text); }
+.card-sub { color: var(--text-mut); font-size: 12px; }
+.card-meta { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+
+.tile {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px;
+}
+.tile-label { color: var(--text-mut); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.tile-value { font-size: 24px; font-weight: 600; }
+.tile-sub { color: var(--text-dim); font-size: 12px; }
+.tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+
+.pill {
+  display: inline-block; padding: 2px 9px;
+  background: var(--bg-hi); color: var(--text-mut);
+  border-radius: 10px; font-size: 11px; font-weight: 500;
+  letter-spacing: 0.3px;
+}
+.pill.accent { background: var(--accent-soft); color: var(--accent-hi); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.danger { background: var(--danger-soft); color: var(--danger); }
+.pill.info { background: var(--info-soft); color: var(--info); }
+
+.script-block {
+  background: var(--bg-3); border-left: 3px solid var(--accent);
+  padding: 14px 16px; border-radius: 4px;
+  font-style: italic; color: var(--text);
+  margin: 10px 0; position: relative;
+}
+.script-block .copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  font-size: 11px; padding: 3px 8px;
+}
+.script-block .script-quote { display: block; padding-right: 60px; }
+
+.question-list { list-style: none; padding: 0; margin: 6px 0; }
+.question-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.question-list li:last-child { border-bottom: 0; }
+.question-list li::before { content: "→ "; color: var(--accent); margin-right: 4px; }
+
+textarea, input[type=text], select {
+  background: var(--bg-3); color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 8px 10px; font-size: 13px; font-family: inherit;
+  width: 100%;
+}
+textarea { min-height: 80px; resize: vertical; }
+textarea:focus, input:focus, select:focus { outline: none; border-color: var(--accent); }
+label.field-label {
+  display: block; color: var(--text-mut);
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 4px;
+}
+
+table.kv {
+  width: 100%; border-collapse: collapse;
+}
+table.kv th, table.kv td {
+  text-align: left; padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  font-size: 13px;
+}
+table.kv th {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-mut);
+  background: var(--bg-3); font-weight: 600;
+}
+table.kv tr:last-child td { border-bottom: 0; }
+
+details.expand { margin: 8px 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-2); }
+details.expand[open] { border-color: var(--border-hi); }
+details.expand > summary {
+  cursor: pointer; padding: 10px 14px;
+  color: var(--text); font-weight: 500; font-size: 13px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+details.expand > summary:hover { background: var(--bg-3); }
+details.expand > summary::after { content: "+"; color: var(--accent); font-weight: 700; }
+details.expand[open] > summary::after { content: "−"; }
+details.expand > .expand-body { padding: 0 14px 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+
+.checklist-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.checklist-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); margin: 0; }
+.checklist-row.done { color: var(--text-dim); text-decoration: line-through; }
+
+.scorecard-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px; align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.scorecard-row:last-child { border-bottom: 0; }
+.scorecard-buttons { display: flex; gap: 4px; }
+.score-btn {
+  width: 34px; height: 34px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-family: var(--mono); font-size: 13px;
+}
+.score-btn.active {
+  background: var(--accent); color: white;
+  border-color: var(--accent);
+}
+.score-label { font-weight: 500; }
+.score-help { color: var(--text-dim); font-size: 12px; font-weight: normal; }
+
+.score-total {
+  background: linear-gradient(135deg, var(--bg-2), var(--bg-3));
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 22px; margin: 20px 0;
+  display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center;
+}
+.score-total-num {
+  font-family: var(--mono); font-size: 56px; font-weight: 700;
+  line-height: 1; color: var(--accent-hi);
+}
+.score-band {
+  padding: 4px 12px; border-radius: 4px;
+  font-weight: 600; font-size: 13px;
+  display: inline-block; margin-bottom: 6px;
+}
+.score-band-text { color: var(--text-mut); font-size: 13px; }
+
+.mode-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.mode-card {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 16px;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.mode-card:hover {
+  border-color: var(--accent); background: var(--bg-3);
+}
+.mode-card.active { border-color: var(--accent); background: var(--bg-3); }
+.mode-card-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.mode-card-obj { color: var(--text-mut); font-size: 12px; margin-bottom: 8px; }
+.mode-card-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.obj-card {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: 6px; padding: 16px; margin-bottom: 12px;
+}
+.obj-line {
+  font-style: italic; font-size: 14px; color: var(--warn);
+  margin-bottom: 12px; line-height: 1.4;
+}
+.obj-line::before { content: "“"; }
+.obj-line::after { content: "”"; }
+.obj-field { margin-bottom: 10px; }
+.obj-field-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-dim); margin-bottom: 3px; font-weight: 600;
+}
+.obj-field-body { color: var(--text); font-size: 13px; }
+
+.kb-card {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 16px; margin-bottom: 10px;
+}
+.kb-name {
+  font-size: 15px; font-weight: 600; color: var(--accent-hi);
+  margin-bottom: 4px;
+}
+.kb-row { margin: 8px 0; }
+.kb-row-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--text-dim); font-weight: 600;
+}
+.kb-row.does .kb-row-label { color: var(--ok); }
+.kb-row.does-not .kb-row-label { color: var(--danger); }
+.kb-row.say .kb-row-label { color: var(--accent); }
+.kb-row.dont .kb-row-label { color: var(--warn); }
+
+.followup-card {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 14px; margin-bottom: 10px;
+}
+.followup-title { font-weight: 600; margin-bottom: 6px; }
+.followup-body {
+  background: var(--bg-3); border-left: 2px solid var(--accent);
+  padding: 10px 12px; border-radius: 3px;
+  font-family: var(--mono); font-size: 12px; white-space: pre-wrap;
+  position: relative;
+}
+.followup-body .copy-btn {
+  position: absolute; top: 6px; right: 6px;
+  font-size: 11px; padding: 3px 8px;
+}
+
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100; padding: 24px;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg-2); border: 1px solid var(--border-hi);
+  border-radius: 6px; padding: 22px;
+  width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto;
+}
+.modal h3 { margin-bottom: 12px; }
+.export-output {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 14px;
+  font-family: var(--mono); font-size: 12px;
+  white-space: pre-wrap; max-height: 50vh; overflow-y: auto;
+}
+
+.feature-pain-row {
+  display: grid; grid-template-columns: 1fr 1.4fr;
+  gap: 14px; align-items: center; padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.feature-pain-row:last-child { border-bottom: 0; }
+.feature-pain-pain { color: var(--text-mut); font-size: 13px; }
+.feature-pain-feat { color: var(--accent-hi); font-weight: 500; font-size: 13px; }
+.feature-pain-feat::before { content: "▸ "; color: var(--accent); }
+
+.offer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.offer {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 18px;
+  position: relative; overflow: hidden;
+}
+.offer.featured { border: 1px solid var(--accent); }
+.offer.featured::before {
+  content: "FOUNDING PARTNER FOCUS";
+  position: absolute; top: 12px; right: 12px;
+  font-size: 9px; letter-spacing: 1.5px; font-weight: 700;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 3px 8px; border-radius: 3px;
+}
+.offer-name { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; }
+.offer-tag { color: var(--text-mut); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+.offer-price { font-size: 22px; font-weight: 700; color: var(--accent-hi); margin: 8px 0; }
+.offer-price-sub { color: var(--text-dim); font-size: 12px; }
+.offer-includes { list-style: none; padding: 0; margin: 12px 0 0; }
+.offer-includes li { padding: 4px 0; font-size: 13px; color: var(--text); }
+.offer-includes li::before { content: "✓"; color: var(--ok); margin-right: 8px; font-weight: 700; }
+
+.danger-list { list-style: none; padding: 0; margin: 0; }
+.danger-list li {
+  padding: 6px 0 6px 22px; position: relative; color: var(--text);
+  font-size: 13px;
+}
+.danger-list li::before {
+  content: "⚠"; position: absolute; left: 0;
+  color: var(--warn);
+}
+
+.banned-words, .approved-words { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.banned-word, .approved-word {
+  font-family: var(--mono); font-size: 12px;
+  padding: 3px 9px; border-radius: 3px;
+}
+.banned-word { background: var(--danger-soft); color: var(--danger); }
+.approved-word { background: var(--ok-soft); color: var(--ok); }
+
+.guardrail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .guardrail-grid { grid-template-columns: 1fr; } }
+
+.section-hidden { display: none; }
+
+.hint {
+  font-size: 12px; color: var(--text-dim);
+  background: var(--bg); padding: 6px 10px; border-radius: 3px;
+  border-left: 2px solid var(--info); margin: 6px 0;
+}
+
+.step-marker {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: white;
+  font-size: 11px; font-weight: 700; margin-right: 8px;
+}
+.step-row {
+  display: grid; grid-template-columns: auto 1fr;
+  gap: 12px; align-items: start; padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.step-row:last-child { border-bottom: 0; }
+
+.process-table { width: 100%; border-collapse: collapse; }
+.process-table th, .process-table td {
+  padding: 9px 10px; border-bottom: 1px solid var(--border);
+  text-align: left; font-size: 13px; vertical-align: middle;
+}
+.process-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-mut); }
+.process-table td input, .process-table td select { padding: 5px 8px; font-size: 12px; }
+.process-table td input[type=text] { min-width: 140px; }
+
+footer {
+  padding: 20px 32px;
+  color: var(--text-dim); font-size: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+  text-align: center;
+}
+footer .footer-tag { color: var(--accent); }
+
+@media print {
+  .sidebar, .topbar, button { display: none; }
+  .main { grid-template-columns: 1fr; }
+  .content { padding: 0; }
+  .section-hidden { display: block; }
+  .card { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">LIFTIQ</span>
+    <span class="brand-tag">Call Command Centre</span>
+  </div>
+  <div class="prospect-block">
+    <input id="prospect-company" placeholder="Prospect company">
+    <input id="prospect-contact" placeholder="Contact name">
+    <input id="prospect-role" placeholder="Role / function">
+  </div>
+  <div class="timer-block">
+    <span class="timer-display" id="timer">00:00</span>
+    <button id="timer-start">Start</button>
+    <button id="timer-reset">Reset</button>
+    <button class="btn-accent" id="export-btn">Export call</button>
+  </div>
+</header>
+
+<div class="main">
+  <aside class="sidebar">
+    <div class="nav-section-label">Cockpit</div>
+    <a class="nav-item" data-section="dashboard">Dashboard</a>
+    <a class="nav-item" data-section="modes">Call modes <span class="nav-badge">8</span></a>
+    <a class="nav-item" data-section="script">Discovery script</a>
+    <a class="nav-item" data-section="demo">Demo path</a>
+    <a class="nav-item" data-section="offers">Offer ladder</a>
+    <a class="nav-item" data-section="scorecard">Qualification scorecard</a>
+    <a class="nav-item" data-section="objections">Objection handler <span class="nav-badge">13</span></a>
+    <a class="nav-item" data-section="followups">Follow-up templates <span class="nav-badge">8</span></a>
+    <a class="nav-item" data-section="notes">Call notes</a>
+    <div class="nav-section-label">Reference</div>
+    <a class="nav-item" data-section="kb">LIFTIQ knowledge base <span class="nav-badge">12</span></a>
+    <a class="nav-item" data-section="guardrails">Do-not-claim guardrails</a>
+  </aside>
+  <main class="content" id="content"></main>
+</div>
+
+<div class="modal-bg" id="export-modal">
+  <div class="modal">
+    <h3>Call summary</h3>
+    <p class="card-sub">Copy this into a CRM note, internal Slack, or email to the prospect with edits.</p>
+    <div class="btn-row" style="margin: 12px 0;">
+      <button class="btn-accent" id="copy-export">Copy to clipboard</button>
+      <button id="close-export">Close</button>
+    </div>
+    <pre class="export-output" id="export-output"></pre>
+  </div>
+</div>
+
+<footer>
+  <span class="footer-tag">LIFTIQ</span> by Pressure Systems — Decision clarity before dispatch. Built under pressure.
+</footer>
+
+<script>
+'use strict';
+
+/* ---------- DATA ---------- */
+
+const CALL_OPENER = `Appreciate the time. I'll keep this practical.
+
+I'm not here to pitch you some magic AI dispatch system. I'm building LIFTIQ because crane dispatch has too many moving parts sitting in people's heads — job notes, crew, credentials, fatigue, counterweight, transport, timing, and last-minute changes.
+
+The point of this call is simple: I want to understand how you handle that now, where it gets messy, and whether LIFTIQ could reduce the friction without getting in the way of your dispatchers.`;
+
+const POSITIONING_LINE = `LIFTIQ does not replace dispatch judgement. It structures the decision before dispatch, shows the reasoning, and keeps the audit trail.`;
+
+const ACCUSATION_AUDIT = `You might be thinking, "Here we go, another software thing that creates more admin for dispatch." Fair. That's exactly what I'm trying to avoid.`;
+
+const CALL_MODES = [
+  {
+    id: 'cold',
+    name: 'Cold / first conversation',
+    objective: 'Get a read on whether dispatch friction is real and worth a second conversation. Do not pitch.',
+    length: '15–20 min',
+    opener: `Appreciate the time. I'll keep this brief and practical. I don't know your operation yet so I'm not going to pretend I do. Two-minute version of who I am, then I'd rather hear how your dispatch runs and where it gets messy.`,
+    discoveryQs: [
+      'How are jobs usually coming in at the moment — email, texts, calls, PDFs, rough notes?',
+      'Where does that information get turned into a structured job?',
+      'How are you tracking who is available weeks ahead?',
+      'How do you check credentials before assigning people?',
+      'How do you handle fatigue or back-to-back work?',
+      'What usually causes rework after the first allocation decision?'
+    ],
+    keyMessage: 'You\'re not here to sell. You\'re here to understand whether dispatch friction in their operation matches the patterns LIFTIQ is built for.',
+    proofPoints: [
+      'LIFTIQ is pilot-stage; founding partners shape it.',
+      'Dispatcher stays the decision-maker. Always.',
+      'Already covers worker import, scheduling, SmartRank, CredentialGate, FatigueGuard, crane counterweight planning, audit trail.'
+    ],
+    cta: 'Suggest a 30-minute follow-up where you walk them through a workflow review on real data they bring.',
+    dangers: [
+      'Pitching before they describe pain.',
+      'Listing every feature.',
+      'Promising compliance or autonomous dispatch.',
+      'Letting it become a one-way monologue.'
+    ],
+    nextSteps: [
+      '30-minute workflow review on a real job',
+      '14-day Testing Partner portal',
+      'Pass — wrong stage, no internal champion'
+    ]
+  },
+  {
+    id: 'warm',
+    name: 'Warm referral / known operator',
+    objective: 'Convert the referral trust into a concrete next step. They already trust someone who trusts you.',
+    length: '25–35 min',
+    opener: `Appreciate the intro from [Referrer]. I'll skip the LIFTIQ origin story — they probably gave you the short version. I want to spend most of this on your operation: how dispatch runs, where it costs you, and whether LIFTIQ fits or doesn't.`,
+    discoveryQs: [
+      'What did [Referrer] tell you that made this conversation worth having?',
+      'Where are you spending the most time in dispatch right now?',
+      'What goes wrong in a typical week?',
+      'Who is the person in your team who would feel this most — dispatch, ops, safety?',
+      'If you tested something for 14 days, what would have to be true for it to be worth keeping?'
+    ],
+    keyMessage: 'Warm referrals shorten trust-building but extend the diagnostic conversation. Use the saved time to map their workflow in detail.',
+    proofPoints: [
+      'You can name the workflow without naming the referrer\'s confidential ops.',
+      'LIFTIQ runs alongside existing systems — not a rip-and-replace.',
+      'Founding-partner pilots are shaped to their workflow, not the other way around.'
+    ],
+    cta: 'Move directly to a workflow review or a Founding Partner pilot conversation if pain signals are strong.',
+    dangers: [
+      'Assuming they want what the referrer wanted.',
+      'Skipping discovery because referral trust feels like permission.',
+      'Treating it like a closed deal.'
+    ],
+    nextSteps: [
+      'Workflow review session (real data)',
+      'Founding Partner pilot scoping',
+      '14-day Testing Partner portal'
+    ]
+  },
+  {
+    id: 'demo',
+    name: 'Demo call',
+    objective: 'Run the live demo path and tie every screen back to a pain they already named on the discovery call.',
+    length: '30–45 min',
+    opener: `Quick recap of what you said last time so I demo against your reality, not a generic story. You mentioned [pain 1], [pain 2], and [pain 3]. I'm going to walk through LIFTIQ in roughly the order a real job moves through dispatch.`,
+    discoveryQs: [
+      'Before we start — anything that changed since we spoke?',
+      'Who else is on this call, and what would they need to see to take this seriously?',
+      'If this works the way I describe, what changes for your week?'
+    ],
+    keyMessage: 'Demo is anchored to their pains, not to LIFTIQ\'s feature list. Every click answers "this is what we talked about last time."',
+    proofPoints: [
+      'Job Brief Import handles real rough notes.',
+      'CredentialGate hard-blocks unsafe allocations before they go out.',
+      'FatigueGuard surfaces rest/load warnings the dispatcher can override with a recorded reason.',
+      'AuditIQ keeps every decision and reason — review-gated, never approval-gated.'
+    ],
+    cta: 'Move to offer ladder (Testing Partner or Founding Partner) before the call ends. Do not leave it open-ended.',
+    dangers: [
+      'Demoing features the prospect did not ask about.',
+      'Talking over the dispatcher who actually has to use it.',
+      'Skipping the audit trail — that\'s the proof of the decision-support claim.',
+      'Going more than 30 minutes without inviting friction or questions.'
+    ],
+    nextSteps: [
+      'Testing Partner — 14 days, sample/limited real data',
+      'Founding Partner — 90-day pilot',
+      'Second demo with dispatcher and ops on the call'
+    ]
+  },
+  {
+    id: 'founding',
+    name: 'Founding-partner pilot call',
+    objective: 'Convert a high-signal prospect into a signed 90-day Founding Partner. Set the bar: paid pilot, weekly review, co-build influence.',
+    length: '45–60 min',
+    opener: `Before we get into structure: I want to be clear that founding-partner status is not a discount. It's a co-build. You'll see things in LIFTIQ that aren't finished yet. You'll have direct line to me to shape what we fix and what we build next. In exchange, we run real jobs through it for 90 days and we both treat that as proof.`,
+    discoveryQs: [
+      'Who internally signs off on a paid pilot?',
+      'What does success look like at day 90 — in your words, not mine?',
+      'What would have to go wrong for this to fail?',
+      'Are you willing to share anonymised outcomes after the pilot?',
+      'What\'s your timeline to start — this month, next, after a project gate?'
+    ],
+    keyMessage: 'Founding Partner is a serious commitment in both directions. Frame the price as the cost of co-shaping the product, not the cost of access.',
+    proofPoints: [
+      '$2,000 setup + $1,000/month for 90 days = $5,000 AUD total.',
+      'Weekly review call. Discounted future commercial rate. Case-study rights (anonymised by default).',
+      'You don\'t shape future product roadmap once you\'re a commercial customer. This window closes.'
+    ],
+    cta: 'Send the founding-partner agreement and onboarding plan within 24 hours of the call.',
+    dangers: [
+      'Discounting because they hesitate on price.',
+      'Skipping the day-90 success definition.',
+      'Promising features outside the pilot scope.',
+      'Letting them treat it as a free trial.'
+    ],
+    nextSteps: [
+      'Send agreement + onboarding plan',
+      'Schedule kickoff inside 14 days',
+      'Step down to Testing Partner if budget timing is off but pain is real'
+    ]
+  },
+  {
+    id: 'close',
+    name: 'Post-demo close call',
+    objective: 'Move from "demo went well" to a signed pilot. Address whatever blocked them after the demo.',
+    length: '20–30 min',
+    opener: `Two questions before I make any recommendation. First: what\'s sitting between you and a yes right now? Second: who else has to be comfortable with this before you can move? Then I'll lay out the cleanest next step.`,
+    discoveryQs: [
+      'What\'s the one thing from the demo that stuck with you?',
+      'What\'s the one thing from the demo you\'re still unsure about?',
+      'On a scale of 1–10, how likely are you to run a pilot in the next 30 days? Why not lower?',
+      'If we removed [blocker], would that change the answer?'
+    ],
+    keyMessage: 'Close calls are not for new information. They\'re for surfacing the real objection and matching it to the right path on the offer ladder.',
+    proofPoints: [
+      'Testing Partner kills the budget objection.',
+      'Founding Partner kills the "we want influence" objection.',
+      'Commercial Pilot kills the "we want a vendor not a co-build" objection.'
+    ],
+    cta: 'Sign one of three paths today: Testing Partner, Founding Partner, Commercial Pilot. Or a defined "decision by [date]" with named decision-maker.',
+    dangers: [
+      'Re-demoing.',
+      'Discounting on the call without confirming the real objection.',
+      'Leaving without a date.'
+    ],
+    nextSteps: [
+      'Testing Partner — start within 7 days',
+      'Founding Partner — paperwork today',
+      'Commercial Pilot — paperwork + onboarding scope',
+      'Decision deadline with named decision-maker'
+    ]
+  },
+  {
+    id: 'funding',
+    name: 'Government / funding proof conversation',
+    objective: 'Position LIFTIQ as the operational proof layer that strengthens grants, R&D claims, or innovation funding without overclaiming.',
+    length: '30–45 min',
+    opener: `Different conversation from a normal sales call. The question here is whether LIFTIQ produces the kind of operational data that supports a funding case — credential decisions, fatigue interventions, audit-grade allocation trail — and what shape that needs to be in for your grant assessor.`,
+    discoveryQs: [
+      'What program are you applying under? What does the assessor need to see?',
+      'Have you been audited or reviewed for a similar reason before? What did that look like?',
+      'Who in your organisation owns the funding submission?',
+      'What dates are you working back from?'
+    ],
+    keyMessage: 'LIFTIQ supports the proof story. It does not give legal road-access approval or WHS compliance. The distinction matters to a funding assessor.',
+    proofPoints: [
+      'AuditIQ is append-only at the database level. Every allocation decision, every warning override, every block — all timestamped, all reasoned.',
+      'Pilot metrics surface decision patterns: credential blocks, fatigue warnings, override reasons, lower-ranked selections.',
+      'LIFTIQ produces decision-support evidence; the operator and the assessor decide what it means for compliance or funding.'
+    ],
+    cta: 'Offer a workflow review against the funding criteria. Founding Partner pilot if the timeline matches the grant window.',
+    dangers: [
+      'Implying LIFTIQ produces compliance certification.',
+      'Promising the data shape will match a specific funder\'s template.',
+      'Letting the conversation drift to autonomous decision claims.'
+    ],
+    nextSteps: [
+      'Workflow review aligned to funding criteria',
+      'Founding Partner pilot scoped to grant window',
+      'Written summary of what LIFTIQ does / does not produce'
+    ]
+  },
+  {
+    id: 'objection',
+    name: 'Objection-handling mode',
+    objective: 'You\'re mid-call and stuck. Switch into this mode to label the objection, ask one calibrated question, and reset the call.',
+    length: '5–10 min mid-call',
+    opener: `Hold on — let me play that back. It sounds like [label]. Is that fair, or am I missing it?`,
+    discoveryQs: [
+      'What\'s the real concern under that?',
+      'How are you handling that today?',
+      'What would need to be true for this to be worth testing?',
+      'If [blocker] were removed, would the answer change?'
+    ],
+    keyMessage: 'Objections are not refusals. They\'re information you have not earned yet. Slow the call down, label, mirror, and ask one calibrated question.',
+    proofPoints: [
+      'Voss labels reduce resistance before you respond.',
+      'Mirroring the last 2–4 words invites more detail.',
+      'Calibrated questions put control of the answer back with them.'
+    ],
+    cta: 'Return to discovery or pivot to a smaller next step. Do not push through the objection.',
+    dangers: [
+      'Defending the product.',
+      'Listing more features.',
+      'Discounting in panic.',
+      'Promising things outside the LIFTIQ boundary.'
+    ],
+    nextSteps: [
+      'Resume discovery',
+      'Step down on the offer ladder',
+      'Schedule a follow-up with the right stakeholder',
+      'Disqualify cleanly and exit'
+    ]
+  },
+  {
+    id: 'followup',
+    name: 'Follow-up call after trial access',
+    objective: 'Check whether the test portal generated signal. If yes — convert. If no — diagnose why and decide whether to disqualify.',
+    length: '20–30 min',
+    opener: `Two-week check-in. I want to hear what you actually did with the portal — not a polite summary. What did you try, what did it catch, what did it miss, and where did it get in the way?`,
+    discoveryQs: [
+      'How many jobs did you run through it?',
+      'What did it catch that you would have missed?',
+      'What did it miss that you noticed?',
+      'Who else looked at it? What did they think?',
+      'Where did it create friction?'
+    ],
+    keyMessage: 'Trial outcomes are the most honest data you\'ll get from a prospect. If they used it, you can convert. If they didn\'t, you have a different problem.',
+    proofPoints: [
+      'Founding Partner is the natural next step from a successful Testing Partner.',
+      'Real-data findings make the founding-partner case for you.',
+      'If they didn\'t use it, that itself is the conversation — not the demo.'
+    ],
+    cta: 'Founding Partner pilot kickoff within 14 days if signal is strong. Otherwise a clear disqualifying or paused-with-date next step.',
+    dangers: [
+      'Accepting "we were too busy" as a real reason without probing.',
+      'Re-pitching instead of converting.',
+      'Letting a quiet trial roll into an indefinite "we\'ll come back to it".'
+    ],
+    nextSteps: [
+      'Founding Partner — schedule kickoff',
+      'Commercial Pilot — start paperwork',
+      'Extend trial with named test target (one specific job)',
+      'Pause with date, named decision-maker, and exit criteria'
+    ]
+  }
+];
+
+const CALL_STRUCTURE_STEPS = [
+  { n: 1, title: 'Pre-call setup', body: 'Confirm who you\'re calling, company type, known pain, likely current system, call objective, and the next step you\'re aiming for. If you don\'t have all five, you\'re not ready to dial.' },
+  { n: 2, title: 'Opening / permission', body: 'Use the standard opener above. Set the tone: practical, no pitch, dispatcher-first.' },
+  { n: 3, title: 'Accusation audit', body: 'Pre-empt the "more admin software" reflex. Use the line above. Lets you reach discovery without defensiveness.' },
+  { n: 4, title: 'Situation discovery', body: 'How do jobs come in? How are they structured? How is availability tracked? How are credentials checked? How is fatigue handled? How is counterweight / transport planned?' },
+  { n: 5, title: 'Problem discovery', body: 'Where does dispatch lose time? What gets missed when it\'s busy? What causes the most rework? What\'s the biggest risk — people, timing, credentials, crane setup, transport, or job notes?' },
+  { n: 6, title: 'Consequence', body: 'When it goes wrong, what does it actually cost — time, calls, lost confidence, safety exposure, client pressure? Who wears it when the plan changes late?' },
+  { n: 7, title: 'Current process mapping', body: 'Run through job intake → availability → credentials → fatigue → crane/counterweight → transport → allocation → audit trail. Rate pain per step.' },
+  { n: 8, title: 'LIFTIQ positioning', body: 'Use the positioning line. Then connect 2–3 of their specific pains to specific LIFTIQ surfaces. Avoid listing features they didn\'t ask for.' },
+  { n: 9, title: 'Demo path (if applicable)', body: 'Tie each screen back to a pain they named. Hard-block when CredentialGate fires. Show the audit trail at the end.' },
+  { n: 10, title: 'Offer framing', body: 'Testing Partner / Founding Partner / Commercial Pilot. Choose based on signal strength and budget timing.' },
+  { n: 11, title: 'Qualification scoring', body: 'Score the prospect inside the scorecard tab. Use the band to choose the offer.' },
+  { n: 12, title: 'Objection handling', body: 'Label, mirror, calibrated question. Step down the offer ladder if needed — do not push through.' },
+  { n: 13, title: 'Closing path', body: 'Soft / Testing / Founding / Commercial. End with a date and a named decision-maker.' },
+  { n: 14, title: 'Post-call', body: 'Notes + follow-up template + diary the next step before you log off.' }
+];
+
+const FEATURE_PAIN_MAP = [
+  { pain: 'Rough job notes via WhatsApp / email / PDF', feature: 'Job Brief Import — turns pasted text or files into a structured job' },
+  { pain: 'Manual worker entry, scattered spreadsheets', feature: 'Worker Import — CSV / TSV / pasted spreadsheet onboarding' },
+  { pain: 'Preferred operators for specific clients/tasks', feature: 'Task-star preferences — manual flagging dispatchers already do, now structured' },
+  { pain: 'Repeated patterns the system never learns', feature: 'Adaptive preference signals from dispatcher-approved allocations' },
+  { pain: 'Scheduling weeks ahead in someone\'s head', feature: 'Dispatch calendar — scheduled allocations with timezone awareness' },
+  { pain: 'Double-booking discovered the night before', feature: 'Schedule conflict detection — blocked or warned in SmartRank' },
+  { pain: 'Expired or missing tickets caught after dispatch', feature: 'CredentialGate — hard blocks before the allocation goes out' },
+  { pain: 'Back-to-back jobs and rest concerns', feature: 'FatigueGuard — warnings and hard blocks with documented override reason' },
+  { pain: 'Crane / counterweight / transport surprises', feature: 'Crane model + travel-state + counterweight transport planning support' },
+  { pain: 'Unclear after-the-fact "why did we send X?" questions', feature: 'AuditIQ — every allocation, warning, override, and reason captured' },
+  { pain: 'No proof to show clients / insurers / funders', feature: 'Pilot metrics — decision patterns, intervention counts, override reasons' },
+  { pain: 'Onboarding a new dispatcher takes weeks', feature: 'Explainable recommendations and structured workflow shorten ramp time' }
+];
+
+const DEMO_STEPS_LIST = [
+  { id: 'd1', label: 'Import workers (CSV / TSV / paste)' },
+  { id: 'd2', label: 'Import a real job brief (paste or .txt / .md)' },
+  { id: 'd3', label: 'Create scheduled job, set date and timezone' },
+  { id: 'd4', label: 'Open crane / counterweight planning panel' },
+  { id: 'd5', label: 'Review travel-state selection and review-gated counterweight values' },
+  { id: 'd6', label: 'Run SmartRank for the job' },
+  { id: 'd7', label: 'Walk through CredentialGate hard-block on a worker with an expired ticket' },
+  { id: 'd8', label: 'Walk through FatigueGuard warning and override-reason flow' },
+  { id: 'd9', label: 'Trigger schedule conflict detection on a double-booking' },
+  { id: 'd10', label: 'Confirm allocation, dispatcher records reason for any warning / lower-ranked pick' },
+  { id: 'd11', label: 'Open AuditIQ — show the full reasoning trail' },
+  { id: 'd12', label: 'Open pilot metrics — show the proof patterns' }
+];
+
+const PROCESS_STEPS = [
+  'Job intake',
+  'Worker availability',
+  'Credential check',
+  'Fatigue check',
+  'Crane / counterweight requirement',
+  'Transport / mobilisation',
+  'Allocation decision',
+  'Audit / proof trail'
+];
+
+const SCORECARD_DIMENSIONS = [
+  { id: 's1', label: 'Manual dispatch pain', help: '1 = dispatch hums; 5 = constant firefighting' },
+  { id: 's2', label: 'Credential / fatigue exposure', help: '1 = airtight; 5 = near-misses every week' },
+  { id: 's3', label: 'Job intake messiness', help: '1 = structured forms; 5 = WhatsApp + PDFs + scribbles' },
+  { id: 's4', label: 'Scheduling complexity', help: '1 = simple roster; 5 = multi-site, weeks ahead, frequent changes' },
+  { id: 's5', label: 'Crane / counterweight transport complexity', help: '1 = local taxi jobs only; 5 = mixed fleet, OSOM, cross-border' },
+  { id: 's6', label: 'Openness to pilot', help: '1 = "we\'re not interested"; 5 = "let\'s scope this"' },
+  { id: 's7', label: 'Internal champion strength', help: '1 = no champion; 5 = named decision-maker leaning in' },
+  { id: 's8', label: 'Willingness to share anonymised outcomes', help: '1 = no chance; 5 = open to a case-study with redactions' },
+  { id: 's9', label: 'Budget readiness', help: '1 = no budget; 5 = signing authority + active line item' }
+];
+
+const SCORE_BANDS = [
+  { min: 0, max: 15, label: 'Not ready', color: 'danger', advice: 'Disqualify cleanly or set a 90-day check-in. Do not waste pilot capacity on this prospect today.' },
+  { min: 16, max: 25, label: 'Testing Partner candidate', color: 'warn', advice: '14-day test portal with sample / limited real data. Use it to surface enough pain to justify a paid pilot conversation later.' },
+  { min: 26, max: 35, label: 'Founding Partner candidate', color: 'accent', advice: '90-day paid Founding Partner pilot. $2,000 setup + $1,000/mo. Co-build framing. Send agreement within 24 hours.' },
+  { min: 36, max: 45, label: 'Strong Commercial Pilot candidate', color: 'ok', advice: 'Run as a 90-day paid Commercial Pilot at full pricing ($4,000 setup + $2,500/mo). Less co-build influence, more vendor relationship.' }
+];
+
+const OBJECTIONS = [
+  {
+    id: 'o1',
+    line: 'We already have a system.',
+    empathy: 'Sounds like the system you have is doing most of the job.',
+    discoveryQ: 'When something goes wrong — wrong worker, expired ticket, fatigue clash, transport surprise — does that get caught before the allocation goes out, or after?',
+    boundary: 'LIFTIQ does not replace your system. It sits before dispatch, structures the decision, and keeps the audit trail. It runs alongside what you have.',
+    redirect: 'Worth a 14-day test portal on one job-type to see if it catches anything your current setup doesn\'t?'
+  },
+  {
+    id: 'o2',
+    line: 'Our dispatchers know this already.',
+    empathy: 'They do. That\'s the point.',
+    discoveryQ: 'When your strongest dispatcher is off for two weeks, who runs the same logic?',
+    boundary: 'LIFTIQ doesn\'t replace dispatcher judgement. It captures the logic your dispatchers already use so it survives leave, handovers, and new starts.',
+    redirect: 'I\'d like to spend 30 minutes with your dispatcher and listen to how they actually do this. If LIFTIQ doesn\'t match their workflow, we stop.'
+  },
+  {
+    id: 'o3',
+    line: 'This sounds like more admin.',
+    empathy: 'It looks like one more thing to feed.',
+    discoveryQ: 'How much time does your dispatcher already spend chasing credentials, confirming availability, and rebuilding job notes that came in rough?',
+    boundary: 'LIFTIQ structures the inputs you already have. Job Brief Import takes rough text. Worker Import takes spreadsheets. It pulls admin out of the dispatcher\'s head, not into it.',
+    redirect: 'Run one real job through Job Brief Import on a test portal. If it adds time instead of saving it, we shut it down.'
+  },
+  {
+    id: 'o4',
+    line: 'We don\'t want AI making decisions.',
+    empathy: 'Neither do I. The dispatcher is the decision-maker.',
+    discoveryQ: 'What\'s the part of the decision you don\'t want a tool touching?',
+    boundary: 'LIFTIQ is decision-support, not autonomous dispatch. It explains why a worker is ranked where they\'re ranked. The dispatcher confirms. Every override is recorded with a reason.',
+    redirect: 'Look at a SmartRank screen. Each ranking has its reasons. Dispatcher accepts, overrides, or rejects. That\'s the design.'
+  },
+  {
+    id: 'o5',
+    line: 'We can\'t rely on software for compliance.',
+    empathy: 'Right. Software shouldn\'t carry that.',
+    discoveryQ: 'Where does your compliance evidence currently live when something gets audited or queried?',
+    boundary: 'LIFTIQ does not give compliance approval, WHS sign-off, or legal road-access approval. It produces decision-support evidence — credential checks, fatigue interventions, override reasons, allocation audit trail.',
+    redirect: 'Worth seeing what AuditIQ produces — the kind of trail you might wish you had after a near-miss or a client query.'
+  },
+  {
+    id: 'o6',
+    line: 'We use spreadsheets and it works.',
+    empathy: 'They work right up until they don\'t.',
+    discoveryQ: 'What\'s the most expensive thing a spreadsheet missed in the last six months?',
+    boundary: 'LIFTIQ doesn\'t replace your spreadsheets on day one. It imports them. The question is whether structure helps when the spreadsheet is wrong, out of date, or held by one person.',
+    redirect: 'Run one week of your existing spreadsheet through Worker Import. See what shape it ends up in. Five-minute exercise.'
+  },
+  {
+    id: 'o7',
+    line: 'We\'re too busy to test this.',
+    empathy: 'Right — and that\'s usually a sign the pain is real.',
+    discoveryQ: 'What would have to be true for this to be worth 30 minutes a week for two weeks?',
+    boundary: 'Testing Partner is designed to fit around live dispatch — sample data or limited real data, no integration. Founding Partner pilot is paid and explicit about the time commitment so it can\'t get squeezed.',
+    redirect: 'Either we skip the test and go straight to a Founding Partner pilot, or we park this for a quieter month. Which is more honest?'
+  },
+  {
+    id: 'o8',
+    line: 'What happens if the system is wrong?',
+    empathy: 'Right — that\'s the question every dispatcher should ask.',
+    discoveryQ: 'When your current process is wrong, how do you find out?',
+    boundary: 'LIFTIQ doesn\'t pretend to be infallible. Every recommendation has a reasoning trail. Every warning is overridable with a recorded reason. The dispatcher catches things LIFTIQ misses; LIFTIQ catches things people miss.',
+    redirect: 'I\'d rather show you a real example of LIFTIQ being wrong, and how the override and audit flow handles it, than promise it never will be.'
+  },
+  {
+    id: 'o9',
+    line: 'How secure is the data?',
+    empathy: 'Fair question for an operator with credentials, rosters, and client lists.',
+    discoveryQ: 'What does your current data security posture look like for dispatch information today?',
+    boundary: 'LIFTIQ is pilot-stage. We\'re honest about that. Founding Partner pilots run on isolated company instances. We\'ll walk you through the security posture before any real data is loaded.',
+    redirect: 'Happy to send a one-pager on the current security posture and what we commit to before the pilot starts. That answers the procurement gate, then we focus on the workflow.'
+  },
+  {
+    id: 'o10',
+    line: 'How much does it cost?',
+    empathy: 'Direct question. I\'ll give you a direct answer.',
+    discoveryQ: 'Before I answer — what would you expect for this kind of layer, and what would make it feel obviously worth it?',
+    boundary: 'There is no hidden cost layer. Three options. Testing Partner is free for 14 days when strategically useful. Founding Partner is $2,000 setup + $1,000/month for 90 days, total $5,000 AUD. Commercial Pilot is $4,000 + $2,500/month for 90 days, total $11,500 AUD.',
+    redirect: 'The bigger question is which one fits your operation. Want me to walk you through which path I\'d recommend based on what you\'ve told me?'
+  },
+  {
+    id: 'o11',
+    line: 'Can it integrate with our existing system?',
+    empathy: 'Reasonable. No-one wants two systems.',
+    discoveryQ: 'What\'s the existing system, and what data would need to flow between them?',
+    boundary: 'LIFTIQ is pilot-stage. No FCC, EQUIPR, or Assignar integration today. Imports and exports work through CSV / TSV / pasted text — practical for a 90-day pilot. Real-time integration is a Phase 2 conversation once the pilot proves value.',
+    redirect: 'For a 90-day pilot, would CSV-in / CSV-out be enough to test the decision-support layer? If yes, we move. If no, we have a Phase 2 conversation now and decide whether to wait.'
+  },
+  {
+    id: 'o12',
+    line: 'Can it do payroll / invoicing?',
+    empathy: 'Right — those are real parts of the job.',
+    discoveryQ: 'Where does payroll and invoicing currently live for you?',
+    boundary: 'LIFTIQ does not do payroll. It does not do invoicing. It is not Xero, MYOB, or FCC. It is a decision-support layer before dispatch. The allocation trail it produces can feed your existing payroll/invoicing system, but LIFTIQ does not replace them.',
+    redirect: 'If payroll is the biggest pain, LIFTIQ probably isn\'t the right starting point. Want to talk about what is, or focus on a different operator on your team?'
+  },
+  {
+    id: 'o13',
+    line: 'Can it replace Fleet Cost & Care?',
+    empathy: 'Honest answer: no, not today.',
+    discoveryQ: 'What does FCC do for you that you\'d want LIFTIQ to do as well?',
+    boundary: 'LIFTIQ does not replace FCC at pilot stage. FCC is a full ERP-style platform with deep payroll, invoicing, equipment, and dispatch features built over decades. LIFTIQ is a decision-support layer specifically for the dispatch decision: credentials, fatigue, crane setup, counterweight, audit trail.',
+    redirect: 'The question isn\'t LIFTIQ vs FCC. It\'s whether LIFTIQ sitting before FCC — or before your spreadsheets — helps you make a cleaner dispatch decision. Want to test that hypothesis on a single workflow?'
+  }
+];
+
+const FOLLOWUPS = [
+  {
+    id: 'f1',
+    title: 'After first call (warm signal, no commitment yet)',
+    body: `Hey [Name],
+
+Thanks for the time today.
+
+Three things I heard that I want to make sure I got right:
+1. [Pain 1]
+2. [Pain 2]
+3. [Pain 3]
+
+If those are right, the cleanest next step is [proposed action — workflow review / test portal]. I'll keep it under 30 minutes and bring something specific to your operation, not a generic demo.
+
+Open for [day / time] or [day / time] next week?
+
+— Cody`
+  },
+  {
+    id: 'f2',
+    title: 'After demo (strong signal, decision pending)',
+    body: `Hey [Name],
+
+Quick recap from the demo:
+- You saw how Job Brief Import handled the rough notes I pasted in.
+- CredentialGate hard-blocked the operator with the expired ticket — that\'s the safety net.
+- FatigueGuard warned + required an override reason on back-to-back shifts.
+- AuditIQ kept the reasoning trail for every step.
+
+You said the part that mattered most was [X]. The part you wanted to think about was [Y].
+
+I\'d like to lock in one of two paths:
+1. Testing Partner — 14 days, you run one or two real jobs through it.
+2. Founding Partner — 90 days, paid pilot, weekly review with me.
+
+What\'s the cleaner one for your week?
+
+— Cody`
+  },
+  {
+    id: 'f3',
+    title: 'After no-show',
+    body: `Hey [Name],
+
+Looks like we got our wires crossed today. No problem — happens.
+
+Two options:
+1. Reschedule for [day / time].
+2. If the timing\'s wrong altogether, I\'ll park this and ping you again in [4–6 weeks].
+
+Either works for me. Just let me know which.
+
+— Cody`
+  },
+  {
+    id: 'f4',
+    title: 'After objection (no decision yet)',
+    body: `Hey [Name],
+
+You raised [the objection — paraphrased honestly] on the call. I\'ve been thinking about it.
+
+Honest read: if [the objection] is the real blocker, then LIFTIQ today is probably not the right fit. If there\'s something underneath it — [the underlying pain you suspect] — then there\'s a smaller way to test it without committing to a pilot.
+
+If you want to keep the conversation going, I\'d suggest [smaller next step]. If not, I\'ll park this and check back in [timeframe].
+
+No pressure either way.
+
+— Cody`
+  },
+  {
+    id: 'f5',
+    title: 'After pilot interest (Founding Partner ready)',
+    body: `Hey [Name],
+
+Good to hear you\'re ready to move on the founding-partner pilot.
+
+Attached:
+- Founding Partner agreement (90 days, $5,000 AUD total).
+- Onboarding plan with weeks 1–4 milestones.
+- Day-90 success definition I\'d like you to validate or rewrite before kickoff.
+
+Two things I need from you to confirm kickoff:
+1. Named internal champion + sign-off authority.
+2. Earliest date you can dedicate ~2 hours to setup.
+
+I\'ll have you live within 5 business days of those.
+
+— Cody`
+  },
+  {
+    id: 'f6',
+    title: 'After test portal access (mid-trial check-in)',
+    body: `Hey [Name],
+
+You\'ve had the test portal for [N] days. Quick check-in — no preamble.
+
+1. Have you put a real job through it yet?
+2. If yes — what did it catch / miss / get in the way of?
+3. If no — what stopped you, and is that fixable in the next 5 days?
+
+I\'d rather hear the unfiltered version than a polite one. Either way, we agreed the test ends [date] — let\'s keep it on rails.
+
+— Cody`
+  },
+  {
+    id: 'f7',
+    title: 'After trial expiry (decision time)',
+    body: `Hey [Name],
+
+Trial wraps [date]. Three honest paths from here:
+
+1. **Convert** — Founding Partner ($5,000 / 90 days) or Commercial Pilot ($11,500 / 90 days). Same product, different co-build influence.
+2. **Extend test** — only if there\'s one specific job you want to run through it that you couldn\'t in the first window. Define the job and the date and I\'ll extend.
+3. **Stop** — clean exit. We park the portal and I check back in [timeframe].
+
+Which one matches reality?
+
+— Cody`
+  },
+  {
+    id: 'f8',
+    title: 'After internal approval delay',
+    body: `Hey [Name],
+
+Following up on the internal sign-off conversation.
+
+Two questions:
+1. What\'s sitting between [decision-maker] and a yes right now?
+2. Is there a piece of information from me that would unblock it — pricing, security, scope, dispatcher-level walk-through, anything?
+
+I\'d rather build the case to the right person directly than guess. Happy to jump on a call with [decision-maker] for 20 minutes if that\'s useful.
+
+— Cody`
+  }
+];
+
+const KB_ENTRIES = [
+  {
+    id: 'k1', name: 'Job Brief Import',
+    does: 'Takes pasted text, .txt, .md, or pasted spreadsheet data and turns it into a structured job draft the dispatcher reviews before confirming.',
+    doesNot: 'Does not auto-create jobs without dispatcher review. Does not verify job details. Does not interpret structural engineering requirements.',
+    sayIt: '"Your job briefs probably arrive as WhatsApp, email, PDF, and rough notes. Job Brief Import turns that into a structured draft the dispatcher reviews and confirms — same decision, less rework."',
+    dontClaim: 'Don\'t claim it understands lift engineering or replaces a project manager\'s judgement. It structures the inputs; the dispatcher confirms.'
+  },
+  {
+    id: 'k2', name: 'Worker Import',
+    does: 'CSV / TSV / pasted spreadsheet import for worker roster, roles, credentials, contact, depot, employment type.',
+    doesNot: 'Does not verify credentials against external registries. Does not replace your HR or payroll source of truth.',
+    sayIt: '"You don\'t want to retype your worker list. Paste your spreadsheet, we\'ll import it. Bad rows get flagged for review — same way a good dispatcher would."',
+    dontClaim: 'Don\'t claim it\'s a HR system. It\'s a roster import for dispatch decision-support.'
+  },
+  {
+    id: 'k3', name: 'SmartRank',
+    does: 'Ranks eligible workers for a job with an explainable score breakdown: credentials, crane experience, fatigue risk, availability, site familiarity, fairness, travel.',
+    doesNot: 'Does not auto-allocate. Does not select "the safest worker". Does not engineer the lift.',
+    sayIt: '"SmartRank shows your dispatcher the top 5 with reasons — credential match, fatigue load, site familiarity, fairness across the team. They pick. Every override has a recorded reason."',
+    dontClaim: 'Don\'t say "AI picks the safest operator." LIFTIQ ranks; dispatcher decides.'
+  },
+  {
+    id: 'k4', name: 'CredentialGate',
+    does: 'Hard-blocks allocations where a required credential is missing or expired. Warns where credentials are expiring soon (30 / 14 / 7 day windows).',
+    doesNot: 'Does not certify credentials as valid. Does not replace credential verification against state registries.',
+    sayIt: '"If a worker\'s ticket is expired or missing for the job\'s required credentials, the allocation hard-blocks before it goes out. No override on the hard block. Expiring soon is a warning the dispatcher overrides with a reason."',
+    dontClaim: 'Don\'t claim it guarantees credential compliance. It enforces what\'s in the system; the operator owns getting credentials in there.'
+  },
+  {
+    id: 'k5', name: 'FatigueGuard',
+    does: 'Hard-blocks below 10 h rest, hard-blocks ≥48 h/week. Warns at 44+ h/week, 5+ consecutive working days, night→day shift with <12 h gap, self-declared fatigue.',
+    doesNot: 'Does not measure real-time worker fatigue. Does not replace a fatigue management plan.',
+    sayIt: '"Hard block under 10 hours rest. Warning over 44 hours in the week. Every override carries a reason in the audit log. Your fatigue plan stays your fatigue plan — this catches the cases that get missed in a busy week."',
+    dontClaim: 'Don\'t claim it prevents fatigue incidents. It surfaces fatigue risk; the operator manages it.'
+  },
+  {
+    id: 'k6', name: 'Schedule / timezone',
+    does: 'Scheduled allocations with timezone awareness, dispatch calendar view, schedule-conflict detection on double-bookings.',
+    doesNot: 'Does not replace project scheduling tools. Does not auto-resolve conflicts.',
+    sayIt: '"You can schedule a worker on a job in Brisbane next Thursday at 06:00 local. If they\'re already on another job at that time, SmartRank surfaces the conflict before the allocation goes out."',
+    dontClaim: 'Don\'t claim it\'s a full project schedule. It\'s a dispatch calendar with conflict detection.'
+  },
+  {
+    id: 'k7', name: 'Safe worker removal',
+    does: 'Removes a worker from active dispatch and SmartRank consideration. Existing audit history is preserved.',
+    doesNot: 'Does not hard-delete worker records. Does not break historical audit references.',
+    sayIt: '"If a worker leaves, you don\'t want to lose the audit trail of what happened while they were with you. Safe removal takes them out of dispatch but keeps the history."',
+    dontClaim: 'Don\'t imply records are erased. They\'re preserved for audit.'
+  },
+  {
+    id: 'k8', name: 'Multi-company pilot access',
+    does: 'Each pilot company runs on isolated data with company-scoped users, workers, jobs, and audit events.',
+    doesNot: 'Does not share data across companies. Does not run benchmarks against other pilot tenants.',
+    sayIt: '"Your data is yours. Different pilot companies don\'t see each other. Isolated by design, including in the database."',
+    dontClaim: 'Don\'t promise cross-company benchmarking that isn\'t built. Don\'t claim SOC2 or formal certifications LIFTIQ doesn\'t have at pilot stage.'
+  },
+  {
+    id: 'k9', name: 'Crane / counterweight / transport planning',
+    does: 'Per-model travel-state selection (e.g. taxi config vs reduced heavy-roadable vs full assembly). Counterweight gap surfaced when lift requirement exceeds what the selected travel state carries. Support-transport and road-access review flags raised.',
+    doesNot: 'Does not engineer the lift. Does not give legal road-access approval. Does not apply for permits. Does not decide which counterweight package is right.',
+    sayIt: '"For a Grove GMK5150L on a job needing 30 t of counterweight, LIFTIQ shows the dispatcher: the travel state, the carried counterweight, the gap, and the support-transport flag. The dispatcher confirms. The audit trail records what state, what source, what was reviewed."',
+    dontClaim: 'Don\'t say "engineered lift confirmed" or "permit approved". This is review-gated planning support, not engineering.'
+  },
+  {
+    id: 'k10', name: 'AuditIQ',
+    does: 'Append-only audit trail of every allocation, warning, hard block, override, schedule conflict, credential check, fatigue check, smartrank generation, allocation rejection, and reason.',
+    doesNot: 'Does not produce a compliance certificate. Does not edit historical entries. Does not interpret the audit for an auditor.',
+    sayIt: '"Every allocation decision and every override reason is timestamped and append-only. If a job goes wrong six months later and you need to reconstruct what your dispatcher knew when, AuditIQ has the trail."',
+    dontClaim: 'Don\'t imply it gives legal-standard audit certification. It\'s an operational audit trail.'
+  },
+  {
+    id: 'k11', name: 'Pilot metrics',
+    does: 'Surfaces decision-pattern counts: credential blocks, fatigue warnings, fatigue blocks, warning overrides, lower-ranked selections, top-ranked selections, allocation rejections, total audit events.',
+    doesNot: 'Does not analyse trends, run forecasting, or grade dispatcher performance.',
+    sayIt: '"At day 30 of a pilot, you can show: how many credential blocks LIFTIQ caught, how many fatigue warnings the dispatcher overrode with a recorded reason, how often the top-ranked worker was chosen. That\'s your proof story."',
+    dontClaim: 'Don\'t claim it\'s a BI tool. It\'s pilot proof metrics, not analytics.'
+  },
+  {
+    id: 'k12', name: 'Adaptive preference learning',
+    does: 'Learns dispatcher-approved allocation patterns and surfaces them as preference signals in future SmartRank runs. Dispatcher can confirm, ignore, or override.',
+    doesNot: 'Does not auto-apply preferences without dispatcher confirmation. Does not replace task-star manual preferences.',
+    sayIt: '"If your dispatcher keeps picking the same operator for night work at one specific client, LIFTIQ surfaces that pattern as a preference signal next time. They confirm or override. It learns from what they do, not what it guesses."',
+    dontClaim: 'Don\'t call it AI personalisation. It\'s structured pattern surfacing the dispatcher controls.'
+  }
+];
+
+const APPROVED_WORDS = [
+  'decision-support layer', 'dispatch intelligence', 'explainable recommendations',
+  'dispatcher remains the decision-maker', 'credential and fatigue checks before allocation',
+  'allocation-level audit trail', 'job readiness warnings', 'road-access review flags',
+  'counterweight transport planning support', 'founding-partner pilot',
+  'review required', 'confirm before dispatch', 'pilot proof'
+];
+
+const BANNED_WORDS = [
+  'compliant', 'approved', 'legal to travel', 'safe to dispatch',
+  'guaranteed compliance', 'automatically prevents incidents', 'replaces FCC',
+  'fully autonomous dispatch', 'engineered lift confirmed', 'AI chooses the safest worker'
+];
+
+/* ---------- STATE + STORAGE ---------- */
+
+const STORE_KEY = 'liftiq.cockpit.v1';
+
+const DEFAULT_STATE = {
+  prospect: { company: '', contact: '', role: '' },
+  currentMode: 'cold',
+  currentSection: 'dashboard',
+  scores: {},        // {s1: 3, s2: 4, ...}
+  notes: {
+    currentSystem: '',
+    pain1: '', pain2: '', pain3: '',
+    objectionsRaised: '',
+    nextStep: '',
+    followUpDate: '',
+    callOutcome: '',
+    process: {}, // {stepName: {method, pain, fit}}
+    demoDone: {}, // {dN: true/false}
+    free: ''
+  },
+  timer: { elapsed: 0, running: false, startedAt: null }
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return { ...DEFAULT_STATE };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_STATE, ...parsed,
+      prospect: { ...DEFAULT_STATE.prospect, ...(parsed.prospect||{}) },
+      notes: { ...DEFAULT_STATE.notes, ...(parsed.notes||{}),
+        process: (parsed.notes && parsed.notes.process) || {},
+        demoDone: (parsed.notes && parsed.notes.demoDone) || {}
+      },
+      timer: { ...DEFAULT_STATE.timer, ...(parsed.timer||{}) }
+    };
+  } catch { return { ...DEFAULT_STATE }; }
+}
+function saveState() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch {}
+}
+
+const state = loadState();
+
+/* ---------- ESCAPE ---------- */
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ---------- COPY ---------- */
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      const old = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(() => { btn.textContent = old; }, 1200);
+    }
+  }).catch(() => {});
+}
+
+function scriptBlock(text, id) {
+  return `<div class="script-block">
+    <button class="copy-btn" data-copy="${esc(id)}">Copy</button>
+    <span class="script-quote">${esc(text)}</span>
+  </div>`;
+}
+
+/* ---------- RENDER: DASHBOARD ---------- */
+
+function renderDashboard() {
+  const totalScore = Object.values(state.scores).reduce((a,b) => a + (b||0), 0);
+  const band = SCORE_BANDS.find(b => totalScore >= b.min && totalScore <= b.max) || SCORE_BANDS[0];
+  const mode = CALL_MODES.find(m => m.id === state.currentMode) || CALL_MODES[0];
+  return `
+    <div class="section-eyebrow">Cockpit</div>
+    <h1 class="section-h">${esc(state.prospect.company || 'New call — set prospect details')}</h1>
+    <p class="section-sub">${esc(state.prospect.contact || 'No contact name set')} · ${esc(state.prospect.role || 'Role unset')} — listen first, diagnose second, move to the right next step.</p>
+
+    <div class="tile-grid">
+      <div class="tile">
+        <div class="tile-label">Active call mode</div>
+        <div class="tile-value" style="font-size:18px">${esc(mode.name)}</div>
+        <div class="tile-sub">${esc(mode.length)} · ${esc(mode.objective.split('.')[0])}</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Qualification score</div>
+        <div class="tile-value">${totalScore} / 45</div>
+        <div class="tile-sub"><span class="pill ${esc(band.color)}">${esc(band.label)}</span></div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Recommended next step</div>
+        <div class="tile-value" style="font-size:14px;line-height:1.4">${esc(state.notes.nextStep || band.advice.split('.')[0] + '.')}</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">Follow-up date</div>
+        <div class="tile-value" style="font-size:18px">${esc(state.notes.followUpDate || '—')}</div>
+        <div class="tile-sub">Set in Call notes</div>
+      </div>
+    </div>
+
+    <div class="card accent" style="margin-top:18px">
+      <h3 class="card-title">Opener — Cody voice</h3>
+      ${scriptBlock(CALL_OPENER, 'opener')}
+    </div>
+
+    <div class="card accent">
+      <h3 class="card-title">Strongest positioning line</h3>
+      ${scriptBlock(POSITIONING_LINE, 'positioning')}
+      <p class="card-sub">Build the entire call around this. It is not a feature. It is the boundary.</p>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Accusation audit (pre-empt the "more admin" reflex)</h3>
+      ${scriptBlock(ACCUSATION_AUDIT, 'accusation')}
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Call structure — keep this in your head</h3>
+      ${CALL_STRUCTURE_STEPS.map(s => `
+        <div class="step-row">
+          <span class="step-marker">${s.n}</span>
+          <div>
+            <strong>${esc(s.title)}</strong>
+            <div class="card-sub">${esc(s.body)}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* ---------- RENDER: CALL MODES ---------- */
+
+function renderModes() {
+  const m = CALL_MODES.find(x => x.id === state.currentMode) || CALL_MODES[0];
+  return `
+    <div class="section-eyebrow">Call modes</div>
+    <h1 class="section-h">Choose how this call runs</h1>
+    <p class="section-sub">Pick the mode that matches who you\'re calling and what stage they\'re at. The structure below adapts. None of these are templates — they\'re scaffolding for your voice.</p>
+
+    <div class="mode-grid" style="margin-bottom:24px">
+      ${CALL_MODES.map(mode => `
+        <div class="mode-card ${mode.id === state.currentMode ? 'active' : ''}" data-mode="${esc(mode.id)}">
+          <div class="mode-card-name">${esc(mode.name)}</div>
+          <div class="mode-card-obj">${esc(mode.objective)}</div>
+          <div class="mode-card-meta">
+            <span class="pill">${esc(mode.length)}</span>
+            ${mode.id === state.currentMode ? '<span class="pill accent">Active</span>' : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card accent">
+      <div class="card-meta">${esc(m.length)}</div>
+      <h2 class="card-title" style="font-size:18px">${esc(m.name)}</h2>
+      <p class="card-sub" style="margin-bottom:12px">${esc(m.objective)}</p>
+
+      <h4 style="margin:14px 0 6px">Opener</h4>
+      ${scriptBlock(m.opener, 'mode-opener-' + m.id)}
+
+      <h4 style="margin:14px 0 6px">Discovery questions</h4>
+      <ul class="question-list">
+        ${m.discoveryQs.map(q => `<li>${esc(q)}</li>`).join('')}
+      </ul>
+
+      <h4 style="margin:14px 0 6px">Key message</h4>
+      <p>${esc(m.keyMessage)}</p>
+
+      <h4 style="margin:14px 0 6px">Proof points</h4>
+      <ul class="question-list">
+        ${m.proofPoints.map(p => `<li>${esc(p)}</li>`).join('')}
+      </ul>
+
+      <h4 style="margin:14px 0 6px">Call-to-action</h4>
+      <p>${esc(m.cta)}</p>
+
+      <h4 style="margin:14px 0 6px">Danger points</h4>
+      <ul class="danger-list">
+        ${m.dangers.map(d => `<li>${esc(d)}</li>`).join('')}
+      </ul>
+
+      <h4 style="margin:14px 0 6px">Next-step options</h4>
+      <ul class="question-list">
+        ${m.nextSteps.map(s => `<li>${esc(s)}</li>`).join('')}
+      </ul>
+    </div>
+  `;
+}
+
+/* ---------- RENDER: DISCOVERY SCRIPT ---------- */
+
+function renderScript() {
+  return `
+    <div class="section-eyebrow">Discovery script</div>
+    <h1 class="section-h">Listen first. Diagnose. Then position.</h1>
+    <p class="section-sub">Five sales architectures blended without naming them on the call. Use this when you\'re live and need the next question.</p>
+
+    <details class="expand" open>
+      <summary>1. Opening / permission</summary>
+      <div class="expand-body">
+        ${scriptBlock(CALL_OPENER, 'sc-opener')}
+        <div class="hint">Don\'t skip permission. Operators give you the time, they expect you to use it.</div>
+      </div>
+    </details>
+
+    <details class="expand">
+      <summary>2. Accusation audit — pre-empt resistance</summary>
+      <div class="expand-body">
+        ${scriptBlock(ACCUSATION_AUDIT, 'sc-acc')}
+        <p class="card-sub">This is Voss territory. Surface their objection before they say it. They relax. You earn the room.</p>
+      </div>
+    </details>
+
+    <details class="expand">
+      <summary>3. Situation discovery — how things actually run</summary>
+      <div class="expand-body">
+        <ul class="question-list">
+          <li>How are jobs usually coming in at the moment — email, texts, calls, PDFs, rough notes?</li>
+          <li>Where does that information get turned into a structured job?</li>
+          <li>How are you tracking who is available weeks ahead?</li>
+          <li>How do you check credentials before assigning people?</li>
+          <li>How do you handle fatigue or back-to-back work?</li>
+          <li>How do you track counterweight, floats, transport, and setup windows?</li>
+          <li>What usually causes rework after the first allocation decision?</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="expand">
+      <summary>4. Problem discovery — where it breaks</summary>
+      <div class="expand-body">
+        <ul class="question-list">
+          <li>Where does dispatch lose the most time?</li>
+          <li>What gets missed when the day gets busy?</li>
+          <li>What causes the most changes after you think a job is planned?</li>
+          <li>What creates the biggest risk: people, timing, credentials, crane setup, transport, or job information?</li>
+          <li>What happens when the wrong person is pencilled in early?</li>
+        </ul>
+        <div class="hint">Mirror their last 2–4 important words. They\'ll keep talking. You\'ll get the real answer.</div>
+      </div>
+    </details>
+
+    <details class="expand">
+      <summary>5. Consequence — what it costs when it goes wrong</summary>
+      <div class="expand-body">
+        <ul class="question-list">
+          <li>When that goes wrong, what does it cost?</li>
+          <li>Is it time, calls, lost confidence, safety exposure, client pressure, or all of it?</li>
+          <li>Who wears it when the plan changes late?</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="expand">
+      <summary>6. Current process mapping — fill in live with the prospect</summary>
+      <div class="expand-body">
+        <table class="process-table">
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Current method</th>
+              <th>Pain 1–5</th>
+              <th>LIFTIQ fit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${PROCESS_STEPS.map(step => {
+              const p = state.notes.process[step] || {};
+              return `<tr data-process-step="${esc(step)}">
+                <td><strong>${esc(step)}</strong></td>
+                <td><input type="text" class="process-method" data-step="${esc(step)}" value="${esc(p.method||'')}" placeholder="email / spreadsheet / whiteboard / FCC..."></td>
+                <td>
+                  <select class="process-pain" data-step="${esc(step)}">
+                    <option value="">—</option>
+                    ${[1,2,3,4,5].map(n => `<option value="${n}" ${p.pain==n?'selected':''}>${n}</option>`).join('')}
+                  </select>
+                </td>
+                <td>
+                  <select class="process-fit" data-step="${esc(step)}">
+                    <option value="">—</option>
+                    <option value="yes" ${p.fit=='yes'?'selected':''}>Yes</option>
+                    <option value="no" ${p.fit=='no'?'selected':''}>No</option>
+                    <option value="maybe" ${p.fit=='maybe'?'selected':''}>Maybe</option>
+                  </select>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details class="expand" open>
+      <summary>7. LIFTIQ positioning — say this exactly</summary>
+      <div class="expand-body">
+        ${scriptBlock(POSITIONING_LINE, 'sc-positioning')}
+        <p>Connect the line back to 2–3 of their specific pains. Don\'t list features they didn\'t ask for.</p>
+      </div>
+    </details>
+
+    <details class="expand">
+      <summary>8. Feature-to-pain mapping — only after they\'ve named the pain</summary>
+      <div class="expand-body">
+        ${FEATURE_PAIN_MAP.map(fp => `
+          <div class="feature-pain-row">
+            <div class="feature-pain-pain">${esc(fp.pain)}</div>
+            <div class="feature-pain-feat">${esc(fp.feature)}</div>
+          </div>
+        `).join('')}
+      </div>
+    </details>
+
+    <details class="expand">
+      <summary>9. Closing paths</summary>
+      <div class="expand-body">
+        <h4>Soft close</h4>
+        ${scriptBlock('Would it make sense to run one real job through the portal and see whether it catches anything useful?', 'cl-soft')}
+        <h4>Testing Partner close</h4>
+        ${scriptBlock('Let\'s keep it simple. I can set up a 14-day test portal, import a small worker list, and run one or two sample jobs. If it creates more noise than clarity, we stop.', 'cl-test')}
+        <h4>Founding Partner close</h4>
+        ${scriptBlock('If this is a real pain point, the right next step is a 90-day founding-partner pilot. We set up your worker list, run live job examples, track changes, warnings, overrides, and see if it genuinely improves dispatch clarity.', 'cl-found')}
+        <h4>Commercial Pilot close</h4>
+        ${scriptBlock('If you want a proper evaluation rather than a friendly test, I\'d structure it as a 90-day commercial pilot with setup, weekly review, and a written outcome report.', 'cl-comm')}
+      </div>
+    </details>
+  `;
+}
+
+/* ---------- RENDER: DEMO PATH ---------- */
+
+function renderDemo() {
+  return `
+    <div class="section-eyebrow">Demo path</div>
+    <h1 class="section-h">Run the screens in the order a job actually moves</h1>
+    <p class="section-sub">Tie every screen back to a pain they named on the discovery call. If they didn\'t name a pain it solves, skip it.</p>
+
+    <div class="card">
+      <h3 class="card-title">Open with their pains</h3>
+      ${scriptBlock('Quick recap of what you said last time so I demo against your reality, not a generic story. You mentioned [pain 1], [pain 2], and [pain 3]. I\'m going to walk through LIFTIQ in roughly the order a real job moves through dispatch.', 'demo-opener')}
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Demo checklist</h3>
+      <p class="card-sub">Tick each as you walk through it. The list persists locally.</p>
+      <div style="margin-top:10px">
+        ${DEMO_STEPS_LIST.map(s => {
+          const checked = !!state.notes.demoDone[s.id];
+          return `<div class="checklist-row ${checked ? 'done' : ''}">
+            <input type="checkbox" data-demo="${esc(s.id)}" ${checked ? 'checked' : ''}>
+            <span>${esc(s.label)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="card warn">
+      <h3 class="card-title">Demo dangers — re-read before every demo</h3>
+      <ul class="danger-list">
+        <li>Don\'t demo features they didn\'t ask about.</li>
+        <li>Don\'t skip the audit trail — it\'s the proof of the decision-support claim.</li>
+        <li>Don\'t talk over the dispatcher who will actually use it.</li>
+        <li>Don\'t go more than 30 minutes without inviting friction or questions.</li>
+        <li>Don\'t use any banned word — see the guardrails page.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">End with the offer ladder</h3>
+      <p>Close the demo with a specific next step from the Offer Ladder. Open-ended demos die in inboxes.</p>
+    </div>
+  `;
+}
+
+/* ---------- RENDER: OFFER LADDER ---------- */
+
+function renderOffers() {
+  return `
+    <div class="section-eyebrow">Offer ladder</div>
+    <h1 class="section-h">Three paths. Pick by signal strength, not by their comfort.</h1>
+    <p class="section-sub">Russell Brunson value-ladder logic adapted for dispatch operators. Move them up the ladder only if the discovery + score supports it.</p>
+
+    <div class="offer-grid">
+      <div class="offer">
+        <div class="offer-tag">Entry</div>
+        <div class="offer-name">Testing Partner</div>
+        <div class="offer-price">$0</div>
+        <div class="offer-price-sub">14 days, when strategically useful</div>
+        <ul class="offer-includes">
+          <li>Controlled test portal</li>
+          <li>Sample or limited real data</li>
+          <li>Feedback-focused</li>
+          <li>No heavy custom work</li>
+          <li>Use to kill the "we\'re too busy / no budget" objection</li>
+        </ul>
+      </div>
+
+      <div class="offer featured">
+        <div class="offer-tag">Co-build</div>
+        <div class="offer-name">Founding Partner</div>
+        <div class="offer-price">$5,000 AUD</div>
+        <div class="offer-price-sub">$2,000 setup + $1,000/month × 3 months</div>
+        <ul class="offer-includes">
+          <li>90-day paid pilot</li>
+          <li>Onboarding support</li>
+          <li>Weekly review with Cody</li>
+          <li>Outcome tracking + day-90 success definition</li>
+          <li>Discounted future commercial rate</li>
+          <li>Case-study / anonymised proof rights</li>
+          <li>Direct influence on what LIFTIQ builds next</li>
+        </ul>
+      </div>
+
+      <div class="offer">
+        <div class="offer-tag">Vendor</div>
+        <div class="offer-name">Commercial Pilot</div>
+        <div class="offer-price">$11,500 AUD</div>
+        <div class="offer-price-sub">$4,000 setup + $2,500/month × 3 months</div>
+        <ul class="offer-includes">
+          <li>90-day paid evaluation</li>
+          <li>Less co-build influence</li>
+          <li>Professional onboarding</li>
+          <li>Closer to standard commercial rate</li>
+          <li>Written outcome report at day 90</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card info" style="margin-top:18px">
+      <h3 class="card-title">Picking the right path</h3>
+      <table class="kv">
+        <thead><tr><th>Signal</th><th>Recommended path</th></tr></thead>
+        <tbody>
+          <tr><td>Score 0–15</td><td>Disqualify or 90-day check-in</td></tr>
+          <tr><td>Score 16–25</td><td>Testing Partner</td></tr>
+          <tr><td>Score 26–35 + co-build appetite</td><td>Founding Partner</td></tr>
+          <tr><td>Score 36–45 + budget already there</td><td>Commercial Pilot</td></tr>
+          <tr><td>Active grant / R&D window</td><td>Founding Partner aligned to the window</td></tr>
+          <tr><td>Existing FCC / EQUIPR / Assignar user</td><td>Founding Partner — emphasise sits-before-dispatch positioning</td></tr>
+        </tbody>
+      </table>
+      <p class="card-sub" style="margin-top:10px">Don\'t overemphasise price on first calls. It is the close-call lever, not the opener.</p>
+    </div>
+  `;
+}
+
+/* ---------- RENDER: SCORECARD ---------- */
+
+function renderScorecard() {
+  const total = Object.values(state.scores).reduce((a,b) => a + (b||0), 0);
+  const band = SCORE_BANDS.find(b => total >= b.min && total <= b.max) || SCORE_BANDS[0];
+  return `
+    <div class="section-eyebrow">Qualification scorecard</div>
+    <h1 class="section-h">Score them while the conversation is live</h1>
+    <p class="section-sub">Nine dimensions, 1–5 each. The total picks the offer path. Be honest — wishful scoring wastes pilot capacity.</p>
+
+    <div class="card">
+      ${SCORECARD_DIMENSIONS.map(d => `
+        <div class="scorecard-row">
+          <div>
+            <div class="score-label">${esc(d.label)}</div>
+            <div class="score-help">${esc(d.help)}</div>
+          </div>
+          <div class="scorecard-buttons" data-score-row="${esc(d.id)}">
+            ${[1,2,3,4,5].map(n => `
+              <button class="score-btn ${state.scores[d.id]==n?'active':''}" data-score="${esc(d.id)}" data-value="${n}">${n}</button>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="score-total">
+      <div class="score-total-num">${total}<span style="font-size:18px;color:var(--text-mut)">/45</span></div>
+      <div>
+        <div><span class="pill ${esc(band.color)}">${esc(band.label)}</span></div>
+        <p style="margin-top:8px">${esc(band.advice)}</p>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn-accent" id="apply-band-next-step">Apply as recommended next step</button>
+          <button id="reset-scorecard">Reset scorecard</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">How to use this honestly</h3>
+      <ul class="question-list">
+        <li>Score during the call, not after. After-the-call scoring drifts toward optimism.</li>
+        <li>Dimension 7 ("internal champion") often makes or breaks pilots. Don\'t inflate it.</li>
+        <li>Dimension 9 ("budget readiness") is the close-call lever. Be brutal here.</li>
+        <li>If two operators on the same call disagree, score it twice. The gap is information.</li>
+      </ul>
+    </div>
+  `;
+}
+
+/* ---------- RENDER: OBJECTIONS ---------- */
+
+function renderObjections() {
+  return `
+    <div class="section-eyebrow">Objection handler</div>
+    <h1 class="section-h">Label. Mirror. Calibrated question. Then redirect.</h1>
+    <p class="section-sub">Thirteen objections you\'ll hear. Each card has an empathy response, a discovery question, the LIFTIQ boundary, and the next-step redirect. Don\'t push through — step down the ladder.</p>
+
+    ${OBJECTIONS.map(o => `
+      <div class="obj-card">
+        <div class="obj-line">${esc(o.line)}</div>
+        <div class="obj-field">
+          <div class="obj-field-label">Tactical empathy</div>
+          <div class="obj-field-body">${esc(o.empathy)}</div>
+        </div>
+        <div class="obj-field">
+          <div class="obj-field-label">Discovery question</div>
+          <div class="obj-field-body">${esc(o.discoveryQ)}</div>
+        </div>
+        <div class="obj-field">
+          <div class="obj-field-label">LIFTIQ boundary</div>
+          <div class="obj-field-body">${esc(o.boundary)}</div>
+        </div>
+        <div class="obj-field">
+          <div class="obj-field-label">Next-step redirect</div>
+          <div class="obj-field-body">${esc(o.redirect)}</div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/* ---------- RENDER: FOLLOW-UPS ---------- */
+
+function renderFollowups() {
+  return `
+    <div class="section-eyebrow">Follow-up templates</div>
+    <h1 class="section-h">Short, direct, operator-to-operator</h1>
+    <p class="section-sub">Edit the bracketed parts, send within 24 hours of the call. Operator inboxes don\'t read long emails.</p>
+
+    ${FOLLOWUPS.map(f => `
+      <div class="followup-card">
+        <div class="followup-title">${esc(f.title)}</div>
+        <div class="followup-body">
+          <button class="copy-btn" data-copy-body="${esc(f.id)}">Copy</button>
+${esc(f.body)}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/* ---------- RENDER: NOTES ---------- */
+
+function renderNotes() {
+  return `
+    <div class="section-eyebrow">Call notes</div>
+    <h1 class="section-h">Capture while it\'s live. Export when you log off.</h1>
+    <p class="section-sub">Stored locally in your browser. No backend. No tracking. Export to clipboard when you\'re done.</p>
+
+    <div class="card">
+      <h3 class="card-title">Prospect</h3>
+      <div class="card-row">
+        <div>
+          <label class="field-label">Company</label>
+          <input type="text" id="note-company" value="${esc(state.prospect.company)}">
+        </div>
+        <div>
+          <label class="field-label">Contact name</label>
+          <input type="text" id="note-contact" value="${esc(state.prospect.contact)}">
+        </div>
+        <div>
+          <label class="field-label">Role</label>
+          <input type="text" id="note-role" value="${esc(state.prospect.role)}">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Current system</h3>
+      <textarea id="note-system" placeholder="FCC / EQUIPR / Assignar / spreadsheets / whiteboards / WhatsApp / internal tool / mix...">${esc(state.notes.currentSystem)}</textarea>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Top 3 pains</h3>
+      <div style="display:grid;grid-template-columns:1fr;gap:10px">
+        <input type="text" id="note-pain1" placeholder="Pain 1" value="${esc(state.notes.pain1)}">
+        <input type="text" id="note-pain2" placeholder="Pain 2" value="${esc(state.notes.pain2)}">
+        <input type="text" id="note-pain3" placeholder="Pain 3" value="${esc(state.notes.pain3)}">
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Objections raised</h3>
+      <textarea id="note-objections" placeholder="Which objections came up. What you said. What worked / didn't.">${esc(state.notes.objectionsRaised)}</textarea>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Next step + outcome</h3>
+      <div class="card-row">
+        <div>
+          <label class="field-label">Recommended next step</label>
+          <select id="note-next-step">
+            <option value="">—</option>
+            <option ${state.notes.nextStep === 'Disqualify cleanly' ? 'selected' : ''}>Disqualify cleanly</option>
+            <option ${state.notes.nextStep === '90-day check-in' ? 'selected' : ''}>90-day check-in</option>
+            <option ${state.notes.nextStep === 'Workflow review (30 min)' ? 'selected' : ''}>Workflow review (30 min)</option>
+            <option ${state.notes.nextStep === 'Testing Partner (14 days)' ? 'selected' : ''}>Testing Partner (14 days)</option>
+            <option ${state.notes.nextStep === 'Founding Partner (90 days, $5,000)' ? 'selected' : ''}>Founding Partner (90 days, $5,000)</option>
+            <option ${state.notes.nextStep === 'Commercial Pilot (90 days, $11,500)' ? 'selected' : ''}>Commercial Pilot (90 days, $11,500)</option>
+            <option ${state.notes.nextStep === 'Demo with dispatcher' ? 'selected' : ''}>Demo with dispatcher</option>
+            <option ${state.notes.nextStep === 'Send security one-pager' ? 'selected' : ''}>Send security one-pager</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Follow-up date</label>
+          <input type="date" id="note-followup-date" value="${esc(state.notes.followUpDate)}">
+        </div>
+        <div>
+          <label class="field-label">Call outcome (one line)</label>
+          <input type="text" id="note-outcome" value="${esc(state.notes.callOutcome)}" placeholder="strong / soft / blocked / dead">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Free notes</h3>
+      <textarea id="note-free" style="min-height:160px" placeholder="Anything else that mattered.">${esc(state.notes.free)}</textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-accent" id="export-from-notes">Export call summary</button>
+      <button id="reset-notes">Reset notes</button>
+    </div>
+  `;
+}
+
+/* ---------- RENDER: KB ---------- */
+
+function renderKB() {
+  return `
+    <div class="section-eyebrow">LIFTIQ knowledge base</div>
+    <h1 class="section-h">Twelve features. Four lenses each.</h1>
+    <p class="section-sub">What it does. What it does not do. How to say it on a sales call. What not to claim. Re-read before any demo or close call.</p>
+
+    ${KB_ENTRIES.map(k => `
+      <div class="kb-card">
+        <div class="kb-name">${esc(k.name)}</div>
+        <div class="kb-row does">
+          <div class="kb-row-label">What it does</div>
+          <div>${esc(k.does)}</div>
+        </div>
+        <div class="kb-row does-not">
+          <div class="kb-row-label">What it does not do</div>
+          <div>${esc(k.doesNot)}</div>
+        </div>
+        <div class="kb-row say">
+          <div class="kb-row-label">Say it like this on a call</div>
+          <div>${esc(k.sayIt)}</div>
+        </div>
+        <div class="kb-row dont">
+          <div class="kb-row-label">Do not claim</div>
+          <div>${esc(k.dontClaim)}</div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/* ---------- RENDER: GUARDRAILS ---------- */
+
+function renderGuardrails() {
+  return `
+    <div class="section-eyebrow">Do-not-claim guardrails</div>
+    <h1 class="section-h">Stay on the right side of the boundary</h1>
+    <p class="section-sub">LIFTIQ is pilot-stage decision support. Overclaim once, and the pilot is dead. These are the words to use and the words never to use.</p>
+
+    <div class="guardrail-grid">
+      <div class="card ok">
+        <h3 class="card-title">Approved wording</h3>
+        <div class="approved-words">
+          ${APPROVED_WORDS.map(w => `<span class="approved-word">${esc(w)}</span>`).join('')}
+        </div>
+      </div>
+      <div class="card danger">
+        <h3 class="card-title">Banned wording</h3>
+        <div class="banned-words">
+          ${BANNED_WORDS.map(w => `<span class="banned-word">${esc(w)}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="card warn">
+      <h3 class="card-title">Boundary statements — keep these in mind every call</h3>
+      <ul class="danger-list">
+        <li>LIFTIQ is not a full ERP.</li>
+        <li>LIFTIQ does not replace Fleet Cost & Care.</li>
+        <li>LIFTIQ does not guarantee WHS compliance.</li>
+        <li>LIFTIQ does not give legal road-access approval.</li>
+        <li>LIFTIQ does not engineer lifts.</li>
+        <li>LIFTIQ does not perform autonomous dispatch.</li>
+        <li>LIFTIQ does not issue or approve permits.</li>
+        <li>LIFTIQ does not say "AI chooses the safest worker."</li>
+      </ul>
+    </div>
+
+    <div class="card info">
+      <h3 class="card-title">If you overclaim, recover like this</h3>
+      ${scriptBlock('Let me walk that back. LIFTIQ doesn\'t give compliance approval or autonomous dispatch. It surfaces credential checks, fatigue warnings, and the audit trail so your dispatcher makes a cleaner decision. The decision is still theirs.', 'recover')}
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Voice anchors — what we sound like</h3>
+      <ul class="question-list">
+        <li>Built under pressure.</li>
+        <li>Decision clarity before dispatch.</li>
+        <li>The dispatcher remains in control.</li>
+        <li>Surface the risk before it becomes the problem.</li>
+        <li>Not magic AI — operational intelligence.</li>
+        <li>Less guessing, more explainable decisions.</li>
+      </ul>
+    </div>
+  `;
+}
+
+/* ---------- SECTION ROUTER ---------- */
+
+const RENDERERS = {
+  dashboard: renderDashboard,
+  modes: renderModes,
+  script: renderScript,
+  demo: renderDemo,
+  offers: renderOffers,
+  scorecard: renderScorecard,
+  objections: renderObjections,
+  followups: renderFollowups,
+  notes: renderNotes,
+  kb: renderKB,
+  guardrails: renderGuardrails
+};
+
+function setSection(id) {
+  state.currentSection = id;
+  saveState();
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.section === id);
+  });
+  const renderer = RENDERERS[id] || renderDashboard;
+  document.getElementById('content').innerHTML = renderer();
+  bindSectionInteractions();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+/* ---------- INTERACTIONS ---------- */
+
+function bindSectionInteractions() {
+  // copy buttons inside scripts
+  document.querySelectorAll('.copy-btn[data-copy]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const text = btn.parentElement.querySelector('.script-quote');
+      if (text) copyText(text.textContent, btn);
+    });
+  });
+  // copy follow-up bodies
+  document.querySelectorAll('.copy-btn[data-copy-body]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const id = btn.getAttribute('data-copy-body');
+      const fu = FOLLOWUPS.find(f => f.id === id);
+      if (fu) copyText(fu.body, btn);
+    });
+  });
+  // mode cards
+  document.querySelectorAll('.mode-card[data-mode]').forEach(card => {
+    card.addEventListener('click', () => {
+      state.currentMode = card.dataset.mode;
+      saveState();
+      setSection('modes');
+    });
+  });
+  // scorecard buttons
+  document.querySelectorAll('.score-btn[data-score]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const dim = btn.dataset.score;
+      const val = Number(btn.dataset.value);
+      state.scores[dim] = state.scores[dim] === val ? 0 : val;
+      saveState();
+      setSection('scorecard');
+    });
+  });
+  // apply band as next step
+  const applyBtn = document.getElementById('apply-band-next-step');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      const total = Object.values(state.scores).reduce((a,b) => a + (b||0), 0);
+      const band = SCORE_BANDS.find(b => total >= b.min && total <= b.max) || SCORE_BANDS[0];
+      const mapping = {
+        'Not ready': 'Disqualify cleanly',
+        'Testing Partner candidate': 'Testing Partner (14 days)',
+        'Founding Partner candidate': 'Founding Partner (90 days, $5,000)',
+        'Strong Commercial Pilot candidate': 'Commercial Pilot (90 days, $11,500)'
+      };
+      state.notes.nextStep = mapping[band.label] || '';
+      saveState();
+      alert('Applied: ' + state.notes.nextStep);
+    });
+  }
+  // reset scorecard
+  const resetSc = document.getElementById('reset-scorecard');
+  if (resetSc) resetSc.addEventListener('click', () => {
+    state.scores = {};
+    saveState();
+    setSection('scorecard');
+  });
+  // process table
+  document.querySelectorAll('.process-method').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const step = inp.dataset.step;
+      state.notes.process[step] = state.notes.process[step] || {};
+      state.notes.process[step].method = inp.value;
+      saveState();
+    });
+  });
+  document.querySelectorAll('.process-pain').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const step = sel.dataset.step;
+      state.notes.process[step] = state.notes.process[step] || {};
+      state.notes.process[step].pain = Number(sel.value) || null;
+      saveState();
+    });
+  });
+  document.querySelectorAll('.process-fit').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const step = sel.dataset.step;
+      state.notes.process[step] = state.notes.process[step] || {};
+      state.notes.process[step].fit = sel.value;
+      saveState();
+    });
+  });
+  // demo checklist
+  document.querySelectorAll('input[type=checkbox][data-demo]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      state.notes.demoDone[cb.dataset.demo] = cb.checked;
+      saveState();
+      setSection('demo');
+    });
+  });
+  // notes inputs
+  const bind = (id, prop) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      state.notes[prop] = el.value;
+      saveState();
+    });
+  };
+  const bindProspect = (id, prop) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', () => {
+      state.prospect[prop] = el.value;
+      saveState();
+      syncTopbar();
+    });
+  };
+  bindProspect('note-company', 'company');
+  bindProspect('note-contact', 'contact');
+  bindProspect('note-role', 'role');
+  bind('note-system', 'currentSystem');
+  bind('note-pain1', 'pain1');
+  bind('note-pain2', 'pain2');
+  bind('note-pain3', 'pain3');
+  bind('note-objections', 'objectionsRaised');
+  bind('note-outcome', 'callOutcome');
+  bind('note-free', 'free');
+
+  const ns = document.getElementById('note-next-step');
+  if (ns) ns.addEventListener('change', () => {
+    state.notes.nextStep = ns.value;
+    saveState();
+  });
+  const fd = document.getElementById('note-followup-date');
+  if (fd) fd.addEventListener('change', () => {
+    state.notes.followUpDate = fd.value;
+    saveState();
+  });
+
+  const exportNotes = document.getElementById('export-from-notes');
+  if (exportNotes) exportNotes.addEventListener('click', openExport);
+  const resetNotes = document.getElementById('reset-notes');
+  if (resetNotes) resetNotes.addEventListener('click', () => {
+    if (!confirm('Reset all call notes? Prospect details, pains, objections, next step, free notes, and the scorecard. Cannot be undone.')) return;
+    Object.assign(state, JSON.parse(JSON.stringify(DEFAULT_STATE)));
+    saveState();
+    syncTopbar();
+    setSection('notes');
+  });
+}
+
+/* ---------- TOP BAR ---------- */
+
+function syncTopbar() {
+  const c = document.getElementById('prospect-company');
+  const n = document.getElementById('prospect-contact');
+  const r = document.getElementById('prospect-role');
+  if (c && c.value !== state.prospect.company) c.value = state.prospect.company;
+  if (n && n.value !== state.prospect.contact) n.value = state.prospect.contact;
+  if (r && r.value !== state.prospect.role) r.value = state.prospect.role;
+}
+['prospect-company','prospect-contact','prospect-role'].forEach(id => {
+  document.getElementById(id).value = state.prospect[id.replace('prospect-','')] || '';
+  document.getElementById(id).addEventListener('input', e => {
+    state.prospect[id.replace('prospect-','')] = e.target.value;
+    saveState();
+    if (state.currentSection === 'dashboard' || state.currentSection === 'notes') {
+      setSection(state.currentSection);
+    }
+  });
+});
+
+/* ---------- TIMER ---------- */
+
+const timerEl = document.getElementById('timer');
+const timerStart = document.getElementById('timer-start');
+const timerReset = document.getElementById('timer-reset');
+let timerInterval = null;
+
+function fmtTime(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function updateTimerDisplay() {
+  let elapsed = state.timer.elapsed;
+  if (state.timer.running && state.timer.startedAt) {
+    elapsed += Math.floor((Date.now() - state.timer.startedAt) / 1000);
+  }
+  timerEl.textContent = fmtTime(elapsed);
+  timerEl.classList.toggle('running', !!state.timer.running);
+}
+function startTimer() {
+  if (state.timer.running) {
+    state.timer.elapsed += Math.floor((Date.now() - state.timer.startedAt) / 1000);
+    state.timer.running = false;
+    state.timer.startedAt = null;
+    timerStart.textContent = 'Start';
+    clearInterval(timerInterval);
+    timerInterval = null;
+  } else {
+    state.timer.running = true;
+    state.timer.startedAt = Date.now();
+    timerStart.textContent = 'Pause';
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+  }
+  saveState();
+  updateTimerDisplay();
+}
+function resetTimer() {
+  state.timer = { elapsed: 0, running: false, startedAt: null };
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timerStart.textContent = 'Start';
+  saveState();
+  updateTimerDisplay();
+}
+timerStart.addEventListener('click', startTimer);
+timerReset.addEventListener('click', resetTimer);
+if (state.timer.running) {
+  // resume display tick
+  timerStart.textContent = 'Pause';
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+}
+updateTimerDisplay();
+
+/* ---------- EXPORT ---------- */
+
+function buildExport() {
+  const total = Object.values(state.scores).reduce((a,b) => a + (b||0), 0);
+  const band = SCORE_BANDS.find(b => total >= b.min && total <= b.max) || SCORE_BANDS[0];
+  const mode = CALL_MODES.find(m => m.id === state.currentMode) || CALL_MODES[0];
+  const processLines = PROCESS_STEPS.map(step => {
+    const p = state.notes.process[step] || {};
+    return `  - ${step}: ${p.method || '(not captured)'} | pain ${p.pain || '—'} | LIFTIQ fit ${p.fit || '—'}`;
+  }).join('\n');
+  const scoreLines = SCORECARD_DIMENSIONS.map(d => `  - ${d.label}: ${state.scores[d.id] || '—'}/5`).join('\n');
+  const demoLines = DEMO_STEPS_LIST
+    .filter(d => state.notes.demoDone[d.id])
+    .map(d => `  ✓ ${d.label}`).join('\n') || '  (no demo steps marked complete)';
+
+  return `LIFTIQ Call Summary
+====================
+
+Prospect:    ${state.prospect.company || '(not set)'}
+Contact:     ${state.prospect.contact || '(not set)'}
+Role:        ${state.prospect.role || '(not set)'}
+Call mode:   ${mode.name}
+Call length: ${fmtTime(state.timer.elapsed + (state.timer.running && state.timer.startedAt ? Math.floor((Date.now() - state.timer.startedAt)/1000) : 0))}
+
+Current system / stack:
+  ${state.notes.currentSystem || '(not captured)'}
+
+Top 3 pains:
+  1. ${state.notes.pain1 || '(not captured)'}
+  2. ${state.notes.pain2 || '(not captured)'}
+  3. ${state.notes.pain3 || '(not captured)'}
+
+Process map:
+${processLines}
+
+Qualification score: ${total}/45 — ${band.label}
+${scoreLines}
+
+Band recommendation:
+  ${band.advice}
+
+Demo steps completed:
+${demoLines}
+
+Objections raised:
+  ${state.notes.objectionsRaised || '(none captured)'}
+
+Recommended next step: ${state.notes.nextStep || '(not selected)'}
+Follow-up date:        ${state.notes.followUpDate || '(not set)'}
+Call outcome:          ${state.notes.callOutcome || '(not captured)'}
+
+Free notes:
+${(state.notes.free || '(none)').split('\n').map(l => '  ' + l).join('\n')}
+
+— Generated by LIFTIQ Call Command Centre, ${new Date().toISOString().slice(0,10)}.`;
+}
+
+function openExport() {
+  const txt = buildExport();
+  document.getElementById('export-output').textContent = txt;
+  document.getElementById('export-modal').classList.add('open');
+}
+function closeExport() {
+  document.getElementById('export-modal').classList.remove('open');
+}
+document.getElementById('export-btn').addEventListener('click', openExport);
+document.getElementById('close-export').addEventListener('click', closeExport);
+document.getElementById('copy-export').addEventListener('click', e => {
+  copyText(document.getElementById('export-output').textContent, e.currentTarget);
+});
+document.getElementById('export-modal').addEventListener('click', e => {
+  if (e.target.id === 'export-modal') closeExport();
+});
+
+/* ---------- NAV ---------- */
+
+document.querySelectorAll('.nav-item[data-section]').forEach(el => {
+  el.addEventListener('click', () => setSection(el.dataset.section));
+});
+
+/* ---------- BOOT ---------- */
+
+setSection(state.currentSection || 'dashboard');
+</script>
+</body>
+</html>
