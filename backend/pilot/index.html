@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIFTIQ — Dispatcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Login page -->
+<div id="login-page" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="logo-text">LIFTIQ</span>
+      <span class="logo-sub">Dispatcher Portal</span>
+    </div>
+    <form id="login-form">
+      <div class="form-group">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" autocomplete="email" required>
+      </div>
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+      </div>
+      <p id="login-error" class="form-error"></p>
+      <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<!-- Main app layout -->
+<div id="main-layout" style="display:none">
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-text">LIFTIQ</span>
+    </div>
+    <div class="nav-links">
+      <a href="#dashboard" class="nav-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a href="#workers" class="nav-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Workers
+      </a>
+      <a href="#jobs" class="nav-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        Jobs
+      </a>
+      <a href="#audit" class="nav-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Audit Log
+      </a>
+      <a href="#metrics" class="nav-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Pilot Metrics
+      </a>
+    </div>
+    <div class="sidebar-footer">
+      <div id="sidebar-user" class="sidebar-user-info"></div>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+  <main id="content"></main>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" style="display:none">
+  <div id="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-title"></h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
