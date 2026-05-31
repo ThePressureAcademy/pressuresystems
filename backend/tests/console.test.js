@@ -70,6 +70,8 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /\.credential-type-manager/);
     assert.match(res.text, /\.daily-log-entry/);
     assert.match(res.text, /\.mode-card-title/);
+    assert.match(res.text, /\.review-factor-card/);
+    assert.match(res.text, /\.review-factor-form/);
   });
 
   test('GET /console/app.js returns the SPA bundle', async () => {
@@ -83,6 +85,14 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /renderJobBriefImport/);
     assert.match(res.text, /renderSmartRank/);
     assert.match(res.text, /renderAllocate/);
+    assert.match(res.text, /SmartRank Review Factors/);
+    assert.match(res.text, /Placement-specific decision support/);
+    assert.match(res.text, /rank placement fit, not the person/i);
+    assert.match(res.text, /canManageReviewFactors/);
+    assert.match(res.text, /\/smartrank-review-factors/);
+    assert.match(res.text, /Review Factors support placement review only/);
+    assert.match(res.text, /admin access in v1/);
+    assert.match(res.text, /Admin access is required to confirm this allocation in v1/);
     assert.match(res.text, /renderAudit/);
     assert.match(res.text, /renderInternalPilotMonitor/);
     assert.match(res.text, /renderSourceUploads/);
@@ -210,7 +220,9 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Role coverage suggestion/);
     assert.match(res.text, /Role coverage to confirm for this worker/);
     assert.match(res.text, /Combined-role allocation is decision support only/);
-    assert.match(res.text, /top-ranked/);
+    assert.match(res.text, /Top-ranked/);
+    assert.match(res.text, /Suitable/);
+    assert.match(res.text, /Review required/);
     assert.match(res.text, /Required credentials and VOCs/);
     assert.match(res.text, /renderCredentialTile/);
     assert.match(res.text, /credential-tile/);
@@ -246,6 +258,7 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Review required/);
     assert.match(res.text, /Counterweight transport may be required/);
     assert.match(res.text, /NHVR \/ state notice or permit check may be required/);
+    assert.doesNotMatch(res.text, /liability ranking|liability score|high liability|risk worker|risky worker|problem worker|blacklist|blacklisted|unsafe person|bad attitude|do not use|poor performer|unreliable|undesirable|troublemaker|difficult worker|avoid this worker/i);
     assert.equal(/Task tags:|tower_crane|night_shift/i.test(res.text), false);
     assert.equal(/\bapproved\b|compliant|legal to travel|safe to dispatch|engineered lift confirmed/i.test(res.text), false);
   });
@@ -383,6 +396,7 @@ describe('Pilot console — static asset serving', () => {
       'renderJobDetail',     // job detail
       'renderSmartRank',     // smartrank
       'renderAllocate',      // allocation confirmation
+      'buildSmartRankReviewFactorPanel', // placement review factor management
       'openAllocationPublishModal', // controlled allocation publish preview
       'renderAudit',         // audit log
       'renderMetrics',       // pilot metrics

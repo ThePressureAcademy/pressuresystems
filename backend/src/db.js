@@ -11,6 +11,12 @@ const { seedRoleCompatibilityRules } = require('./services/role-coverage');
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 const AUDIT_EVENT_TYPES = [
   'smartrank_generated',
+  'smartrank_review_factor_created',
+  'smartrank_review_factor_updated',
+  'smartrank_review_factor_archived',
+  'smartrank_review_factor_applied',
+  'smartrank_review_override_recorded',
+  'smartrank_review_hard_block_attempted',
   'user_login_succeeded',
   'user_login_failed',
   'password_changed',
@@ -186,6 +192,51 @@ CREATE TABLE IF NOT EXISTS worker_task_preferences (
   last_selected_at         TEXT,
   created_at               TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at               TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
+
+const SMART_RANK_REVIEW_FACTORS_SQL = `
+CREATE TABLE IF NOT EXISTS smart_rank_review_factors (
+  id                 TEXT PRIMARY KEY,
+  company_id         TEXT NOT NULL REFERENCES companies(id),
+  worker_id          TEXT NOT NULL REFERENCES workers(id),
+  category           TEXT NOT NULL
+                     CHECK (category IN (
+                       'credential_review',
+                       'site_specific_review',
+                       'client_specific_review',
+                       'equipment_familiarity_review',
+                       'role_experience_review',
+                       'supervision_required',
+                       'fatigue_workload_review',
+                       'recent_incident_review',
+                       'crew_pairing_review',
+                       'training_pathway',
+                       'worker_preference_or_request',
+                       'operations_manager_review',
+                       'other_documented_review'
+                     )),
+  severity           TEXT NOT NULL DEFAULT 'info'
+                     CHECK (severity IN (
+                       'info', 'caution', 'requires_review', 'hard_block'
+                     )),
+  summary            TEXT NOT NULL,
+  notes              TEXT,
+  site_name          TEXT,
+  client_name        TEXT,
+  role_name          TEXT,
+  job_type           TEXT,
+  applies_to_type    TEXT NOT NULL DEFAULT 'worker'
+                     CHECK (applies_to_type IN ('worker', 'worker_site', 'worker_client', 'worker_role', 'worker_job_context')),
+  applies_to_value   TEXT,
+  review_date        TEXT,
+  expires_at         TEXT,
+  active             INTEGER NOT NULL DEFAULT 1,
+  created_by_user_id TEXT NOT NULL REFERENCES users(id),
+  archived_by_user_id TEXT REFERENCES users(id),
+  archived_at        TEXT,
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `;
 
@@ -637,6 +688,10 @@ CREATE INDEX IF NOT EXISTS idx_site_log_entries_log
   ON site_log_entries(company_id, site_log_id, status);
 CREATE INDEX IF NOT EXISTS idx_site_log_entries_worker
   ON site_log_entries(company_id, worker_id, sign_in_time, sign_out_time);
+CREATE INDEX IF NOT EXISTS idx_smartrank_review_factors_company_worker
+  ON smart_rank_review_factors(company_id, worker_id, active);
+CREATE INDEX IF NOT EXISTS idx_smartrank_review_factors_context
+  ON smart_rank_review_factors(company_id, active, category, severity);
 CREATE INDEX IF NOT EXISTS idx_audit_company ON audit_events(company_id);
 CREATE INDEX IF NOT EXISTS idx_audit_job ON audit_events(job_id);
 CREATE INDEX IF NOT EXISTS idx_audit_worker ON audit_events(worker_id);
@@ -799,6 +854,7 @@ function runMigrations(db) {
     WHERE schedule_status IS NULL OR trim(schedule_status) = ''
   `);
   db.exec(WORKER_TASK_PREFERENCES_SQL);
+  db.exec(SMART_RANK_REVIEW_FACTORS_SQL);
   db.exec(JOB_IMPORTS_SQL);
   db.exec(ALLOCATION_NOTIFICATIONS_SQL);
   db.exec(SOURCE_UPLOADS_SQL);

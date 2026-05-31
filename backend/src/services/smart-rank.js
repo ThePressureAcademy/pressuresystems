@@ -189,6 +189,43 @@ function evalScheduleConflicts(job, workerAllocations) {
   };
 }
 
+function reviewFactorBlock(factor) {
+  return {
+    type: 'placement_review_hard_block',
+    detail: `Placement review block: ${factor.category_label || factor.category}. ${factor.summary}`,
+    review_factor_id: factor.id,
+    category: factor.category,
+    severity: factor.severity
+  };
+}
+
+function reviewFactorWarning(factor) {
+  const requiresReview = factor.severity === 'requires_review';
+  return {
+    type: requiresReview ? 'placement_review_required' : 'placement_review_caution',
+    detail: `${requiresReview ? 'Manual review required' : 'Placement review caution'}: ${factor.category_label || factor.category}. ${factor.summary}`,
+    review_factor_id: factor.id,
+    category: factor.category,
+    severity: factor.severity
+  };
+}
+
+function publicReviewFactor(factor) {
+  return {
+    id: factor.id,
+    category: factor.category,
+    category_label: factor.category_label || factor.category,
+    severity: factor.severity,
+    severity_label: factor.severity_label || factor.severity,
+    summary: factor.summary,
+    site_name: factor.site_name || null,
+    client_name: factor.client_name || null,
+    role_name: factor.role_name || null,
+    job_type: factor.job_type || null,
+    expires_at: factor.expires_at || null
+  };
+}
+
 function rankWorkersForJob(
   workers,
   job,
@@ -203,7 +240,11 @@ function rankWorkersForJob(
     preferencesByWorker = {};
   }
 
-  const { now = new Date(), roleCompatibilityRules = null } = options;
+  const {
+    now = new Date(),
+    roleCompatibilityRules = null,
+    reviewFactorsByWorker = {}
+  } = options;
   const requiredCredentials = Array.isArray(job.required_credentials)
     ? job.required_credentials
     : JSON.parse(job.required_credentials || '[]');
@@ -263,6 +304,25 @@ function rankWorkersForJob(
       continue;
     }
     workerWarnings.push(...scheduleConflict.warnings);
+
+    const placementReviewFactors = (reviewFactorsByWorker[worker.id] || []).map(publicReviewFactor);
+    const hardBlockFactors = placementReviewFactors.filter((factor) => factor.severity === 'hard_block');
+    if (hardBlockFactors.length > 0) {
+      workerBlocks.push(...hardBlockFactors.map(reviewFactorBlock));
+      blocked.push({
+        worker,
+        blocks: workerBlocks,
+        warnings: workerWarnings,
+        review_factors: placementReviewFactors,
+        candidate_group: 'blocked'
+      });
+      continue;
+    }
+
+    const reviewWarnings = placementReviewFactors
+      .filter((factor) => factor.severity === 'requires_review' || factor.severity === 'caution')
+      .map(reviewFactorWarning);
+    workerWarnings.push(...reviewWarnings);
 
     const roleCoverage = evaluateWorkerRoleCoverage(worker, job, credentials, { roleCompatibilityRules });
     if (!roleCoverage.can_cover_required_role) {
@@ -362,13 +422,24 @@ function rankWorkersForJob(
       score_breakdown: scoreBreakdown,
       warnings: workerWarnings,
       role_coverage: roleCoverage,
-      preference_signals: taskPreference.signals
+      preference_signals: taskPreference.signals,
+      review_factors: placementReviewFactors,
+      manual_confirmation_required: placementReviewFactors.some((factor) => factor.severity === 'requires_review')
     });
   }
 
   ranked.sort((left, right) => right.score - left.score);
+  let topRankedAssigned = false;
   ranked.forEach((entry, index) => {
     entry.rank = index + 1;
+    if (entry.manual_confirmation_required) {
+      entry.candidate_group = 'review_required';
+    } else if (!topRankedAssigned) {
+      entry.candidate_group = 'top_ranked';
+      topRankedAssigned = true;
+    } else {
+      entry.candidate_group = 'suitable';
+    }
   });
 
   return {
