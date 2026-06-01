@@ -2,6 +2,7 @@
 
 const path    = require('path');
 const express = require('express');
+const { isRouteCheckEnabled } = require('./services/routecheck-config');
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use('/api/users',        require('./routes/users'));
 app.use('/api/workers',      require('./routes/workers'));
 app.use('/api/credential-types', require('./routes/credential-types'));
 app.use('/api/smartrank-review-factors', require('./routes/smartrank-review-factors'));
+app.use('/api/route-checks', require('./routes/route-checks'));
 app.use('/api/jobs',         require('./routes/jobs'));
 app.use('/api/site-logs',    require('./routes/site-logs'));
 app.use('/api/crane-models', require('./routes/crane-models'));
@@ -37,6 +39,11 @@ app.use('/api', (req, res) => {
 
 // ─── Pilot console (static SPA) ───────────────────────────────────────────────
 const CONSOLE_DIR = path.join(__dirname, '../public/console');
+app.get('/routecheck', (req, res) => {
+  if (!isRouteCheckEnabled()) return res.status(404).send('RouteCheck is not enabled for this environment');
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  return res.redirect('/console/#/routecheck');
+});
 app.use('/console', express.static(CONSOLE_DIR, { index: 'index.html' }));
 app.use('/samples', express.static(path.join(__dirname, '../samples')));
 app.get('/console/*', (req, res) => {

@@ -461,6 +461,89 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   border-left: 4px solid var(--warn);
 }
 
+.routecheck-boundary {
+  border-left: 4px solid var(--warn);
+  background: rgba(255, 180, 84, 0.055);
+}
+
+.routecheck-create-form,
+.routecheck-filter-form {
+  display: grid;
+  gap: 12px;
+}
+
+.routecheck-list {
+  display: grid;
+  gap: 12px;
+}
+
+.routecheck-list.compact {
+  margin-top: 12px;
+}
+
+.routecheck-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.routecheck-card--medium { border-left-color: var(--info); }
+.routecheck-card--high { border-left-color: var(--warn); }
+.routecheck-card--critical { border-left-color: var(--bad); }
+
+.routecheck-card__head,
+.routecheck-job-summary {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.routecheck-kv {
+  margin: 0;
+}
+
+.routecheck-alert {
+  margin-top: 0;
+}
+
+.routecheck-action-group {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.routecheck-action-group summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.routecheck-mini-form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.routecheck-mini-form h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.routecheck-events {
+  margin: 10px 0 0 18px;
+  padding: 0;
+}
+
+.routecheck-events li + li {
+  margin-top: 6px;
+}
+
 /* ─── SmartRank cards ─── */
 .rank-card {
   background: var(--panel-2);
@@ -1745,6 +1828,8 @@ ul.tag-list li {
 
   .credential-type-row,
   .review-factor-card__head,
+  .routecheck-card__head,
+  .routecheck-job-summary,
   .daily-log-card-head,
   .daily-log-entry,
   .daily-log-report-head,

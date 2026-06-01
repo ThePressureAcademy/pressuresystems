@@ -63,6 +63,8 @@ const {
   normalizeWorkerRoles,
   siteConditionReviewLabels
 } = require('../services/intake-catalogues');
+const { requireRouteCheckEnabled } = require('../services/routecheck-config');
+const { evaluateJobRouteCheck } = require('../services/route-checks');
 const {
   insertAllocationRoleCoverages,
   listRoleCompatibilityRules,
@@ -1254,6 +1256,27 @@ router.get('/:id/assets', requireAuth, (req, res) => {
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
   return res.json({ assignments: listJobAssetAssignments(db, req.user.company_id, req.params.id) });
+});
+
+router.post('/:id/route-check/evaluate', requireAuth, requireRouteCheckEnabled, (req, res) => {
+  const db = getDb();
+  try {
+    const evaluation = evaluateJobRouteCheck(db, req.user.company_id, req.params.id, {
+      asset_id: req.body?.asset_id || req.body?.company_asset_id || null
+    });
+    return res.json({
+      job_id: evaluation.job.id,
+      asset_id: evaluation.asset?.id || null,
+      route_required: evaluation.route_required,
+      risk_score: evaluation.risk_score,
+      risk_level: evaluation.risk_level,
+      reasons: evaluation.reasons,
+      warnings: evaluation.warnings,
+      thresholds: evaluation.thresholds
+    });
+  } catch (error) {
+    return res.status(error.status || 400).json({ error: error.message });
+  }
 });
 
 router.post('/:id/custom-requirements', requireAuth, requireRole('admin', 'dispatcher'), (req, res) => {

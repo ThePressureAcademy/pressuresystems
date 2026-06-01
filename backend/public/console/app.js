@@ -4,6 +4,7 @@ const state = {
   token: null,
   user: null,
   renderCycle: 0,
+  routeCheckConfig: null,
 };
 
 const TOKEN_KEY = 'liftiq.token';
@@ -64,6 +65,31 @@ const SOURCE_UPLOAD_STATUS_CLASSES = {
   rejected: 'pill-bad',
   deleted: 'pill-muted'
 };
+
+const ROUTE_CHECK_STATUS_OPTIONS = [
+  'not_required',
+  'not_checked',
+  'opened_in_routing_tool',
+  'checked',
+  'issue_flagged',
+  'permit_required',
+  'approved_for_dispatch',
+  'sent_to_operator',
+  'operator_acknowledged',
+  'blocked'
+];
+const ROUTE_CHECK_RISK_OPTIONS = ['low', 'medium', 'high', 'critical'];
+const ROUTE_CHECK_PERMIT_STATUS_OPTIONS = ['unknown', 'not_required', 'required', 'confirmed'];
+const ROUTE_CHECK_NOTE_TYPES = [
+  'route',
+  'permit',
+  'site_access',
+  'hazard',
+  'operator_feedback',
+  'management',
+  'override'
+];
+const ROUTE_CHECK_ACK_OPTIONS = ['confirmed', 'issue_found', 'need_call', 'not_acknowledged'];
 
 const REVIEW_FACTOR_CATEGORY_OPTIONS = [
   { value: 'credential_review', label: 'Credential review' },
@@ -333,7 +359,19 @@ const DISPLAY_LABEL_OVERRIDES = {
   required_credentials: 'Required credentials',
   site_conditions: 'Site conditions',
   crane_classes_required: 'Crane / equipment classes',
-  task_tags: 'Task context'
+  task_tags: 'Task context',
+  not_required: 'Not required',
+  not_checked: 'Not checked',
+  opened_in_routing_tool: 'Opened in routing tool',
+  issue_flagged: 'Issue flagged',
+  permit_required: 'Permit required',
+  approved_for_dispatch: 'Dispatch review recorded',
+  sent_to_operator: 'Sent to operator',
+  operator_acknowledged: 'Operator acknowledged',
+  site_access: 'Site access',
+  operator_feedback: 'Operator feedback',
+  need_call: 'Need call',
+  not_acknowledged: 'Not acknowledged'
 };
 
 const el = (tag, attrs = {}, ...children) => {
@@ -827,6 +865,37 @@ async function loadCredentialTypes(force = false) {
   return credentialTypesCache;
 }
 
+async function loadRouteCheckConfig(force = false) {
+  if (state.routeCheckConfig && !force) return state.routeCheckConfig;
+  if (!state.token) {
+    state.routeCheckConfig = { enabled: false };
+    syncRouteCheckNav();
+    return state.routeCheckConfig;
+  }
+  try {
+    state.routeCheckConfig = await api('GET', '/route-checks/config');
+  } catch (err) {
+    if (err.status !== 404) {
+      console.warn('RouteCheck config unavailable', err);
+    }
+    state.routeCheckConfig = { enabled: false };
+  }
+  syncRouteCheckNav();
+  return state.routeCheckConfig;
+}
+
+function routeCheckEnabled() {
+  return state.routeCheckConfig?.enabled === true;
+}
+
+function routeCheckCanEdit() {
+  return state.routeCheckConfig?.can_edit === true;
+}
+
+function routeCheckCanOverride() {
+  return state.routeCheckConfig?.can_override === true;
+}
+
 function boolLabel(value) {
   return value ? 'Yes' : 'No';
 }
@@ -1014,6 +1083,24 @@ function syncInternalNav() {
   }, 'Internal Pilot Monitor'));
 }
 
+function syncRouteCheckNav() {
+  const nav = document.getElementById('nav');
+  if (!nav) return;
+  const existing = nav.querySelector('[data-route="routecheck"]');
+  if (!routeCheckEnabled()) {
+    if (existing) existing.remove();
+    return;
+  }
+  if (existing) return;
+  const link = el('a', {
+    href: '#/routecheck',
+    'data-route': 'routecheck'
+  }, 'RouteCheck');
+  const siteLogLink = nav.querySelector('[data-route="site-log"]');
+  if (siteLogLink?.nextSibling) nav.insertBefore(link, siteLogLink.nextSibling);
+  else nav.appendChild(link);
+}
+
 function formatPilotType(value) {
   const labels = {
     internal: 'internal',
@@ -1055,6 +1142,7 @@ function logout() {
   companyAssetsCache = null;
   companySetupStateCache = null;
   credentialTypesCache = null;
+  state.routeCheckConfig = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(PASSWORD_REMINDER_DISMISSED_KEY);
@@ -1067,6 +1155,7 @@ function showLogin(message = '') {
   document.getElementById('app-shell').classList.add('hidden');
   document.getElementById('login-error').textContent = '';
   syncInternalNav();
+  syncRouteCheckNav();
   setLoginNote(message);
 }
 
@@ -1090,6 +1179,7 @@ function showAccessBlocked(company = state.user?.company, message = '') {
   document.getElementById('app-shell').classList.remove('hidden');
   document.getElementById('user-label').textContent = formatCompanyLabel();
   syncInternalNav();
+  syncRouteCheckNav();
   document.querySelectorAll('#nav a').forEach((link) => link.classList.remove('active'));
   const view = document.getElementById('view');
   const companyName = company?.display_name || company?.name || 'This company';
@@ -1115,6 +1205,7 @@ function showApp() {
   document.getElementById('app-shell').classList.remove('hidden');
   document.getElementById('user-label').textContent = formatCompanyLabel();
   syncInternalNav();
+  loadRouteCheckConfig(true).catch(() => {});
   if (isCompanyAccessBlocked()) {
     showAccessBlocked();
     return;
@@ -1240,6 +1331,7 @@ function router() {
     'source-uploads': () => renderSourceUploads(renderCycle),
     schedule: () => renderSchedule(renderCycle),
     'site-log': () => renderSiteLog(renderCycle),
+    routecheck: () => renderRouteCheck(renderCycle),
     workers: () => {
       if (rest[0] === 'import') return renderWorkerImport(renderCycle);
       return rest[0] ? renderWorkerDetail(rest[0], renderCycle) : renderWorkersList(renderCycle);
@@ -1306,6 +1398,33 @@ function jobStatusPill(status) {
     cancelled: 'pill-bad'
   };
   return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, formatDisplayLabel(status));
+}
+
+function routeCheckStatusPill(status) {
+  const map = {
+    not_required: 'pill-muted',
+    required: 'pill-warn',
+    not_checked: 'pill-warn',
+    opened_in_routing_tool: 'pill-info',
+    checked: 'pill-info',
+    issue_flagged: 'pill-bad',
+    permit_required: 'pill-warn',
+    approved_for_dispatch: 'pill-ok',
+    sent_to_operator: 'pill-info',
+    operator_acknowledged: 'pill-ok',
+    blocked: 'pill-bad'
+  };
+  return el('span', { class: `pill ${map[status] || 'pill-muted'}` }, formatDisplayLabel(status));
+}
+
+function routeCheckRiskPill(risk) {
+  const map = {
+    low: 'pill-muted',
+    medium: 'pill-info',
+    high: 'pill-warn',
+    critical: 'pill-bad'
+  };
+  return el('span', { class: `pill ${map[risk] || 'pill-muted'}` }, formatDisplayLabel(risk));
 }
 
 function scheduleStatusPill(status) {
@@ -2129,6 +2248,605 @@ async function renderSourceUploads(renderCycle) {
   const uploadListHost = el('div');
   uploadListHost.appendChild(renderSourceUploadList(data, { allowDelete: true }));
   view.appendChild(uploadListHost);
+}
+
+function renderRouteCheckBoundary() {
+  return el('div', { class: 'panel routecheck-boundary' },
+    el('strong', {}, 'RouteCheck boundary: '),
+    'RouteCheck records route and access review before dispatch. It does not confirm route compliance, legal travel approval, road authority approval, or site safety approval. ',
+    'Final movement remains subject to permits, road authority requirements, site conditions, road conditions, and operator verification.'
+  );
+}
+
+function routeCheckJobLabel(job = {}) {
+  return [job.date, job.client_name, job.site_name || job.reference].filter(Boolean).join(' | ') || job.id || 'Job';
+}
+
+function routeCheckAssetLabel(asset = {}) {
+  return [asset.asset_number, asset.display_name || asset.catalogue_item?.label || asset.catalogue_label].filter(Boolean).join(' / ') || asset.id || 'Asset';
+}
+
+function buildRouteCheckCreateForm(jobs = [], assetsPayload = {}) {
+  const form = el('form', { class: 'panel routecheck-create-form' });
+  const err = el('div', { class: 'error', role: 'alert' });
+  const submit = el('button', { type: 'submit' }, 'Create RouteCheck');
+  const assets = assetsPayload.assets || [];
+
+  form.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h3', {}, 'Create RouteCheck'),
+      el('p', { class: 'small muted' },
+        'Create a manual route/access review record for a job. No map, permit, or routing-provider integration is called in this MVP.'
+      )
+    )
+  ));
+  form.appendChild(el('div', { class: 'row' },
+    buildSelect('job_id', 'Job', [
+      { value: '', label: 'Select job' },
+      ...jobs.map((job) => ({ value: job.id, label: routeCheckJobLabel(job) }))
+    ], { required: true }),
+    buildSelect('asset_id', 'Asset / plant', [
+      { value: '', label: 'Use selected job asset or no asset' },
+      ...assets.map((asset) => ({ value: asset.id, label: routeCheckAssetLabel(asset) }))
+    ]),
+    buildSelect('permit_status', 'Permit/access status', ROUTE_CHECK_PERMIT_STATUS_OPTIONS, { value: 'unknown' })
+  ));
+  form.appendChild(err);
+  form.appendChild(el('div', { class: 'button-row' }, submit));
+  if (!routeCheckCanEdit()) {
+    disableFormControls(form);
+    form.appendChild(el('div', { class: 'status-note' },
+      'RouteCheck creation requires admin or dispatcher access. Current access is view-only.'
+    ));
+    return form;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    setButtonBusy(submit, true, 'Create RouteCheck', 'Creating...');
+    try {
+      await api('POST', '/route-checks', {
+        job_id: fd.get('job_id'),
+        asset_id: fd.get('asset_id') || null,
+        permit_status: fd.get('permit_status') || 'unknown'
+      });
+      toast('RouteCheck created', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not create RouteCheck';
+    } finally {
+      setButtonBusy(submit, false, 'Create RouteCheck', 'Creating...');
+    }
+  });
+  return form;
+}
+
+function routeCheckListQuery(form) {
+  const fd = new FormData(form);
+  const query = new URLSearchParams();
+  for (const key of ['status', 'risk_level', 'start_date', 'end_date']) {
+    const value = String(fd.get(key) || '').trim();
+    if (value) query.set(key, value);
+  }
+  return query.toString();
+}
+
+function renderRouteCheckFilterPanel(onResult) {
+  const form = el('form', { class: 'panel routecheck-filter-form' });
+  const submit = el('button', { type: 'submit', class: 'secondary' }, 'Apply filters');
+  const clear = el('button', { type: 'button', class: 'secondary' }, 'Clear filters');
+  const err = el('div', { class: 'error' });
+  form.appendChild(el('h3', {}, 'Historical route/access lookup'));
+  form.appendChild(el('div', { class: 'row' },
+    buildSelect('status', 'Status', [{ value: '', label: 'All statuses' }, ...ROUTE_CHECK_STATUS_OPTIONS]),
+    buildSelect('risk_level', 'Risk level', [{ value: '', label: 'All risk levels' }, ...ROUTE_CHECK_RISK_OPTIONS]),
+    buildInput('start_date', 'From date', { type: 'date' }),
+    buildInput('end_date', 'To date', { type: 'date' })
+  ));
+  form.appendChild(err);
+  form.appendChild(el('div', { class: 'button-row' }, submit, clear));
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    setButtonBusy(submit, true, 'Apply filters', 'Filtering...');
+    try {
+      const query = routeCheckListQuery(form);
+      const data = await api('GET', `/route-checks${query ? `?${query}` : ''}`);
+      onResult(data);
+    } catch (error) {
+      err.textContent = error.error || 'Could not filter RouteChecks';
+    } finally {
+      setButtonBusy(submit, false, 'Apply filters', 'Filtering...');
+    }
+  });
+  clear.addEventListener('click', async () => {
+    form.reset();
+    const data = await api('GET', '/route-checks');
+    onResult(data);
+  });
+  return form;
+}
+
+function renderRouteCheckSummary(summary = {}) {
+  return el('div', { class: 'panel' },
+    el('div', { class: 'metrics-grid compact-grid' },
+      metricTile('RouteChecks', summary.total || 0),
+      metricTile('Unchecked', summary.unchecked || 0),
+      metricTile('High / critical', summary.high_or_critical || 0),
+      metricTile('Blocked / issue flagged', summary.blocked || 0)
+    )
+  );
+}
+
+function renderRouteCheckListPanel(data = {}) {
+  const checks = data.route_checks || [];
+  const panel = el('div', { class: 'panel routecheck-list-panel' });
+  panel.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h3', {}, 'RouteCheck records'),
+      el('p', { class: 'small muted' }, 'Manual route/access review records for dispatch decision support and audit.')
+    ),
+    el('span', { class: 'pill pill-info' }, `${checks.length} record(s)`)
+  ));
+  if (!checks.length) {
+    panel.appendChild(el('div', { class: 'empty' },
+      'No RouteCheck records found. Create one from a job before dispatch if route/access review is needed.'
+    ));
+    return panel;
+  }
+  const list = el('div', { class: 'routecheck-list' });
+  checks.forEach((check) => list.appendChild(renderRouteCheckCard(check)));
+  panel.appendChild(list);
+  return panel;
+}
+
+function renderRouteCheckCard(check) {
+  const card = el('article', { class: `routecheck-card routecheck-card--${check.risk_level || 'low'}` });
+  const title = check.site_name || check.job?.site_name || check.job_reference || 'RouteCheck';
+  card.appendChild(el('div', { class: 'routecheck-card__head' },
+    el('div', {},
+      el('strong', {}, title),
+      el('div', { class: 'small muted' },
+        [check.client_name || check.job?.client_name, check.job_date || check.job?.date, check.asset_label || check.asset?.display_name].filter(Boolean).join(' | ') || 'Manual route/access review'
+      )
+    ),
+    el('div', { class: 'button-row' },
+      routeCheckRiskPill(check.risk_level),
+      routeCheckStatusPill(check.status)
+    )
+  ));
+  card.appendChild(el('div', { class: 'kv routecheck-kv' },
+    el('div', {}, 'Route required'), el('div', {}, boolLabel(check.route_required)),
+    el('div', {}, 'Permit/access status'), el('div', {}, formatDisplayLabel(check.permit_status || 'unknown')),
+    el('div', {}, 'Operator acknowledgement'), el('div', {}, check.operator_acknowledged_at ? fmtDate(check.operator_acknowledged_at) : 'Not recorded'),
+    el('div', {}, 'Updated'), el('div', {}, fmtDate(check.updated_at || check.created_at))
+  ));
+  if (check.blocked_reason) {
+    card.appendChild(el('div', { class: 'alerts routecheck-alert' },
+      el('strong', {}, 'Blocked reason: '),
+      check.blocked_reason
+    ));
+  }
+  if (check.override_used) {
+    card.appendChild(el('div', { class: 'alerts routecheck-alert' },
+      el('strong', {}, 'Override recorded: '),
+      check.override_reason || 'Admin override reason recorded.'
+    ));
+  }
+  card.appendChild(renderRouteCheckActions(check));
+  return card;
+}
+
+function renderRouteCheckActions(check) {
+  const wrapper = el('div', { class: 'routecheck-actions' });
+  const details = el('details', { class: 'routecheck-action-group' },
+    el('summary', {}, 'Actions and audit')
+  );
+  const err = el('div', { class: 'error' });
+  details.appendChild(err);
+
+  if (routeCheckCanEdit()) {
+    details.appendChild(buildRouteCheckStatusForm(check, err));
+    details.appendChild(buildRouteCheckPermitForm(check, err));
+    details.appendChild(buildRouteCheckNoteForm(check, err));
+    details.appendChild(buildRouteCheckExternalLinkForm(check, err));
+    details.appendChild(buildRouteCheckApprovalForm(check, err));
+    details.appendChild(buildRouteCheckSendForm(check, err));
+  } else {
+    details.appendChild(el('div', { class: 'status-note' },
+      'RouteCheck actions are read-only for this role. Admin or dispatcher access is required to change review records.'
+    ));
+  }
+
+  if (['admin', 'dispatcher', 'supervisor'].includes(state.user?.role)) {
+    details.appendChild(buildRouteCheckAcknowledgementForm(check, err));
+  }
+  details.appendChild(buildRouteCheckAuditPanel(check));
+  wrapper.appendChild(details);
+  return wrapper;
+}
+
+function buildRouteCheckStatusForm(check, err) {
+  const form = el('form', { class: 'sub-panel routecheck-mini-form' });
+  const submit = el('button', { type: 'submit', class: 'secondary' }, 'Update status');
+  form.appendChild(el('h4', {}, 'Review status'));
+  form.appendChild(el('div', { class: 'row' },
+    buildSelect('status', 'Status', ROUTE_CHECK_STATUS_OPTIONS, { value: check.status, required: true }),
+    buildInput('blocked_reason', 'Blocked / issue reason', { placeholder: 'Required if blocking dispatch' })
+  ));
+  form.appendChild(buildTextarea('note', 'Status note', { placeholder: 'Manual review note' }));
+  form.appendChild(submit);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    setButtonBusy(submit, true, 'Update status', 'Updating...');
+    try {
+      await api('PATCH', `/route-checks/${encodeURIComponent(check.id)}/status`, {
+        status: fd.get('status'),
+        note: fd.get('note') || null,
+        blocked_reason: fd.get('blocked_reason') || null
+      });
+      toast('RouteCheck status updated', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not update RouteCheck status';
+    } finally {
+      setButtonBusy(submit, false, 'Update status', 'Updating...');
+    }
+  });
+  return form;
+}
+
+function buildRouteCheckPermitForm(check, err) {
+  const form = el('form', { class: 'sub-panel routecheck-mini-form' });
+  const submit = el('button', { type: 'submit', class: 'secondary' }, 'Save permit status');
+  form.appendChild(el('h4', {}, 'Permit / access record'));
+  form.appendChild(el('div', { class: 'row' },
+    buildSelect('permit_status', 'Permit/access status', ROUTE_CHECK_PERMIT_STATUS_OPTIONS, { value: check.permit_status || 'unknown' }),
+    buildInput('permit_reference', 'Reference', { placeholder: 'Permit, notice, or access review reference' }),
+    buildInput('permit_expiry_at', 'Expiry', { type: 'date' })
+  ));
+  form.appendChild(buildTextarea('permit_notes', 'Permit/access notes'));
+  form.appendChild(submit);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    setButtonBusy(submit, true, 'Save permit status', 'Saving...');
+    try {
+      await api('PATCH', `/route-checks/${encodeURIComponent(check.id)}/permit`, {
+        permit_required: fd.get('permit_status') === 'required',
+        permit_status: fd.get('permit_status'),
+        permit_reference: fd.get('permit_reference') || null,
+        permit_expiry_at: fd.get('permit_expiry_at') || null,
+        permit_notes: fd.get('permit_notes') || null
+      });
+      toast('Permit/access record updated', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not save permit/access record';
+    } finally {
+      setButtonBusy(submit, false, 'Save permit status', 'Saving...');
+    }
+  });
+  return form;
+}
+
+function buildRouteCheckNoteForm(check, err) {
+  const form = el('form', { class: 'sub-panel routecheck-mini-form' });
+  const submit = el('button', { type: 'submit', class: 'secondary' }, 'Add note');
+  form.appendChild(el('h4', {}, 'Route/access note'));
+  form.appendChild(buildSelect('note_type', 'Note type', ROUTE_CHECK_NOTE_TYPES, { value: 'route' }));
+  form.appendChild(buildTextarea('note_text', 'Note', { required: true, placeholder: 'Factual route, access, permit, site, or operator context.' }));
+  form.appendChild(submit);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    setButtonBusy(submit, true, 'Add note', 'Adding...');
+    try {
+      await api('POST', `/route-checks/${encodeURIComponent(check.id)}/notes`, {
+        note_type: fd.get('note_type') || 'route',
+        note_text: fd.get('note_text')
+      });
+      toast('RouteCheck note added', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not add route/access note';
+    } finally {
+      setButtonBusy(submit, false, 'Add note', 'Adding...');
+    }
+  });
+  return form;
+}
+
+function buildRouteCheckExternalLinkForm(check, err) {
+  const form = el('form', { class: 'sub-panel routecheck-mini-form' });
+  const submit = el('button', { type: 'submit', class: 'secondary' }, 'Record external link');
+  form.appendChild(el('h4', {}, 'External route review link'));
+  form.appendChild(el('p', { class: 'small muted' },
+    'Record a link opened manually by the dispatcher. DispatchTalon does not fetch or verify external routing data in this MVP.'
+  ));
+  form.appendChild(el('div', { class: 'row' },
+    buildInput('provider_name', 'Provider/source', { placeholder: 'NHVR portal, council portal, map tool' }),
+    buildInput('route_url', 'URL', { type: 'url', required: true, placeholder: 'https://...' })
+  ));
+  form.appendChild(el('div', { class: 'row' },
+    buildInput('origin_address', 'Origin', { placeholder: 'Optional' }),
+    buildInput('destination_address', 'Destination', { placeholder: 'Optional' })
+  ));
+  form.appendChild(submit);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    setButtonBusy(submit, true, 'Record external link', 'Recording...');
+    try {
+      await api('POST', `/route-checks/${encodeURIComponent(check.id)}/external-links`, {
+        provider_name: fd.get('provider_name') || null,
+        route_url: fd.get('route_url'),
+        origin_address: fd.get('origin_address') || null,
+        destination_address: fd.get('destination_address') || null
+      });
+      toast('External route review link recorded', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not record external route link';
+    } finally {
+      setButtonBusy(submit, false, 'Record external link', 'Recording...');
+    }
+  });
+  return form;
+}
+
+function buildRouteCheckApprovalForm(check, err) {
+  const form = el('form', { class: 'sub-panel routecheck-mini-form' });
+  const submit = el('button', { type: 'submit' }, 'Mark reviewed for dispatch');
+  form.appendChild(el('h4', {}, 'Dispatch review gate'));
+  form.appendChild(el('p', { class: 'small muted' },
+    routeCheckCanOverride()
+      ? 'This records dispatcher/admin route review. If blockers exist, admin override requires a written operational reason.'
+      : 'Review completion is blocked if a RouteCheck is unchecked, issue-flagged, blocked, permit-required, or critical.'
+  ));
+  form.appendChild(buildTextarea('approval_note', 'Review note', { placeholder: 'Optional review note' }));
+  form.appendChild(buildTextarea('override_reason', 'Admin override reason', {
+    placeholder: 'Required only when admin overrides a blocker'
+  }));
+  if (!routeCheckCanOverride()) {
+    const overrideField = form.querySelector('textarea[name="override_reason"]');
+    if (overrideField) overrideField.disabled = true;
+  }
+  form.appendChild(submit);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    setButtonBusy(submit, true, 'Mark reviewed for dispatch', 'Marking reviewed...');
+    try {
+      await api('POST', `/route-checks/${encodeURIComponent(check.id)}/approve`, {
+        approval_note: fd.get('approval_note') || null,
+        override_reason: fd.get('override_reason') || null
+      });
+      toast('RouteCheck review recorded', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not mark RouteCheck reviewed';
+    } finally {
+      setButtonBusy(submit, false, 'Mark reviewed for dispatch', 'Marking reviewed...');
+    }
+  });
+  return form;
+}
+
+function buildRouteCheckSendForm(check, err) {
+  const panel = el('div', { class: 'sub-panel routecheck-mini-form' });
+  const button = el('button', { type: 'button', class: 'secondary' }, 'Mark sent to operator');
+  panel.appendChild(el('h4', {}, 'Operator handoff'));
+  panel.appendChild(el('p', { class: 'small muted' },
+    'Use this after route/access notes have been sent through your existing company channel. DispatchTalon does not send the message automatically in this MVP.'
+  ));
+  panel.appendChild(button);
+  button.addEventListener('click', async () => {
+    err.textContent = '';
+    setButtonBusy(button, true, 'Mark sent to operator', 'Recording...');
+    try {
+      await api('POST', `/route-checks/${encodeURIComponent(check.id)}/send-to-operator`, {
+        message: 'Route/access notes sent through company channel.'
+      });
+      toast('Operator handoff recorded', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not record operator handoff';
+    } finally {
+      setButtonBusy(button, false, 'Mark sent to operator', 'Recording...');
+    }
+  });
+  return panel;
+}
+
+function buildRouteCheckAcknowledgementForm(check, err) {
+  const form = el('form', { class: 'sub-panel routecheck-mini-form' });
+  const submit = el('button', { type: 'submit', class: 'secondary' }, 'Record acknowledgement');
+  form.appendChild(el('h4', {}, 'Operator acknowledgement'));
+  form.appendChild(buildSelect('ack_status', 'Acknowledgement', ROUTE_CHECK_ACK_OPTIONS, { value: 'confirmed' }));
+  form.appendChild(buildTextarea('ack_note', 'Acknowledgement note', { placeholder: 'Operator confirmed route/access notes or raised an issue.' }));
+  form.appendChild(submit);
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    err.textContent = '';
+    const fd = new FormData(form);
+    setButtonBusy(submit, true, 'Record acknowledgement', 'Recording...');
+    try {
+      await api('POST', `/route-checks/${encodeURIComponent(check.id)}/operator-ack`, {
+        ack_status: fd.get('ack_status'),
+        ack_note: fd.get('ack_note') || null
+      });
+      toast('Operator acknowledgement recorded', 'success');
+      router();
+    } catch (error) {
+      err.textContent = error.error || 'Could not record operator acknowledgement';
+    } finally {
+      setButtonBusy(submit, false, 'Record acknowledgement', 'Recording...');
+    }
+  });
+  return form;
+}
+
+function buildRouteCheckAuditPanel(check) {
+  const panel = el('div', { class: 'sub-panel routecheck-mini-form' });
+  const button = el('button', { type: 'button', class: 'secondary' }, 'Load audit trail');
+  const host = el('div', { class: 'routecheck-audit-list' });
+  panel.appendChild(el('h4', {}, 'RouteCheck audit'));
+  panel.appendChild(button);
+  panel.appendChild(host);
+  button.addEventListener('click', async () => {
+    host.innerHTML = '';
+    setButtonBusy(button, true, 'Load audit trail', 'Loading...');
+    try {
+      const data = await api('GET', `/route-checks/${encodeURIComponent(check.id)}/audit`);
+      const events = data.events || [];
+      if (!events.length) {
+        host.appendChild(el('div', { class: 'empty' }, 'No RouteCheck audit events recorded yet.'));
+      } else {
+        host.appendChild(el('ul', { class: 'routecheck-events' }, ...events.map((event) =>
+          el('li', {},
+            el('strong', {}, formatDisplayLabel(event.event_type)),
+            el('span', { class: 'small muted' }, ` | ${fmtDate(event.created_at)}${event.event_note ? ` | ${event.event_note}` : ''}`)
+          )
+        )));
+      }
+    } catch (error) {
+      host.appendChild(el('div', { class: 'error' }, error.error || 'Could not load RouteCheck audit'));
+    } finally {
+      setButtonBusy(button, false, 'Load audit trail', 'Loading...');
+    }
+  });
+  return panel;
+}
+
+async function renderRouteCheck(renderCycle) {
+  const view = document.getElementById('view');
+  view.innerHTML = '';
+
+  const config = await loadRouteCheckConfig(true);
+  if (isStaleRender(renderCycle)) return;
+  if (!config.enabled) {
+    view.appendChild(el('div', { class: 'panel' },
+      el('h2', {}, 'RouteCheck unavailable'),
+      el('p', { class: 'muted' }, 'RouteCheck is not enabled for this pilot environment.')
+    ));
+    return;
+  }
+
+  const [data, jobs, assetsPayload] = await Promise.all([
+    api('GET', '/route-checks'),
+    api('GET', '/jobs'),
+    loadCompanyAssets()
+  ]);
+  if (isStaleRender(renderCycle)) return;
+
+  view.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h2', {}, 'RouteCheck'),
+      el('p', { class: 'muted' }, 'Manual route/access review before dispatch.')
+    ),
+    el('div', { class: 'button-row' },
+      el('a', { href: '#/jobs' }, el('button', { class: 'secondary' }, 'Jobs')),
+      el('a', { href: '#/audit' }, el('button', { class: 'secondary' }, 'Audit log'))
+    )
+  ));
+
+  view.appendChild(renderRouteCheckBoundary());
+  view.appendChild(renderRouteCheckSummary(data.summary));
+  view.appendChild(buildRouteCheckCreateForm(jobs, assetsPayload));
+  const listHost = el('div');
+  const renderList = (nextData) => {
+    listHost.innerHTML = '';
+    listHost.appendChild(renderRouteCheckListPanel(nextData));
+  };
+  view.appendChild(renderRouteCheckFilterPanel(renderList));
+  listHost.appendChild(renderRouteCheckListPanel(data));
+  view.appendChild(listHost);
+}
+
+async function renderJobRouteCheckPanel(job, renderCycle) {
+  const config = await loadRouteCheckConfig();
+  if (isStaleRender(renderCycle) || !config.enabled) return null;
+
+  const [evaluation, existing] = await Promise.all([
+    api('POST', `/jobs/${job.id}/route-check/evaluate`, {
+      asset_id: job.asset_assignments?.[0]?.asset?.id || job.asset_assignments?.[0]?.company_asset_id || null
+    }).catch((error) => ({ error: error.error || 'RouteCheck evaluation unavailable' })),
+    api('GET', `/route-checks?job_id=${encodeURIComponent(job.id)}`)
+  ]);
+  if (isStaleRender(renderCycle)) return null;
+
+  const panel = el('div', { class: 'panel routecheck-job-panel' });
+  panel.appendChild(el('div', { class: 'toolbar' },
+    el('div', {},
+      el('h3', {}, 'RouteCheck'),
+      el('p', { class: 'small muted' }, 'Manual route/access review record for this job.')
+    ),
+    el('a', { href: '#/routecheck' }, el('button', { type: 'button', class: 'secondary' }, 'Open RouteCheck'))
+  ));
+
+  if (evaluation.error) {
+    panel.appendChild(el('div', { class: 'status-note' }, evaluation.error));
+  } else {
+    panel.appendChild(el('div', { class: 'routecheck-job-summary' },
+      routeCheckRiskPill(evaluation.risk_level),
+      el('span', { class: `pill ${evaluation.route_required ? 'pill-warn' : 'pill-muted'}` },
+        evaluation.route_required ? 'RouteCheck suggested' : 'RouteCheck not suggested'
+      )
+    ));
+    if ((evaluation.reasons || []).length) {
+      panel.appendChild(el('ul', { class: 'small routecheck-events' },
+        ...evaluation.reasons.map((reason) => el('li', {}, reason))
+      ));
+    }
+    if ((evaluation.warnings || []).length) {
+      panel.appendChild(el('div', { class: 'alerts routecheck-alert' },
+        el('strong', {}, 'Review notes: '),
+        el('ul', {}, ...evaluation.warnings.map((warning) => el('li', {}, warning)))
+      ));
+    }
+  }
+
+  const checks = existing.route_checks || [];
+  if (checks.length) {
+    panel.appendChild(el('div', { class: 'routecheck-list compact' },
+      ...checks.map((check) => renderRouteCheckCard(check))
+    ));
+  } else if (routeCheckCanEdit()) {
+    const createButton = el('button', { type: 'button' }, 'Create RouteCheck for this job');
+    createButton.addEventListener('click', async () => {
+      setButtonBusy(createButton, true, 'Create RouteCheck for this job', 'Creating...');
+      try {
+        await api('POST', '/route-checks', {
+          job_id: job.id,
+          asset_id: job.asset_assignments?.[0]?.asset?.id || job.asset_assignments?.[0]?.company_asset_id || null
+        });
+        toast('RouteCheck created for job', 'success');
+        router();
+      } catch (error) {
+        toast(error.error || 'Could not create RouteCheck for this job', 'error');
+      } finally {
+        setButtonBusy(createButton, false, 'Create RouteCheck for this job', 'Creating...');
+      }
+    });
+    panel.appendChild(el('div', { class: 'button-row' }, createButton));
+  } else {
+    panel.appendChild(el('div', { class: 'status-note' }, 'No RouteCheck exists for this job. Current access is view-only.'));
+  }
+
+  panel.appendChild(el('p', { class: 'small muted' },
+    'RouteCheck is a dispatch review trail. It is not a route compliance, safety, engineering, or legal approval.'
+  ));
+  return panel;
 }
 
 function renderOperatingModePanel(profile = {}) {
@@ -5967,6 +6685,9 @@ async function renderJobDetail(jobId, renderCycle) {
   view.appendChild(el('div', { class: 'panel' }, kv));
   view.appendChild(renderStructuredRequirementsSummary(job.structured_requirements || []));
   view.appendChild(renderAssetAssignmentsSummary(job.asset_assignments || [], job.asset_assignment_warnings || []));
+  const routeCheckPanel = await renderJobRouteCheckPanel(job, renderCycle);
+  if (isStaleRender(renderCycle)) return;
+  if (routeCheckPanel) view.appendChild(routeCheckPanel);
   view.appendChild(renderCranePlanningSummary(job.crane_planning));
   view.appendChild(buildJobEditPanel(job, companyProfile, craneModels, companyCatalogue, companyAssets, jobId, intakeOptions));
 
