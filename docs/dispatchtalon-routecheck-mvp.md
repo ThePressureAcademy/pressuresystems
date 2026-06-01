@@ -52,7 +52,7 @@ When enabled:
 3. Dispatcher records external route-review links manually if used.
 4. Dispatcher records route, access, permit, hazard, site, or management notes.
 5. Permit/access status can be recorded.
-6. RouteCheck can be marked checked, issue-flagged, blocked, sent to operator, operator acknowledged, or approved for dispatch review trail.
+6. RouteCheck can be marked checked, issue-flagged, blocked, sent to operator, operator acknowledged, or reviewed for dispatch trail.
 7. Operator acknowledgement is recorded manually.
 8. Audit events are recorded for RouteCheck actions.
 
@@ -60,15 +60,15 @@ When enabled:
 
 V1 uses the current pilot role model.
 
-- `admin`: create, edit, approve, override blockers, view.
-- `dispatcher`: create, edit, approve only when no blockers require admin override, view.
+- `admin`: create, edit, mark review complete, override blockers, view.
+- `dispatcher`: create, edit, mark review complete only when no blockers require admin override, view.
 - `supervisor`: view and record operator acknowledgement.
 - `viewer` and advisor/demo users: view only where normal tenant access allows it.
 - Internal admin: only through existing internal controls if they already apply safely.
 
 Admin override requires a written reason when blockers exist.
 
-Critical route risk, unresolved issues, blocked status, unchecked status, or required-but-unconfirmed permit/access status block normal approval.
+Critical route risk, unresolved issues, blocked status, unchecked status, or required-but-unconfirmed permit/access status block normal review completion.
 
 ## Data Model
 

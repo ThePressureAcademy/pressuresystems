@@ -257,7 +257,7 @@ describe('RouteCheck MVP', () => {
     assert.equal(checked.status, 200);
 
     const dispatcherApprove = await request.post(`/api/route-checks/${created.body.id}/approve`).set(auth(dispatcher.token)).send({
-      approval_note: 'Dispatcher attempted critical approval.'
+      approval_note: 'Dispatcher attempted critical review completion.'
     });
     assert.equal(dispatcherApprove.status, 403);
 

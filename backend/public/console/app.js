@@ -2507,7 +2507,7 @@ function buildRouteCheckPermitForm(check, err) {
   form.appendChild(el('h4', {}, 'Permit / access record'));
   form.appendChild(el('div', { class: 'row' },
     buildSelect('permit_status', 'Permit/access status', ROUTE_CHECK_PERMIT_STATUS_OPTIONS, { value: check.permit_status || 'unknown' }),
-    buildInput('permit_reference', 'Reference', { placeholder: 'Permit, notice, access approval reference' }),
+    buildInput('permit_reference', 'Reference', { placeholder: 'Permit, notice, or access review reference' }),
     buildInput('permit_expiry_at', 'Expiry', { type: 'date' })
   ));
   form.appendChild(buildTextarea('permit_notes', 'Permit/access notes'));
@@ -2605,14 +2605,14 @@ function buildRouteCheckExternalLinkForm(check, err) {
 
 function buildRouteCheckApprovalForm(check, err) {
   const form = el('form', { class: 'sub-panel routecheck-mini-form' });
-  const submit = el('button', { type: 'submit' }, 'Approve for dispatch review trail');
-  form.appendChild(el('h4', {}, 'Dispatch approval gate'));
+  const submit = el('button', { type: 'submit' }, 'Mark reviewed for dispatch');
+  form.appendChild(el('h4', {}, 'Dispatch review gate'));
   form.appendChild(el('p', { class: 'small muted' },
     routeCheckCanOverride()
-      ? 'Approval records dispatcher/admin review. If blockers exist, admin override requires a written operational reason.'
-      : 'Approval is blocked if a RouteCheck is unchecked, issue-flagged, blocked, permit-required, or critical.'
+      ? 'This records dispatcher/admin route review. If blockers exist, admin override requires a written operational reason.'
+      : 'Review completion is blocked if a RouteCheck is unchecked, issue-flagged, blocked, permit-required, or critical.'
   ));
-  form.appendChild(buildTextarea('approval_note', 'Approval note', { placeholder: 'Optional review note' }));
+  form.appendChild(buildTextarea('approval_note', 'Review note', { placeholder: 'Optional review note' }));
   form.appendChild(buildTextarea('override_reason', 'Admin override reason', {
     placeholder: 'Required only when admin overrides a blocker'
   }));
@@ -2625,18 +2625,18 @@ function buildRouteCheckApprovalForm(check, err) {
     event.preventDefault();
     err.textContent = '';
     const fd = new FormData(form);
-    setButtonBusy(submit, true, 'Approve for dispatch review trail', 'Approving...');
+    setButtonBusy(submit, true, 'Mark reviewed for dispatch', 'Marking reviewed...');
     try {
       await api('POST', `/route-checks/${encodeURIComponent(check.id)}/approve`, {
         approval_note: fd.get('approval_note') || null,
         override_reason: fd.get('override_reason') || null
       });
-      toast('RouteCheck approval recorded', 'success');
+      toast('RouteCheck review recorded', 'success');
       router();
     } catch (error) {
-      err.textContent = error.error || 'Could not approve RouteCheck';
+      err.textContent = error.error || 'Could not mark RouteCheck reviewed';
     } finally {
-      setButtonBusy(submit, false, 'Approve for dispatch review trail', 'Approving...');
+      setButtonBusy(submit, false, 'Mark reviewed for dispatch', 'Marking reviewed...');
     }
   });
   return form;

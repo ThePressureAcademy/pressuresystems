@@ -268,8 +268,12 @@ describe('Pilot console — static asset serving', () => {
     assert.match(res.text, /Review required/);
     assert.match(res.text, /Counterweight transport may be required/);
     assert.match(res.text, /NHVR \/ state notice or permit check may be required/);
+    assert.match(res.text, /Dispatch review gate/);
+    assert.match(res.text, /Mark reviewed for dispatch/);
+    assert.match(res.text, /RouteCheck review recorded/);
     assert.doesNotMatch(res.text, /liability ranking|liability score|high liability|risk worker|risky worker|problem worker|blacklist|blacklisted|unsafe person|bad attitude|do not use|poor performer|unreliable|undesirable|troublemaker|difficult worker|avoid this worker/i);
     assert.equal(/Task tags:|tower_crane|night_shift/i.test(res.text), false);
+    assert.equal(/Dispatch approval gate|Approval note|RouteCheck approval recorded|Could not approve RouteCheck|Approve for dispatch review trail|approved for dispatch review trail/i.test(res.text), false);
     assert.equal(/\bapproved\b|compliant|legal to travel|safe to dispatch|engineered lift confirmed/i.test(res.text), false);
   });
 
